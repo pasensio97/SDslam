@@ -28,6 +28,7 @@
 
 #include<System.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -38,14 +39,14 @@ int main(int argc, char **argv)
 {
     if(argc != 4)
     {
-        cerr << endl << "Usage: ./mono_tum path_to_vocabulary path_to_settings path_to_sequence" << endl;
+        cerr << endl << "Usage: ./mono path_to_vocabulary path_to_settings path_to_sequence" << endl;
         return 1;
     }
 
     // Retrieve paths to images
     vector<string> vstrImageFilenames;
     vector<double> vTimestamps;
-    string strFile = string(argv[3])+"/rgb.txt";
+    string strFile = string(argv[3])+"/files.txt";
     LoadImages(strFile, vstrImageFilenames, vTimestamps);
 
     int nImages = vstrImageFilenames.size();
@@ -66,6 +67,7 @@ int main(int argc, char **argv)
     for(int ni=0; ni<nImages; ni++)
     {
         // Read image from file
+        cout << "[INFO] Reading Frame " << string(argv[3])+"/"+vstrImageFilenames[ni] << endl;
         im = cv::imread(string(argv[3])+"/"+vstrImageFilenames[ni],CV_LOAD_IMAGE_UNCHANGED);
         double tframe = vTimestamps[ni];
 
@@ -82,8 +84,17 @@ int main(int argc, char **argv)
         std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
 #endif
 
+        timeval start_time_, end_time;
+        gettimeofday(&start_time_, NULL);
+
         // Pass the image to the SLAM system
         SLAM.TrackMonocular(im,tframe);
+
+        gettimeofday(&end_time, NULL);
+        long seconds  = end_time.tv_sec  - start_time_.tv_sec;
+        long useconds = end_time.tv_usec - start_time_.tv_usec;
+        double time_ = ((seconds) + useconds*0.000001);
+        cout << "[INFO] Tracking time is " << (time_ * 1000) << "ms" << endl;
 
 #ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
@@ -130,13 +141,7 @@ void LoadImages(const string &strFile, vector<string> &vstrImageFilenames, vecto
 {
     ifstream f;
     f.open(strFile.c_str());
-
-    // skip first three lines
-    string s0;
-    getline(f,s0);
-    getline(f,s0);
-    getline(f,s0);
-
+    double t=0.0;
     while(!f.eof())
     {
         string s;
@@ -145,9 +150,8 @@ void LoadImages(const string &strFile, vector<string> &vstrImageFilenames, vecto
         {
             stringstream ss;
             ss << s;
-            double t;
             string sRGB;
-            ss >> t;
+            t+=0.033;
             vTimestamps.push_back(t);
             ss >> sRGB;
             vstrImageFilenames.push_back(sRGB);

@@ -118,9 +118,6 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
 
     mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
-    if(sensor==System::STEREO)
-        mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
-
     if(sensor==System::MONOCULAR)
         mpIniORBextractor = new ORBextractor(2*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
@@ -131,14 +128,10 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     cout << "- Initial Fast Threshold: " << fIniThFAST << endl;
     cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
 
-    if(sensor==System::STEREO || sensor==System::RGBD)
-    {
+    if(sensor==System::RGBD) {
         mThDepth = mbf*(float)fSettings["ThDepth"]/fx;
         cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
-    }
 
-    if(sensor==System::RGBD)
-    {
         mDepthMapFactor = fSettings["DepthMapFactor"];
         if(fabs(mDepthMapFactor)<1e-5)
             mDepthMapFactor=1;
@@ -162,47 +155,6 @@ void Tracking::SetViewer(Viewer *pViewer)
 {
     mpViewer=pViewer;
 }
-
-
-cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const double &timestamp)
-{
-    mImGray = imRectLeft;
-    cv::Mat imGrayRight = imRectRight;
-
-    if(mImGray.channels()==3)
-    {
-        if(mbRGB)
-        {
-            cvtColor(mImGray,mImGray,CV_RGB2GRAY);
-            cvtColor(imGrayRight,imGrayRight,CV_RGB2GRAY);
-        }
-        else
-        {
-            cvtColor(mImGray,mImGray,CV_BGR2GRAY);
-            cvtColor(imGrayRight,imGrayRight,CV_BGR2GRAY);
-        }
-    }
-    else if(mImGray.channels()==4)
-    {
-        if(mbRGB)
-        {
-            cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
-            cvtColor(imGrayRight,imGrayRight,CV_RGBA2GRAY);
-        }
-        else
-        {
-            cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
-            cvtColor(imGrayRight,imGrayRight,CV_BGRA2GRAY);
-        }
-    }
-
-    mCurrentFrame = Frame(mImGray,imGrayRight,timestamp,mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
-
-    Track();
-
-    return mCurrentFrame.mTcw.clone();
-}
-
 
 cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp)
 {
@@ -278,7 +230,7 @@ void Tracking::Track()
 
     if(mState==NOT_INITIALIZED)
     {
-        if(mSensor==System::STEREO || mSensor==System::RGBD)
+        if(mSensor==System::RGBD)
             StereoInitialization();
         else
             MonocularInitialization();
@@ -877,11 +829,7 @@ bool Tracking::TrackWithMotionModel()
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
     // Project points seen in previous frame
-    int th;
-    if(mSensor!=System::STEREO)
-        th=15;
-    else
-        th=7;
+    int th =15 ;
     int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
 
     // If few matches, uses a wider window search
@@ -945,8 +893,7 @@ bool Tracking::TrackLocalMap()
     {
         if(mCurrentFrame.mvpMapPoints[i])
         {
-            if(!mCurrentFrame.mvbOutlier[i])
-            {
+            if(!mCurrentFrame.mvbOutlier[i]) {
                 mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
                 if(!mbOnlyTracking)
                 {
@@ -956,9 +903,6 @@ bool Tracking::TrackLocalMap()
                 else
                     mnMatchesInliers++;
             }
-            else if(mSensor==System::STEREO)
-                mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-
         }
     }
 
@@ -1001,10 +945,8 @@ bool Tracking::NeedNewKeyFrame()
     // Check how many "close" points are being tracked and how many could be potentially created.
     int nNonTrackedClose = 0;
     int nTrackedClose= 0;
-    if(mSensor!=System::MONOCULAR)
-    {
-        for(int i =0; i<mCurrentFrame.N; i++)
-        {
+    if(mSensor!=System::MONOCULAR) {
+        for(int i =0; i<mCurrentFrame.N; i++) {
             if(mCurrentFrame.mvDepth[i]>0 && mCurrentFrame.mvDepth[i]<mThDepth)
             {
                 if(mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])

@@ -50,7 +50,6 @@ public:
     cv::Mat GetPose();
     cv::Mat GetPoseInverse();
     cv::Mat GetCameraCenter();
-    cv::Mat GetStereoCenter();
     cv::Mat GetRotation();
     cv::Mat GetTranslation();
 
@@ -196,8 +195,6 @@ protected:
     cv::Mat Tcw;
     cv::Mat Twc;
     cv::Mat Ow;
-
-    cv::Mat Cw; // Stereo middel point. Only for visualization
 
     // MapPoints associated to keypoints
     std::vector<MapPoint*> mvpMapPoints;

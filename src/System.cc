@@ -32,21 +32,11 @@ namespace ORB_SLAM2
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
                const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),mbActivateLocalizationMode(false),
-        mbDeactivateLocalizationMode(false)
-{
-    // Output welcome message
-    cout << endl <<
-    "ORB-SLAM2 Copyright (C) 2014-2016 Raul Mur-Artal, University of Zaragoza." << endl <<
-    "This program comes with ABSOLUTELY NO WARRANTY;" << endl  <<
-    "This is free software, and you are welcome to redistribute it" << endl <<
-    "under certain conditions. See LICENSE.txt." << endl << endl;
+        mbDeactivateLocalizationMode(false) {
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
-    else if(mSensor==STEREO)
-        cout << "Stereo" << endl;
     else if(mSensor==RGBD)
         cout << "RGB-D" << endl;
 
@@ -112,57 +102,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     mpLoopCloser->SetTracker(mpTracker);
     mpLoopCloser->SetLocalMapper(mpLocalMapper);
-}
-
-cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
-{
-    if(mSensor!=STEREO)
-    {
-        cerr << "ERROR: you called TrackStereo but input sensor was not set to STEREO." << endl;
-        exit(-1);
-    }   
-
-    // Check mode change
-    {
-        unique_lock<mutex> lock(mMutexMode);
-        if(mbActivateLocalizationMode)
-        {
-            mpLocalMapper->RequestStop();
-
-            // Wait until Local Mapping has effectively stopped
-            while(!mpLocalMapper->isStopped())
-            {
-                usleep(1000);
-            }
-
-            mpTracker->InformOnlyTracking(true);
-            mbActivateLocalizationMode = false;
-        }
-        if(mbDeactivateLocalizationMode)
-        {
-            mpTracker->InformOnlyTracking(false);
-            mpLocalMapper->Release();
-            mbDeactivateLocalizationMode = false;
-        }
-    }
-
-    // Check reset
-    {
-    unique_lock<mutex> lock(mMutexReset);
-    if(mbReset)
-    {
-        mpTracker->Reset();
-        mbReset = false;
-    }
-    }
-
-    cv::Mat Tcw = mpTracker->GrabImageStereo(imLeft,imRight,timestamp);
-
-    unique_lock<mutex> lock2(mMutexState);
-    mTrackingState = mpTracker->mState;
-    mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
-    mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
-    return Tcw;
 }
 
 cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp)

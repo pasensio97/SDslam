@@ -78,11 +78,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-#ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-#else
-        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
-#endif
 
         timeval start_time_, end_time;
         gettimeofday(&start_time_, NULL);
@@ -96,11 +92,7 @@ int main(int argc, char **argv)
         double time_ = ((seconds) + useconds*0.000001);
         cout << "[INFO] Tracking time is " << (time_ * 1000) << "ms" << endl;
 
-#ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-#else
-        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
-#endif
 
         double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
 

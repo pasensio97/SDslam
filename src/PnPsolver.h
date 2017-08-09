@@ -69,7 +69,7 @@ class PnPsolver {
   ~PnPsolver();
 
   void SetRansacParameters(double probability = 0.99, int minInliers = 8 , int maxIterations = 300, int minSet = 4, float epsilon = 0.4,
-                           float th2 = 5.991);
+               float th2 = 5.991);
 
   cv::Mat find(vector<bool> &vbInliers, int &nInliers);
 
@@ -84,13 +84,13 @@ class PnPsolver {
   void set_maximum_number_of_correspondences(const int n);
   void reset_correspondences(void);
   void add_correspondence(const double X, const double Y, const double Z,
-              const double u, const double v);
+        const double u, const double v);
 
   double compute_pose(double R[3][3], double T[3]);
 
   void relative_error(double & rot_err, double & transl_err,
-              const double Rtrue[3][3], const double ttrue[3],
-              const double Rest[3][3],  const double test[3]);
+        const double Rtrue[3][3], const double ttrue[3],
+        const double Rest[3][3],  const double test[3]);
 
   void print_pose(const double R[3][3], const double t[3]);
   double reprojection_error(const double R[3][3], const double t[3]);
@@ -116,7 +116,7 @@ class PnPsolver {
 
   void gauss_newton(const CvMat * L_6x10, const CvMat * Rho, double current_betas[4]);
   void compute_A_and_b_gauss_newton(const double * l_6x10, const double * rho,
-				    double cb[4], CvMat * A, CvMat * b);
+				  double cb[4], CvMat * A, CvMat * b);
 
   double compute_R_and_t(const double * ut, const double * betas,
 			 double R[3][3], double t[3]);
@@ -124,7 +124,7 @@ class PnPsolver {
   void estimate_R_and_t(double R[3][3], double t[3]);
 
   void copy_R_and_t(const double R_dst[3][3], const double t_dst[3],
-		    double R_src[3][3], double t_src[3]);
+		  double R_src[3][3], double t_src[3]);
 
   void mat_to_quat(const double R[3][3], double q[4]);
 

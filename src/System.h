@@ -74,11 +74,6 @@ public:
   // Returns the camera pose (empty if tracking fails).
   cv::Mat TrackMonocular(const cv::Mat &im, const double &timestamp);
 
-  // This stops local mapping thread (map building) and performs only camera tracking.
-  void ActivateLocalizationMode();
-  // This resumes local mapping thread and performs SLAM again.
-  void DeactivateLocalizationMode();
-
   // Returns true if there have been a big map change (loop closure, global BA)
   // since last call to this function
   bool MapChanged();
@@ -138,11 +133,6 @@ private:
   // Reset flag
   std::mutex mMutexReset;
   bool mbReset;
-
-  // Change mode flags
-  std::mutex mMutexMode;
-  bool mbActivateLocalizationMode;
-  bool mbDeactivateLocalizationMode;
 
   // Tracking state
   int mTrackingState;

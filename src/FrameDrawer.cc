@@ -45,7 +45,7 @@ cv::Mat FrameDrawer::DrawFrame()
   vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
   vector<int> vMatches; // Initialization: correspondeces with reference keypoints
   vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
-  vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
+  vector<bool> vbMap; // Tracked MapPoints in current frame
   int state; // Tracking state
 
   //Copy variables within scoped mutex
@@ -57,20 +57,14 @@ cv::Mat FrameDrawer::DrawFrame()
 
     mIm.copyTo(im);
 
-    if (mState==Tracking::NOT_INITIALIZED)
-    {
+    if (mState==Tracking::NOT_INITIALIZED) {
       vCurrentKeys = mvCurrentKeys;
       vIniKeys = mvIniKeys;
       vMatches = mvIniMatches;
-    }
-    else if (mState==Tracking::OK)
-    {
+    } else if (mState==Tracking::OK) {
       vCurrentKeys = mvCurrentKeys;
-      vbVO = mvbVO;
       vbMap = mvbMap;
-    }
-    else if (mState==Tracking::LOST)
-    {
+    } else if (mState==Tracking::LOST) {
       vCurrentKeys = mvCurrentKeys;
     }
   } // destroy scoped mutex -> release mutex
@@ -90,16 +84,12 @@ cv::Mat FrameDrawer::DrawFrame()
       }
     }    
   }
-  else if (state==Tracking::OK) //TRACKING
-  {
+  else if (state==Tracking::OK) { //TRACKING
     mnTracked=0;
-    mnTrackedVO=0;
     const float r = 5;
     const int n = vCurrentKeys.size();
-    for (int i=0;i<n;i++)
-    {
-      if (vbVO[i] || vbMap[i])
-      {
+    for (int i=0;i<n;i++) {
+      if (vbMap[i]) {
         cv::Point2f pt1,pt2;
         pt1.x=vCurrentKeys[i].pt.x-r;
         pt1.y=vCurrentKeys[i].pt.y-r;
@@ -107,18 +97,9 @@ cv::Mat FrameDrawer::DrawFrame()
         pt2.y=vCurrentKeys[i].pt.y+r;
 
         // This is a match to a MapPoint in the map
-        if (vbMap[i])
-        {
-          cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
-          cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(0,255,0),-1);
-          mnTracked++;
-        }
-        else // This is match to a "visual odometry" MapPoint created in the last frame
-        {
-          cv::rectangle(im,pt1,pt2,cv::Scalar(255,0,0));
-          cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(255,0,0),-1);
-          mnTrackedVO++;
-        }
+        cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
+        cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(0,255,0),-1);
+        mnTracked++;
       }
     }
   }
@@ -130,31 +111,19 @@ cv::Mat FrameDrawer::DrawFrame()
 }
 
 
-void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
-{
+void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
   stringstream s;
   if (nState==Tracking::NO_IMAGES_YET)
     s << " WAITING FOR IMAGES";
   else if (nState==Tracking::NOT_INITIALIZED)
     s << " TRYING TO INITIALIZE ";
-  else if (nState==Tracking::OK)
-  {
-    if (!mbOnlyTracking)
-      s << "SLAM MODE |  ";
-    else
-      s << "LOCALIZATION | ";
+  else if (nState==Tracking::OK) {
     int nKFs = mpMap->KeyFramesInMap();
     int nMPs = mpMap->MapPointsInMap();
     s << "KFs: " << nKFs << ", MPs: " << nMPs << ", Matches: " << mnTracked;
-    if (mnTrackedVO>0)
-      s << ", + VO matches: " << mnTrackedVO;
-  }
-  else if (nState==Tracking::LOST)
-  {
+  } else if (nState==Tracking::LOST) {
     s << " TRACK LOST. TRYING TO RELOCALIZE ";
-  }
-  else if (nState==Tracking::SYSTEM_NOT_READY)
-  {
+  } else if (nState==Tracking::SYSTEM_NOT_READY) {
     s << " LOADING ORB VOCABULARY. PLEASE WAIT...";
   }
 
@@ -168,36 +137,22 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 
 }
 
-void FrameDrawer::Update(Tracking *pTracker)
-{
+void FrameDrawer::Update(Tracking *pTracker) {
   unique_lock<mutex> lock(mMutex);
   pTracker->mImGray.copyTo(mIm);
   mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
   N = mvCurrentKeys.size();
-  mvbVO = vector<bool>(N,false);
   mvbMap = vector<bool>(N,false);
-  mbOnlyTracking = pTracker->mbOnlyTracking;
 
-
-  if (pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)
-  {
+  if (pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)  {
     mvIniKeys=pTracker->mInitialFrame.mvKeys;
     mvIniMatches=pTracker->mvIniMatches;
-  }
-  else if (pTracker->mLastProcessedState==Tracking::OK)
-  {
-    for (int i=0;i<N;i++)
-    {
+  } else if (pTracker->mLastProcessedState==Tracking::OK) {
+    for (int i=0;i<N;i++) {
       MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
-      if (pMP)
-      {
+      if (pMP) {
         if (!pTracker->mCurrentFrame.mvbOutlier[i])
-        {
-          if (pMP->Observations()>0)
-            mvbMap[i]=true;
-          else
-            mvbVO[i]=true;
-        }
+          mvbMap[i]=true;
       }
     }
   }

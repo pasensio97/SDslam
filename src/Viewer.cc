@@ -75,7 +75,6 @@ void Viewer::Run()
   pangolin::Var<bool> menuShowPoints("menu.Show Points",true,true);
   pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames",true,true);
   pangolin::Var<bool> menuShowGraph("menu.Show Graph",true,true);
-  pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode",false,true);
   pangolin::Var<bool> menuReset("menu.Reset",false,false);
 
   // Define Camera Render Object (for view / scene browsing)
@@ -95,16 +94,13 @@ void Viewer::Run()
   cv::namedWindow("ORB-SLAM2: Current Frame");
 
   bool bFollow = true;
-  bool bLocalizationMode = false;
 
-  while (1)
-  {
+  while (1) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     mpMapDrawer->GetCurrentOpenGLCameraMatrix(Twc);
 
-    if (menuFollowCamera && bFollow)
-    {
+    if (menuFollowCamera && bFollow) {
       s_cam.Follow(Twc);
     }
     else if (menuFollowCamera && !bFollow)
@@ -116,17 +112,6 @@ void Viewer::Run()
     else if (!menuFollowCamera && bFollow)
     {
       bFollow = false;
-    }
-
-    if (menuLocalizationMode && !bLocalizationMode)
-    {
-      mpSystem->ActivateLocalizationMode();
-      bLocalizationMode = true;
-    }
-    else if (!menuLocalizationMode && bLocalizationMode)
-    {
-      mpSystem->DeactivateLocalizationMode();
-      bLocalizationMode = false;
     }
 
     d_cam.Activate(s_cam);
@@ -143,15 +128,10 @@ void Viewer::Run()
     cv::imshow("ORB-SLAM2: Current Frame",im);
     cv::waitKey(mT);
 
-    if (menuReset)
-    {
+    if (menuReset) {
       menuShowGraph = true;
       menuShowKeyFrames = true;
       menuShowPoints = true;
-      menuLocalizationMode = false;
-      if (bLocalizationMode)
-        mpSystem->DeactivateLocalizationMode();
-      bLocalizationMode = false;
       bFollow = true;
       menuFollowCamera = true;
       mpSystem->Reset();

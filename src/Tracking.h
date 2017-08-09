@@ -73,10 +73,6 @@ public:
   // TODO: Modify MapPoint::PredictScale to take into account focal lenght
   void ChangeCalibration(const string &strSettingPath);
 
-  // Use this function if you have deactivated local mapping and you only want to localize the camera.
-  void InformOnlyTracking(const bool &flag);
-
-
 public:
 
   // Tracking states
@@ -112,9 +108,6 @@ public:
   list<double> mlFrameTimes;
   list<bool> mlbLost;
 
-  // True if local mapping is deactivated and we are performing only localization
-  bool mbOnlyTracking;
-
   void Reset();
 
 protected:
@@ -145,12 +138,6 @@ protected:
 
   bool NeedNewKeyFrame();
   void CreateNewKeyFrame();
-
-  // In case of performing only localization, this flag is true when there are no matches to
-  // points in the map. Still tracking will continue if there are enough matches with temporal points.
-  // In that case we are doing visual odometry. The system will try to do relocalization to recover
-  // "zero-drift" localization to the map.
-  bool mbVO;
 
   //Other Thread Pointers
   LocalMapping* mpLocalMapper;

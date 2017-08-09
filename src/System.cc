@@ -32,8 +32,7 @@
 namespace ORB_SLAM2 {
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
-         const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),mbActivateLocalizationMode(false),
-    mbDeactivateLocalizationMode(false) {
+         const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false) {
 
   cout << "Input sensor was set to: ";
   if (mSensor==MONOCULAR)
@@ -107,38 +106,13 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     exit(-1);
   }  
 
-  // Check mode change
-  {
-    unique_lock<mutex> lock(mMutexMode);
-    if (mbActivateLocalizationMode)
-    {
-      mpLocalMapper->RequestStop();
-
-      // Wait until Local Mapping has effectively stopped
-      while (!mpLocalMapper->isStopped())
-      {
-        usleep(1000);
-      }
-
-      mpTracker->InformOnlyTracking(true);
-      mbActivateLocalizationMode = false;
-    }
-    if (mbDeactivateLocalizationMode)
-    {
-      mpTracker->InformOnlyTracking(false);
-      mpLocalMapper->Release();
-      mbDeactivateLocalizationMode = false;
-    }
-  }
-
   // Check reset
   {
-  unique_lock<mutex> lock(mMutexReset);
-  if (mbReset)
-  {
-    mpTracker->Reset();
-    mbReset = false;
-  }
+    unique_lock<mutex> lock(mMutexReset);
+    if (mbReset) {
+      mpTracker->Reset();
+      mbReset = false;
+    }
   }
 
   cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,timestamp);
@@ -157,38 +131,13 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     exit(-1);
   }
 
-  // Check mode change
-  {
-    unique_lock<mutex> lock(mMutexMode);
-    if (mbActivateLocalizationMode)
-    {
-      mpLocalMapper->RequestStop();
-
-      // Wait until Local Mapping has effectively stopped
-      while (!mpLocalMapper->isStopped())
-      {
-        usleep(1000);
-      }
-
-      mpTracker->InformOnlyTracking(true);
-      mbActivateLocalizationMode = false;
-    }
-    if (mbDeactivateLocalizationMode)
-    {
-      mpTracker->InformOnlyTracking(false);
-      mpLocalMapper->Release();
-      mbDeactivateLocalizationMode = false;
-    }
-  }
-
   // Check reset
   {
-  unique_lock<mutex> lock(mMutexReset);
-  if (mbReset)
-  {
-    mpTracker->Reset();
-    mbReset = false;
-  }
+    unique_lock<mutex> lock(mMutexReset);
+    if (mbReset) {
+      mpTracker->Reset();
+      mbReset = false;
+    }
   }
 
   cv::Mat Tcw = mpTracker->GrabImageMonocular(im,timestamp);
@@ -201,20 +150,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
   return Tcw;
 }
 
-void System::ActivateLocalizationMode()
-{
-  unique_lock<mutex> lock(mMutexMode);
-  mbActivateLocalizationMode = true;
-}
-
-void System::DeactivateLocalizationMode()
-{
-  unique_lock<mutex> lock(mMutexMode);
-  mbDeactivateLocalizationMode = true;
-}
-
-bool System::MapChanged()
-{
+bool System::MapChanged() {
   static int n=0;
   int curn = mpMap->GetLastBigChangeIdx();
   if (n<curn)

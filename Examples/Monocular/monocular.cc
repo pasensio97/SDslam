@@ -1,34 +1,37 @@
 /**
-* This file is part of ORB-SLAM2.
-*
-* Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
-* For more information see <https://github.com/raulmur/ORB_SLAM2>
-*
-* ORB-SLAM2 is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* ORB-SLAM2 is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
-*/
+ *
+ *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
+ *
+ *  The following code is a derivative work of the code from the ORB-SLAM2 project,
+ *  which is licensed under the GNU Public License, version 3. This code therefore
+ *  is also licensed under the terms of the GNU Public License, version 3.
+ *  For more information see <https://github.com/raulmur/ORB_SLAM2>.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Library General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 
+#include <iostream>
+#include <algorithm>
+#include <fstream>
+#include <chrono>
 
-#include<iostream>
-#include<algorithm>
-#include<fstream>
-#include<chrono>
+#include <opencv2/core/core.hpp>
 
-#include<opencv2/core/core.hpp>
-
-#include<System.h>
+#include <System.h>
 #include <unistd.h>
-#include <sys/time.h>
+#include "timer.h"
 
 using namespace std;
 
@@ -78,25 +81,15 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-
-        timeval start_time_, end_time;
-        gettimeofday(&start_time_, NULL);
+        ORB_SLAM2::Timer ttracking(true);
 
         // Pass the image to the SLAM system
         SLAM.TrackMonocular(im,tframe);
 
-        gettimeofday(&end_time, NULL);
-        long seconds  = end_time.tv_sec  - start_time_.tv_sec;
-        long useconds = end_time.tv_usec - start_time_.tv_usec;
-        double time_ = ((seconds) + useconds*0.000001);
-        cout << "[INFO] Tracking time is " << (time_ * 1000) << "ms" << endl;
+        ttracking.Stop();
+        cout << "[INFO] Tracking time is " << ttracking.GetMsTime() << "ms" << endl;
 
-        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-
-        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
-
-        vTimesTrack[ni]=ttrack;
+        vTimesTrack[ni]=ttracking.GetTime();
 
         // Wait to load the next frame
         double T=0;
@@ -105,8 +98,8 @@ int main(int argc, char **argv)
         else if(ni>0)
             T = tframe-vTimestamps[ni-1];
 
-        if(ttrack<T)
-            usleep((T-ttrack)*1e6);
+        if(vTimesTrack[ni]<T)
+            usleep((T-vTimesTrack[ni])*1e6);
     }
 
     // Stop all threads

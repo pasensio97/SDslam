@@ -35,27 +35,21 @@ namespace ORB_SLAM2
 
 LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
   mbMonocular(bMonocular), mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
-  mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true)
-{
+  mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true) {
 }
 
-void LocalMapping::SetLoopCloser(LoopClosing* pLoopCloser)
-{
+void LocalMapping::SetLoopCloser(LoopClosing* pLoopCloser) {
   mpLoopCloser = pLoopCloser;
 }
 
-void LocalMapping::SetTracker(Tracking *pTracker)
-{
+void LocalMapping::SetTracker(Tracking *pTracker) {
   mpTracker=pTracker;
 }
 
-void LocalMapping::Run()
-{
-
+void LocalMapping::Run() {
   mbFinished = false;
 
-  while (1)
-  {
+  while (1) {
     // Tracking will see that Local Mapping is busy
     SetAcceptKeyFrames(false);
 

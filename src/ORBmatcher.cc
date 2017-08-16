@@ -1329,8 +1329,7 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
   return nFound;
 }
 
-int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, const bool bMono)
-{
+int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, const bool bMono) {
   int nmatches = 0;
 
   // Rotation Histogram (to check rotation consistency)
@@ -1352,14 +1351,11 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
   const bool bForward = tlc.at<float>(2)>CurrentFrame.mb && !bMono;
   const bool bBackward = -tlc.at<float>(2)>CurrentFrame.mb && !bMono;
 
-  for (int i=0; i<LastFrame.N; i++)
-  {
+  for (int i=0; i<LastFrame.N; i++) {
     MapPoint* pMP = LastFrame.mvpMapPoints[i];
 
-    if (pMP)
-    {
-      if (!LastFrame.mvbOutlier[i])
-      {
+    if (pMP) {
+      if (!LastFrame.mvbOutlier[i]) {
         // Project
         cv::Mat x3Dw = pMP->GetWorldPos();
         cv::Mat x3Dc = Rcw*x3Dw+tcw;
@@ -1401,15 +1397,13 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
         int bestDist = 256;
         int bestIdx2 = -1;
 
-        for (vector<size_t>::const_iterator vit=vIndices2.begin(), vend=vIndices2.end(); vit!=vend; vit++)
-        {
+        for (vector<size_t>::const_iterator vit=vIndices2.begin(), vend=vIndices2.end(); vit!=vend; vit++) {
           const size_t i2 = *vit;
           if (CurrentFrame.mvpMapPoints[i2])
             if (CurrentFrame.mvpMapPoints[i2]->Observations()>0)
               continue;
 
-          if (CurrentFrame.mvuRight[i2]>0)
-          {
+          if (CurrentFrame.mvuRight[i2]>0) {
             const float ur = u - CurrentFrame.mbf*invzc;
             const float er = fabs(ur - CurrentFrame.mvuRight[i2]);
             if (er>radius)
@@ -1427,13 +1421,11 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
           }
         }
 
-        if (bestDist<=TH_HIGH)
-        {
+        if (bestDist<=TH_HIGH) {
           CurrentFrame.mvpMapPoints[bestIdx2]=pMP;
           nmatches++;
 
-          if (mbCheckOrientation)
-          {
+          if (mbCheckOrientation) {
             float rot = LastFrame.mvKeysUn[i].angle-CurrentFrame.mvKeysUn[bestIdx2].angle;
             if (rot<0.0)
               rot+=360.0f;

@@ -44,8 +44,7 @@ class MapPoint;
 class Frame;
 class KeyFrameDatabase;
 
-class KeyFrame
-{
+class KeyFrame {
 public:
   KeyFrame(Frame &F, Map* pMap, KeyFrameDatabase* pKFDB);
 

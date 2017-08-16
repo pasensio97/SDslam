@@ -70,13 +70,23 @@ public:
   // Computes rotation, translation and camera center matrices from the camera pose.
   void UpdatePoseMatrices();
 
+  // Returns frame pose
+  inline cv::Mat GetPose() const {
+    return mTcw.clone();
+  }
+
+  // Returns frame pose inverse
+  inline cv::Mat GetPoseInverse() const {
+    return mTwc.clone();
+  }
+
   // Returns the camera center.
-  inline cv::Mat GetCameraCenter(){
+  inline cv::Mat GetCameraCenter() {
     return mOw.clone();
   }
 
   // Returns inverse of rotation
-  inline cv::Mat GetRotationInverse(){
+  inline cv::Mat GetRotationInverse() {
     return mRwc.clone();
   }
 
@@ -158,6 +168,7 @@ public:
 
   // Camera pose.
   cv::Mat mTcw;
+  cv::Mat mTwc;
 
   // Current and Next Frame id.
   static long unsigned int nNextId;
@@ -183,9 +194,9 @@ public:
 
   static bool mbInitialComputations;
 
+  std::vector<cv::Mat> mvImagePyramid;
 
 private:
-
   // Undistort keypoints given OpenCV distortion parameters.
   // Only for the RGB-D case.
   // (called in the constructor).

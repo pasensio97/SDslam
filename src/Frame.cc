@@ -26,9 +26,9 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include <thread>
+#include "timer.h"
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 long unsigned int Frame::nNextId=0;
 bool Frame::mbInitialComputations=true;
@@ -36,8 +36,8 @@ float Frame::cx, Frame::cy, Frame::fx, Frame::fy, Frame::invfx, Frame::invfy;
 float Frame::mnMinX, Frame::mnMinY, Frame::mnMaxX, Frame::mnMaxY;
 float Frame::mfGridElementWidthInv, Frame::mfGridElementHeightInv;
 
-Frame::Frame()
-{}
+Frame::Frame() {
+}
 
 //Copy Constructor
 Frame::Frame(const Frame &frame)
@@ -52,12 +52,18 @@ Frame::Frame(const Frame &frame)
    mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
    mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
    mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2) {
-  for (int i=0;i<FRAME_GRID_COLS;i++)
+  for (int i=0; i<FRAME_GRID_COLS; i++)
     for (int j=0; j<FRAME_GRID_ROWS; j++)
       mGrid[i][j]=frame.mGrid[i][j];
 
   if (!frame.mTcw.empty())
     SetPose(frame.mTcw);
+
+  // Copy pyramid
+  int size = frame.mvImagePyramid.size();
+  mvImagePyramid.resize(size);
+  for (int i=0; i<size; i++)
+    mvImagePyramid[i] = frame.mvImagePyramid[i].clone();
 }
 
 
@@ -92,8 +98,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
   mvbOutlier = vector<bool>(N,false);
 
   // This is done only for the first Frame (or after a change in the calibration)
-  if (mbInitialComputations)
-  {
+  if (mbInitialComputations) {
     ComputeImageBounds(imGray);
 
     mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
@@ -149,8 +154,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
   mvbOutlier = vector<bool>(N,false);
 
   // This is done only for the first Frame (or after a change in the calibration)
-  if (mbInitialComputations)
-  {
+  if (mbInitialComputations) {
     ComputeImageBounds(imGray);
 
     mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
@@ -171,15 +175,13 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
   AssignFeaturesToGrid();
 }
 
-void Frame::AssignFeaturesToGrid()
-{
+void Frame::AssignFeaturesToGrid() {
   int nReserve = 0.5f*N/(FRAME_GRID_COLS*FRAME_GRID_ROWS);
   for (unsigned int i=0; i<FRAME_GRID_COLS;i++)
     for (unsigned int j=0; j<FRAME_GRID_ROWS;j++)
       mGrid[i][j].reserve(nReserve);
 
-  for (int i=0;i<N;i++)
-  {
+  for (int i=0;i<N;i++) {
     const cv::KeyPoint &kp = mvKeysUn[i];
 
     int nGridPosX, nGridPosY;
@@ -189,25 +191,26 @@ void Frame::AssignFeaturesToGrid()
 }
 
 void Frame::ExtractORB(const cv::Mat &im) {
-  (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors);
+  (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors, mvImagePyramid);
 }
 
-void Frame::SetPose(cv::Mat Tcw)
-{
+void Frame::SetPose(cv::Mat Tcw) {
   mTcw = Tcw.clone();
   UpdatePoseMatrices();
 }
 
-void Frame::UpdatePoseMatrices()
-{ 
+void Frame::UpdatePoseMatrices() {
   mRcw = mTcw.rowRange(0,3).colRange(0,3);
   mRwc = mRcw.t();
   mtcw = mTcw.rowRange(0,3).col(3);
   mOw = -mRcw.t()*mtcw;
+
+  mTwc = cv::Mat::eye(4,4,mTcw.type());
+  mRwc.copyTo(mTwc.rowRange(0,3).colRange(0,3));
+  mOw.copyTo(mTwc.rowRange(0,3).col(3));
 }
 
-bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
-{
+bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
   pMP->mbTrackInView = false;
 
   // 3D in absolute coordinates
@@ -334,8 +337,7 @@ bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY)
 
 void Frame::ComputeBoW()
 {
-  if (mBowVec.empty())
-  {
+  if (mBowVec.empty()) {
     vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
     mpORBvocabulary->transform(vCurrentDesc,mBowVec,mFeatVec,4);
   }
@@ -343,8 +345,7 @@ void Frame::ComputeBoW()
 
 void Frame::UndistortKeyPoints()
 {
-  if (mDistCoef.at<float>(0)==0.0)
-  {
+  if (mDistCoef.at<float>(0)==0.0) {
     mvKeysUn=mvKeys;
     return;
   }
@@ -429,8 +430,7 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
 cv::Mat Frame::UnprojectStereo(const int &i)
 {
   const float z = mvDepth[i];
-  if (z>0)
-  {
+  if (z>0) {
     const float u = mvKeysUn[i].pt.x;
     const float v = mvKeysUn[i].pt.y;
     const float x = (u-cx)*z*invfx;

@@ -67,24 +67,18 @@ cv::Mat FrameDrawer::DrawFrame()
     } else if (mState==Tracking::LOST) {
       vCurrentKeys = mvCurrentKeys;
     }
-  } // destroy scoped mutex -> release mutex
+  }
 
   if (im.channels()<3) //this should be always true
     cvtColor(im,im,CV_GRAY2BGR);
 
   //Draw
-  if (state==Tracking::NOT_INITIALIZED) //INITIALIZING
-  {
-    for (unsigned int i=0; i<vMatches.size(); i++)
-    {
+  if (state==Tracking::NOT_INITIALIZED) { //INITIALIZING
+    for (unsigned int i=0; i<vMatches.size(); i++) {
       if (vMatches[i]>=0)
-      {
-        cv::line(im,vIniKeys[i].pt,vCurrentKeys[vMatches[i]].pt,
-            cv::Scalar(0,255,0));
-      }
+        cv::line(im,vIniKeys[i].pt,vCurrentKeys[vMatches[i]].pt, cv::Scalar(0,255,0));
     }    
-  }
-  else if (state==Tracking::OK) { //TRACKING
+  } else if (state==Tracking::OK) { //TRACKING
     mnTracked=0;
     const float r = 5;
     const int n = vCurrentKeys.size();

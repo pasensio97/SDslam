@@ -45,13 +45,11 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
   mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
   mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB),
   mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
-  mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap)
-{
+  mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap) {
   mnId=nNextId++;
 
   mGrid.resize(mnGridCols);
-  for (int i=0; i<mnGridCols;i++)
-  {
+  for (int i=0; i<mnGridCols;i++) {
     mGrid[i].resize(mnGridRows);
     for (int j=0; j<mnGridRows; j++)
       mGrid[i][j] = F.mGrid[i][j];
@@ -60,10 +58,8 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
   SetPose(F.mTcw);  
 }
 
-void KeyFrame::ComputeBoW()
-{
-  if (mBowVec.empty() || mFeatVec.empty())
-  {
+void KeyFrame::ComputeBoW() {
+  if (mBowVec.empty() || mFeatVec.empty()) {
     vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
     // Feature vector associate features with nodes in the 4th level (from leaves up)
     // We assume the vocabulary tree has 6 levels, change the 4 otherwise
@@ -71,8 +67,7 @@ void KeyFrame::ComputeBoW()
   }
 }
 
-void KeyFrame::SetPose(const cv::Mat &Tcw_)
-{
+void KeyFrame::SetPose(const cv::Mat &Tcw_) {
   unique_lock<mutex> lock(mMutexPose);
   Tcw_.copyTo(Tcw);
   cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
@@ -85,14 +80,12 @@ void KeyFrame::SetPose(const cv::Mat &Tcw_)
   Ow.copyTo(Twc.rowRange(0,3).col(3));
 }
 
-cv::Mat KeyFrame::GetPose()
-{
+cv::Mat KeyFrame::GetPose() {
   unique_lock<mutex> lock(mMutexPose);
   return Tcw.clone();
 }
 
-cv::Mat KeyFrame::GetPoseInverse()
-{
+cv::Mat KeyFrame::GetPoseInverse() {
   unique_lock<mutex> lock(mMutexPose);
   return Twc.clone();
 }
@@ -176,8 +169,7 @@ vector<KeyFrame*> KeyFrame::GetBestCovisibilityKeyFrames(const int &N)
 
 }
 
-vector<KeyFrame*> KeyFrame::GetCovisiblesByWeight(const int &w)
-{
+vector<KeyFrame*> KeyFrame::GetCovisiblesByWeight(const int &w) {
   unique_lock<mutex> lock(mMutexConnections);
 
   if (mvpOrderedConnectedKeyFrames.empty())
@@ -202,20 +194,17 @@ int KeyFrame::GetWeight(KeyFrame *pKF)
     return 0;
 }
 
-void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx)
-{
+void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx) {
   unique_lock<mutex> lock(mMutexFeatures);
   mvpMapPoints[idx]=pMP;
 }
 
-void KeyFrame::EraseMapPointMatch(const size_t &idx)
-{
+void KeyFrame::EraseMapPointMatch(const size_t &idx) {
   unique_lock<mutex> lock(mMutexFeatures);
   mvpMapPoints[idx]=static_cast<MapPoint*>(NULL);
 }
 
-void KeyFrame::EraseMapPointMatch(MapPoint* pMP)
-{
+void KeyFrame::EraseMapPointMatch(MapPoint* pMP) {
   int idx = pMP->GetIndexInKeyFrame(this);
   if (idx>=0)
     mvpMapPoints[idx]=static_cast<MapPoint*>(NULL);
@@ -248,19 +237,14 @@ int KeyFrame::TrackedMapPoints(const int &minObs)
 
   int nPoints=0;
   const bool bCheckObs = minObs>0;
-  for (int i=0; i<N; i++)
-  {
+  for (int i=0; i<N; i++) {
     MapPoint* pMP = mvpMapPoints[i];
-    if (pMP)
-    {
-      if (!pMP->isBad())
-      {
-        if (bCheckObs)
-        {
+    if (pMP) {
+      if (!pMP->isBad()) {
+        if (bCheckObs) {
           if (mvpMapPoints[i]->Observations()>=minObs)
             nPoints++;
-        }
-        else
+        } else
           nPoints++;
       }
     }

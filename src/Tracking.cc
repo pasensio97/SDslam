@@ -24,35 +24,32 @@
 
 #include "Tracking.h"
 
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 
-#include"ORBmatcher.h"
-#include"FrameDrawer.h"
-#include"Converter.h"
-#include"Map.h"
-#include"Initializer.h"
+#include "ORBmatcher.h"
+#include "FrameDrawer.h"
+#include "Converter.h"
+#include "Map.h"
+#include "Initializer.h"
+#include "Optimizer.h"
+#include "PnPsolver.h"
+#include "ImageAlign.h"
+#include "timer.h"
 
-#include"Optimizer.h"
-#include"PnPsolver.h"
-
-#include<iostream>
-
-#include<mutex>
+#include <iostream>
+#include <mutex>
 #include <unistd.h>
 
 using namespace std;
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpORBVocabulary(pVoc),
   mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
-  mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
-{
+  mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0) {
   // Load camera parameters from settings file
-
   cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
   float fx = fSettings["Camera.fx"];
   float fy = fSettings["Camera.fy"];
@@ -141,38 +138,30 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     else
       mDepthMapFactor = 1.0f/mDepthMapFactor;
   }
-
 }
 
-void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
-{
+void Tracking::SetLocalMapper(LocalMapping *pLocalMapper) {
   mpLocalMapper=pLocalMapper;
 }
 
-void Tracking::SetLoopClosing(LoopClosing *pLoopClosing)
-{
+void Tracking::SetLoopClosing(LoopClosing *pLoopClosing) {
   mpLoopClosing=pLoopClosing;
 }
 
-void Tracking::SetViewer(Viewer *pViewer)
-{
+void Tracking::SetViewer(Viewer *pViewer) {
   mpViewer=pViewer;
 }
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp)
-{
+cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp) {
   mImGray = imRGB;
   cv::Mat imDepth = imD;
 
-  if (mImGray.channels()==3)
-  {
+  if (mImGray.channels()==3) {
     if (mbRGB)
       cvtColor(mImGray,mImGray,CV_RGB2GRAY);
     else
       cvtColor(mImGray,mImGray,CV_BGR2GRAY);
-  }
-  else if (mImGray.channels()==4)
-  {
+  } else if (mImGray.channels()==4) {
     if (mbRGB)
       cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
     else
@@ -190,8 +179,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
 }
 
 
-cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
-{
+cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp) {
   mImGray = im;
 
   if (mImGray.channels()==3) {
@@ -217,8 +205,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
   return mCurrentFrame.mTcw.clone();
 }
 
-void Tracking::Track()
-{
+void Tracking::Track() {
   if (mState==NO_IMAGES_YET)
     mState = NOT_INITIALIZED;
 
@@ -275,25 +262,21 @@ void Tracking::Track()
     if (bOK)
     {
       // Update motion model
-      if (!mLastFrame.mTcw.empty())
-      {
+      if (!mLastFrame.mTcw.empty()) {
         cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
         mLastFrame.GetRotationInverse().copyTo(LastTwc.rowRange(0,3).colRange(0,3));
         mLastFrame.GetCameraCenter().copyTo(LastTwc.rowRange(0,3).col(3));
         mVelocity = mCurrentFrame.mTcw*LastTwc;
-      }
-      else
+      } else
         mVelocity = cv::Mat();
 
       mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
 
       // Clean VO matches
-      for (int i=0; i<mCurrentFrame.N; i++)
-      {
+      for (int i=0; i<mCurrentFrame.N; i++) {
         MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
         if (pMP)
-          if (pMP->Observations()<1)
-          {
+          if (pMP->Observations()<1) {
             mCurrentFrame.mvbOutlier[i] = false;
             mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
           }
@@ -340,16 +323,13 @@ void Tracking::Track()
   }
 
   // Store frame pose information to retrieve the complete camera trajectory afterwards.
-  if (!mCurrentFrame.mTcw.empty())
-  {
+  if (!mCurrentFrame.mTcw.empty()) {
     cv::Mat Tcr = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
     mlRelativeFramePoses.push_back(Tcr);
     mlpReferences.push_back(mpReferenceKF);
     mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
     mlbLost.push_back(mState==LOST);
-  }
-  else
-  {
+  } else {
     // This can happen if tracking is lost
     mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
     mlpReferences.push_back(mlpReferences.back());
@@ -667,6 +647,18 @@ bool Tracking::TrackWithMotionModel() {
 
   mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
 
+  /*Timer talign(true);
+
+  // Align current and last image
+  ImageAlign image_align;
+  if (!image_align.ComputePose(mCurrentFrame,mLastFrame)) {
+    std::cerr << "[Error] Image align failed" << endl;
+    return false;
+  }
+
+  talign.Stop();
+  cout << "[INFO] Align time is " << talign.GetMsTime() << "ms" << endl;*/
+
   fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
   // Project points seen in previous frame
@@ -674,8 +666,7 @@ bool Tracking::TrackWithMotionModel() {
   int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
 
   // If few matches, uses a wider window search
-  if (nmatches<20)
-  {
+  if (nmatches<20) {
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
   }
@@ -688,12 +679,9 @@ bool Tracking::TrackWithMotionModel() {
 
   // Discard outliers
   int nmatchesMap = 0;
-  for (int i =0; i<mCurrentFrame.N; i++)
-  {
-    if (mCurrentFrame.mvpMapPoints[i])
-    {
-      if (mCurrentFrame.mvbOutlier[i])
-      {
+  for (int i =0; i<mCurrentFrame.N; i++) {
+    if (mCurrentFrame.mvpMapPoints[i]) {
+      if (mCurrentFrame.mvbOutlier[i]) {
         MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
 
         mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
@@ -701,11 +689,10 @@ bool Tracking::TrackWithMotionModel() {
         pMP->mbTrackInView = false;
         pMP->mnLastFrameSeen = mCurrentFrame.mnId;
         nmatches--;
-      }
-      else if (mCurrentFrame.mvpMapPoints[i]->Observations()>0)
+      } else if (mCurrentFrame.mvpMapPoints[i]->Observations()>0)
         nmatchesMap++;
     }
-  }  
+  }
 
   return nmatchesMap>=10;
 }
@@ -724,10 +711,8 @@ bool Tracking::TrackLocalMap()
   mnMatchesInliers = 0;
 
   // Update MapPoints Statistics
-  for (int i=0; i<mCurrentFrame.N; i++)
-  {
-    if (mCurrentFrame.mvpMapPoints[i])
-    {
+  for (int i=0; i<mCurrentFrame.N; i++) {
+    if (mCurrentFrame.mvpMapPoints[i]) {
       if (!mCurrentFrame.mvbOutlier[i]) {
         mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
         if (mCurrentFrame.mvpMapPoints[i]->Observations()>0)
@@ -843,11 +828,9 @@ void Tracking::CreateNewKeyFrame()
     // If there are less than 100 close points we create the 100 closest.
     vector<pair<float,int> > vDepthIdx;
     vDepthIdx.reserve(mCurrentFrame.N);
-    for (int i=0; i<mCurrentFrame.N; i++)
-    {
+    for (int i=0; i<mCurrentFrame.N; i++) {
       float z = mCurrentFrame.mvDepth[i];
-      if (z>0)
-      {
+      if (z>0) {
         vDepthIdx.push_back(make_pair(z,i));
       }
     }
@@ -1269,8 +1252,7 @@ void Tracking::Reset()
 {
 
   cout << "System Reseting" << endl;
-  if (mpViewer)
-  {
+  if (mpViewer) {
     mpViewer->RequestStop();
     while (!mpViewer->isStopped())
       usleep(3000);

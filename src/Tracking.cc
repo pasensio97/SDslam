@@ -35,7 +35,6 @@
 #include "Optimizer.h"
 #include "PnPsolver.h"
 #include "ImageAlign.h"
-#include "timer.h"
 
 #include <iostream>
 #include <mutex>
@@ -647,26 +646,22 @@ bool Tracking::TrackWithMotionModel() {
 
   mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
 
-  /*Timer talign(true);
-
   // Align current and last image
   ImageAlign image_align;
   if (!image_align.ComputePose(mCurrentFrame,mLastFrame)) {
-    std::cerr << "[Error] Image align failed" << endl;
+    std::cerr << "[ERROR] Image align failed" << endl;
     return false;
   }
-
-  talign.Stop();
-  cout << "[INFO] Align time is " << talign.GetMsTime() << "ms" << endl;*/
 
   fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
   // Project points seen in previous frame
-  int th =15 ;
+  int th = 8;
   int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
+    std::cout << "[DEBUG] Not enough matches, double threshold" << std::endl;
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
   }

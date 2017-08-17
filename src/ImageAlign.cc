@@ -18,6 +18,8 @@
  */
 
 #include "ImageAlign.h"
+#include "timer.h"
+#include "Converter.h"
 
 using std::vector;
 using std::cout;
@@ -42,17 +44,36 @@ ImageAlign::~ImageAlign() {
 }
 
 bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool fast) {
-  int patch_area;
+  int size, patch_area;
+
+  Timer total(true);
 
   if (static_cast<int>(LastFrame.mvImagePyramid.size()) <= max_level_) {
     cerr << "[ERROR] Not enough pyramid levels" << endl;
     return false;
   }
 
+  // Save valid points seen in last frame
+  for (int i=0; i<LastFrame.N; i++) {
+    MapPoint* pMP = LastFrame.mvpMapPoints[i];
+    if (!pMP || LastFrame.mvbOutlier[i])
+      continue;
+
+    cv::Mat pos = pMP->GetWorldPos();
+    Eigen::Vector3d p = Converter::toVector3d(pos);
+    points_.push_back(p);
+  }
+
+  size = points_.size();
+  if (size == 0) {
+    cerr << "[ERROR] No points to track!" << endl;
+    return false;
+  }
+
   patch_area = patch_size_*patch_size_;
-  patch_cache_ = cv::Mat(LastFrame.N, patch_area, CV_32F);
-  visible_fts_.resize(LastFrame.N, false);
-  jacobian_cache_.resize(Eigen::NoChange, LastFrame.N*patch_area);
+  patch_cache_ = cv::Mat(size, patch_area, CV_32F);
+  visible_pts_.resize(size, false);
+  jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
 
   // Initial displacement between frames.
   cv::Mat current_se3 = CurrentFrame.GetPose() * LastFrame.GetPoseInverse();
@@ -69,6 +90,9 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool f
   }
 
   CurrentFrame.SetPose(current_se3 * LastFrame.GetPose());
+
+  total.Stop();
+  cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
 
   return true;
 }
@@ -132,22 +156,25 @@ double ImageAlign::ComputeResiduals(const Frame &CurrentFrame, const Frame &Last
     PrecomputePatches(LastFrame, level);
 
   cv::Mat pose = se3 * LastFrame.GetPose();
+  cv::Mat Rcv = pose.rowRange(0,3).colRange(0,3);
+  cv::Mat Tcv = pose.rowRange(0,3).col(3);
+  Eigen::Matrix3d R = Converter::toMatrix3d(Rcv);
+  Eigen::Vector3d T = Converter::toVector3d(Tcv);
+
   float chi2 = 0.0;
   size_t counter = 0;
-  vector<bool>::iterator vit = visible_fts_.begin();
+  vector<bool>::iterator vit = visible_pts_.begin();
 
   // Check each point detected in last image
-  for (int i=0; i<LastFrame.N; i++, counter++, vit++) {
-    MapPoint* pMP = LastFrame.mvpMapPoints[i];
-    if (!pMP || LastFrame.mvbOutlier[i])
-      continue;
+  for (auto it=points_.begin(); it != points_.end(); it++, counter++, vit++) {
+    Eigen::Vector3d p = *it;
 
     // check if point is within image
     if (!*vit)
       continue;
 
     // Project in current frame with candidate pose and check if it fits within image
-    if(!Project(CurrentFrame, pose, pMP, p2d))
+    if(!Project(CurrentFrame, R, T, p, p2d))
       continue;
 
     const float u_cur = p2d(0)*scale;
@@ -204,19 +231,21 @@ void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
 
   scale = LastFrame.mvInvScaleFactors[level];
   const cv::Mat& first_img = LastFrame.mvImagePyramid[level];
+  cv::Mat Rcv = LastFrame.mTcw.rowRange(0,3).colRange(0,3);
+  cv::Mat Tcv = LastFrame.mTcw.rowRange(0,3).col(3);
+  Eigen::Matrix3d R = Converter::toMatrix3d(Rcv);
+  Eigen::Vector3d T = Converter::toVector3d(Tcv);
 
   size_t counter = 0;
   Eigen::Matrix<double, 2, 6> frame_jac;
-  vector<bool>::iterator vit = visible_fts_.begin();
+  vector<bool>::iterator vit = visible_pts_.begin();
 
   // Check each point detected in last image
-  for (int i=0; i<LastFrame.N; i++, counter++, vit++) {
-    MapPoint* pMP = LastFrame.mvpMapPoints[i];
-    if (!pMP || LastFrame.mvbOutlier[i])
-      continue;
+  for (auto it=points_.begin(); it != points_.end(); it++, counter++, vit++) {
+    Eigen::Vector3d p = *it;
 
     // Project in last frame and check if it fits within image
-    if(!Project(LastFrame, LastFrame.mTcw, pMP, p2d))
+    if(!Project(LastFrame, R, T, p, p2d))
       continue;
 
     const float u_ref = p2d(0)*scale;
@@ -227,14 +256,8 @@ void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
       continue;
     *vit = true;
 
-    // 3D point in frame coordinates
-    cv::Mat Rcw = LastFrame.mTcw.rowRange(0,3).colRange(0,3);
-    cv::Mat tcw = LastFrame.mTcw.rowRange(0,3).col(3);
-    cv::Mat x3Dw = pMP->GetWorldPos();
-    cv::Mat x3Dc = Rcw*x3Dw+tcw;
-    Eigen::Vector3d xyz(x3Dc.at<float>(0), x3Dc.at<float>(1), x3Dc.at<float>(2));
-
     // Evaluate projection jacobian
+    Eigen::Vector3d xyz = R*p+T;
     Jacobian3DToPlane(xyz, &frame_jac);
 
     // compute bilateral interpolation weights for reference image
@@ -270,21 +293,16 @@ void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
   }
 }
 
-bool ImageAlign::Project(const Frame &frame, const cv::Mat &se3, MapPoint *point, Eigen::Vector2d &res) {
-  cv::Mat Rcw = se3.rowRange(0,3).colRange(0,3);
-  cv::Mat tcw = se3.rowRange(0,3).col(3);
-  cv::Mat x3Dw = point->GetWorldPos();
-  cv::Mat x3Dc = Rcw*x3Dw+tcw;
+bool ImageAlign::Project(const Frame &frame, const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
+                         const Eigen::Vector3d &p, Eigen::Vector2d &res) {
+  Eigen::Vector3d x3Dc = R*p+T;
 
-  const float xc = x3Dc.at<float>(0);
-  const float yc = x3Dc.at<float>(1);
-  const float invzc = 1.0/x3Dc.at<float>(2);
-
+  const double invzc = 1.0/x3Dc(2);
   if (invzc<0)
     return false;
 
-  res(0) = frame.fx*xc*invzc+frame.cx;
-  res(1) = frame.fy*yc*invzc+frame.cy;
+  res(0) = frame.fx*x3Dc(0)*invzc+frame.cx;
+  res(1) = frame.fy*x3Dc(1)*invzc+frame.cy;
   return true;
 }
 

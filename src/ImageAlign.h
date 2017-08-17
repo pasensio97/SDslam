@@ -24,7 +24,6 @@
 #include <vector>
 #include <Eigen/Dense>
 #include "Frame.h"
-/*#include "extra/utils.h"*/
 
 namespace ORB_SLAM2 {
 
@@ -52,7 +51,8 @@ class ImageAlign {
   void PrecomputePatches(const Frame &LastFrame, int level);
 
   // Project point in image
-  bool Project(const Frame &frame, const cv::Mat &se3, MapPoint *point, Eigen::Vector2d &res);
+  bool Project(const Frame &frame, const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
+               const Eigen::Vector3d &p, Eigen::Vector2d &res);
 
   // Jacobian of 3D point projection in frame coordinates to unit plane coordinates
   void Jacobian3DToPlane(const Eigen::Vector3d &p, Eigen::Matrix<double, 2, 6> *J);
@@ -76,7 +76,8 @@ class ImageAlign {
   double error_;      // Last optimization error
 
   cv::Mat patch_cache_;                 // Cache for patches
-  std::vector<bool> visible_fts_;       // Visible points
+  std::vector<bool> visible_pts_;       // Visible points
+  std::vector<Eigen::Vector3d> points_; // Valid points
   Eigen::Matrix<double, 6, 6>  H_;      // Hessian approximation
   Eigen::Matrix<double, 6, 1>  Jres_;   // Store Jacobian residual
   Eigen::Matrix<double, 6, Eigen::Dynamic, Eigen::ColMajor> jacobian_cache_;

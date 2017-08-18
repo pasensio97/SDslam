@@ -43,18 +43,26 @@ ImageAlign::ImageAlign() {
 ImageAlign::~ImageAlign() {
 }
 
-bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool fast) {
-  int size, patch_area;
+bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
+  int size, patch_area, counter;
+  float scale;
+  int max_points = 300;
+
+  cam_fx_ = CurrentFrame.fx;
+  cam_fy_ = CurrentFrame.fy;
+  cam_cx_ = CurrentFrame.cx;
+  cam_cy_ = CurrentFrame.cy;
 
   Timer total(true);
 
-  if (static_cast<int>(LastFrame.mvImagePyramid.size()) <= max_level_) {
+  if (static_cast<int>(CurrentFrame.mvImagePyramid.size()) <= max_level_) {
     cerr << "[ERROR] Not enough pyramid levels" << endl;
     return false;
   }
 
   // Save valid points seen in last frame
-  for (int i=0; i<LastFrame.N; i++) {
+  counter = 0;
+  for (int i=0; i<LastFrame.N && counter<max_points; i++) {
     MapPoint* pMP = LastFrame.mvpMapPoints[i];
     if (!pMP || LastFrame.mvbOutlier[i])
       continue;
@@ -62,6 +70,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool f
     cv::Mat pos = pMP->GetWorldPos();
     Eigen::Vector3d p = Converter::toVector3d(pos);
     points_.push_back(p);
+    counter++;
   }
 
   size = points_.size();
@@ -77,19 +86,16 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool f
 
   // Initial displacement between frames.
   cv::Mat current_se3 = CurrentFrame.GetPose() * LastFrame.GetPoseInverse();
+  cv::Mat last_pose = LastFrame.GetPose();
 
   for (int level=max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
-    Optimize(CurrentFrame, LastFrame, current_se3, level);
 
-    // High error in max level means frames are not close, skip other levels
-    if (fast && error_ > 0.01) {
-      error_ = 1e10;
-      break;
-    }
+    scale = CurrentFrame.mvInvScaleFactors[level];
+    Optimize(CurrentFrame.mvImagePyramid[level], LastFrame.mvImagePyramid[level], last_pose, current_se3, scale);
   }
 
-  CurrentFrame.SetPose(current_se3 * LastFrame.GetPose());
+  CurrentFrame.SetPose(current_se3 * last_pose);
 
   total.Stop();
   cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
@@ -97,9 +103,80 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool f
   return true;
 }
 
-void ImageAlign::Optimize(const Frame &CurrentFrame, const Frame &LastFrame, cv::Mat &se3, int level) {
+bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
+  int size, patch_area, counter;
+  float scale;
+  int max_points;
+
+  if (fast)
+    max_points = 100;
+  else
+    max_points = 300;
+
+  cam_fx_ = CurrentFrame.fx;
+  cam_fy_ = CurrentFrame.fy;
+  cam_cx_ = CurrentFrame.cx;
+  cam_cy_ = CurrentFrame.cy;
+
+  Timer total(true);
+
+  if (static_cast<int>(CurrentFrame.mvImagePyramid.size()) <= max_level_) {
+    cerr << "[ERROR] Not enough pyramid levels" << endl;
+    return false;
+  }
+
+  // Save valid points seen in last keyframe
+  const set<MapPoint*> mappoints = LastKF->GetMapPoints();
+  counter = 0;
+  for (auto it=mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
+    MapPoint* pMP = *it;
+    cv::Mat pos = pMP->GetWorldPos();
+    Eigen::Vector3d p = Converter::toVector3d(pos);
+    points_.push_back(p);
+    counter++;
+  }
+
+  size = points_.size();
+  if (size == 0) {
+    cerr << "[ERROR] No points to track!" << endl;
+    return false;
+  }
+
+  patch_area = patch_size_*patch_size_;
+  patch_cache_ = cv::Mat(size, patch_area, CV_32F);
+  visible_pts_.resize(size, false);
+  jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
+
+  // Initial displacement between frames.
+  cv::Mat current_se3 = CurrentFrame.GetPose() * LastKF->GetPoseInverse();
+  cv::Mat last_pose = LastKF->GetPose();
+
+  for (int level=max_level_; level >= min_level_; level--) {
+    jacobian_cache_.setZero();
+
+    scale = CurrentFrame.mvInvScaleFactors[level];
+    Optimize(CurrentFrame.mvImagePyramid[level], LastKF->mvImagePyramid[level], last_pose, current_se3, scale);
+
+    // High error in max level means frames are not close, skip other levels
+    if (fast && error_ > 0.01) {
+      error_ = 1e10;
+      return false;
+    }
+  }
+
+  CurrentFrame.SetPose(current_se3 * last_pose);
+
+  total.Stop();
+  cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
+
+  return true;
+}
+
+void ImageAlign::Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose,
+                          cv::Mat &se3, float scale) {
   Eigen::Matrix<double, 6, 1>  x;
   cv::Mat se3_bk = se3.clone();
+  bool small = false;
 
   // Perform iterative estimation
   for (int i = 0; i < max_its_; i++) {
@@ -108,7 +185,7 @@ void ImageAlign::Optimize(const Frame &CurrentFrame, const Frame &LastFrame, cv:
 
     // compute initial error
     n_meas_ = 0;
-    double new_chi2 = ComputeResiduals(CurrentFrame, LastFrame, se3, level, true, i == 0);
+    double new_chi2 = ComputeResiduals(src, last_img, last_pose, se3, scale, i == 0);
     if (n_meas_ == 0)
       stop_ = true;
 
@@ -125,6 +202,10 @@ void ImageAlign::Optimize(const Frame &CurrentFrame, const Frame &LastFrame, cv:
       break;
     }
 
+    // If error didn't decreased too much, stop optimization
+    if (i > 0 && new_chi2 > chi2_*0.99)
+      small = true;
+
     // Update se3
     se3_bk = se3.clone();
     se3 = se3 * Exp(-x);
@@ -133,29 +214,25 @@ void ImageAlign::Optimize(const Frame &CurrentFrame, const Frame &LastFrame, cv:
 
     // Stop when converged
     error_ = AbsMax(x);
-    if (error_ <= 1e-10)
+    if (error_ <= 1e-10 || small)
       break;
   }
 }
 
-double ImageAlign::ComputeResiduals(const Frame &CurrentFrame, const Frame &LastFrame, const cv::Mat &se3,
-                                      int level, bool linearize, bool patches) {
+double ImageAlign::ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose,
+                                    const cv::Mat &se3, float scale, bool patches) {
   Eigen::Vector2d p2d;
   int half_patch, patch_area, border;
-  float scale;
 
   half_patch = patch_size_/2;
   patch_area = patch_size_*patch_size_;
   border = half_patch+1;
 
-  scale = CurrentFrame.mvInvScaleFactors[level];
-  const cv::Mat& last_img = CurrentFrame.mvImagePyramid[level];
-
   // Compute patches only the first time
   if (patches)
-    PrecomputePatches(LastFrame, level);
+    PrecomputePatches(last_img, last_pose, scale);
 
-  cv::Mat pose = se3 * LastFrame.GetPose();
+  cv::Mat pose = se3 * last_pose;
   cv::Mat Rcv = pose.rowRange(0,3).colRange(0,3);
   cv::Mat Tcv = pose.rowRange(0,3).col(3);
   Eigen::Matrix3d R = Converter::toMatrix3d(Rcv);
@@ -174,14 +251,14 @@ double ImageAlign::ComputeResiduals(const Frame &CurrentFrame, const Frame &Last
       continue;
 
     // Project in current frame with candidate pose and check if it fits within image
-    if(!Project(CurrentFrame, R, T, p, p2d))
+    if(!Project(R, T, p, p2d))
       continue;
 
     const float u_cur = p2d(0)*scale;
     const float v_cur = p2d(1)*scale;
     const int u_last_i = floorf(u_cur);
     const int v_last_i = floorf(v_cur);
-    if (u_last_i < 0 || v_last_i < 0 || u_last_i-border < 0 || v_last_i-border < 0 || u_last_i+border >= last_img.cols || v_last_i+border >= last_img.rows)
+    if (u_last_i < 0 || v_last_i < 0 || u_last_i-border < 0 || v_last_i-border < 0 || u_last_i+border >= src.cols || v_last_i+border >= src.rows)
       continue;
 
     // compute bilateral interpolation weights for the current image
@@ -196,8 +273,8 @@ double ImageAlign::ComputeResiduals(const Frame &CurrentFrame, const Frame &Last
     size_t pixel_counter = 0;  // is used to compute the index of the cached jacobian
 
     for (int y=v_last_i-half_patch; y < v_last_i+half_patch; y++) {
-      const uint8_t* row_ptr = last_img.ptr<uint8_t>(y);
-      const uint8_t* row_next_ptr = last_img.ptr<uint8_t>(y+1);
+      const uint8_t* row_ptr = src.ptr<uint8_t>(y);
+      const uint8_t* row_next_ptr = src.ptr<uint8_t>(y+1);
       for (int x=u_last_i-half_patch; x < u_last_i+half_patch; x++, pixel_counter++, patch_cache_ptr++) {
         // compute residual
         const float intensity_cur = w_last_tl*row_ptr[x] + w_last_tr*row_ptr[x+1] + w_last_bl*row_next_ptr[x] + w_last_br*row_next_ptr[x+1];
@@ -207,12 +284,10 @@ double ImageAlign::ComputeResiduals(const Frame &CurrentFrame, const Frame &Last
         chi2 += res*res*weight;
         n_meas_++;
 
-        if (linearize) {
-          // compute Jacobian, weighted Hessian and weighted "steepest descend images" (times error)
-          const Eigen::Matrix<double, 6, 1> J = jacobian_cache_.col(counter*patch_area + pixel_counter);
-          H_.noalias() += J*J.transpose()*weight;
-          Jres_.noalias() -= J*res*weight;
-        }
+        // Compute Jacobian, weighted Hessian and weighted "steepest descend images" (times error)
+        const Eigen::Matrix<double, 6, 1> J = jacobian_cache_.col(counter*patch_area + pixel_counter);
+        H_.noalias() += J*J.transpose()*weight;
+        Jres_.noalias() -= J*res*weight;
       }
     }
   }
@@ -220,19 +295,16 @@ double ImageAlign::ComputeResiduals(const Frame &CurrentFrame, const Frame &Last
   return chi2/n_meas_;
 }
 
-void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
+void ImageAlign::PrecomputePatches(const cv::Mat &src, const cv::Mat &pose, float scale) {
   Eigen::Vector2d p2d;
   int half_patch, patch_area, border;
-  float scale;
 
   half_patch = patch_size_/2;
   patch_area = patch_size_*patch_size_;
   border = half_patch+1;
 
-  scale = LastFrame.mvInvScaleFactors[level];
-  const cv::Mat& first_img = LastFrame.mvImagePyramid[level];
-  cv::Mat Rcv = LastFrame.mTcw.rowRange(0,3).colRange(0,3);
-  cv::Mat Tcv = LastFrame.mTcw.rowRange(0,3).col(3);
+  cv::Mat Rcv = pose.rowRange(0,3).colRange(0,3);
+  cv::Mat Tcv = pose.rowRange(0,3).col(3);
   Eigen::Matrix3d R = Converter::toMatrix3d(Rcv);
   Eigen::Vector3d T = Converter::toVector3d(Tcv);
 
@@ -245,14 +317,14 @@ void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
     Eigen::Vector3d p = *it;
 
     // Project in last frame and check if it fits within image
-    if(!Project(LastFrame, R, T, p, p2d))
+    if(!Project(R, T, p, p2d))
       continue;
 
     const float u_ref = p2d(0)*scale;
     const float v_ref = p2d(1)*scale;
     const int u_first_i = floorf(u_ref);
     const int v_first_i = floorf(v_ref);
-    if (u_first_i-border < 0 || v_first_i-border < 0 || u_first_i+border >= first_img.cols || v_first_i+border >= first_img.rows)
+    if (u_first_i-border < 0 || v_first_i-border < 0 || u_first_i+border >= src.cols || v_first_i+border >= src.rows)
       continue;
     *vit = true;
 
@@ -271,10 +343,10 @@ void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
     float* cache_ptr = reinterpret_cast<float*>(patch_cache_.data) + patch_area*counter;
 
     for (int y=v_first_i-half_patch; y < v_first_i+half_patch; y++) {
-      const uint8_t* row_ptr = first_img.ptr<uint8_t>(y);
-      const uint8_t* row_prev_ptr = first_img.ptr<uint8_t>(y-1);
-      const uint8_t* row_next_ptr = first_img.ptr<uint8_t>(y+1);
-      const uint8_t* row_next2_ptr = first_img.ptr<uint8_t>(y+2);
+      const uint8_t* row_ptr = src.ptr<uint8_t>(y);
+      const uint8_t* row_prev_ptr = src.ptr<uint8_t>(y-1);
+      const uint8_t* row_next_ptr = src.ptr<uint8_t>(y+1);
+      const uint8_t* row_next2_ptr = src.ptr<uint8_t>(y+2);
       for (int x=u_first_i-half_patch; x < u_first_i+half_patch; x++, cache_ptr++, pixel_counter++) {
         // precompute interpolated reference patch color
         *cache_ptr = w_first_tl*row_ptr[x] + w_first_tr*row_ptr[x+1] + w_first_bl*row_next_ptr[x] + w_first_br*row_next_ptr[x+1];
@@ -287,13 +359,13 @@ void ImageAlign::PrecomputePatches(const Frame &LastFrame, int level) {
                           -(w_first_tl*row_prev_ptr[x] + w_first_tr*row_prev_ptr[x+1] + w_first_bl*row_ptr[x] + w_first_br*row_ptr[x+1]));
 
         // cache the jacobian
-        jacobian_cache_.col(counter*patch_area + pixel_counter) = (dx*frame_jac.row(0) + dy*frame_jac.row(1))*(LastFrame.fx / LastFrame.mvScaleFactors[level]);
+        jacobian_cache_.col(counter*patch_area + pixel_counter) = (dx*frame_jac.row(0) + dy*frame_jac.row(1))*(cam_fx_*scale);
       }
     }
   }
 }
 
-bool ImageAlign::Project(const Frame &frame, const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
+bool ImageAlign::Project(const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
                          const Eigen::Vector3d &p, Eigen::Vector2d &res) {
   Eigen::Vector3d x3Dc = R*p+T;
 
@@ -301,8 +373,8 @@ bool ImageAlign::Project(const Frame &frame, const Eigen::Matrix3d &R, const Eig
   if (invzc<0)
     return false;
 
-  res(0) = frame.fx*x3Dc(0)*invzc+frame.cx;
-  res(1) = frame.fy*x3Dc(1)*invzc+frame.cy;
+  res(0) = cam_fx_*x3Dc(0)*invzc+cam_cx_;
+  res(1) = cam_fy_*x3Dc(1)*invzc+cam_cy_;
   return true;
 }
 

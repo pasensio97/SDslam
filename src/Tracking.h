@@ -203,6 +203,7 @@ protected:
   bool mbRGB;
 
   list<MapPoint*> mlpTemporalPoints;
+  int threshold_;
 };
 
 } //namespace ORB_SLAM

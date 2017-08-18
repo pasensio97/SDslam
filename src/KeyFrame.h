@@ -190,6 +190,7 @@ public:
   const int mnMaxY;
   const cv::Mat mK;
 
+  std::vector<cv::Mat> mvImagePyramid;
 
   // The following variables need to be accessed trough a mutex to be thread safe.
 protected:

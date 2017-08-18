@@ -27,8 +27,7 @@
 #include "ORBmatcher.h"
 #include<mutex>
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 long unsigned int KeyFrame::nNextId=0;
 
@@ -55,7 +54,13 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
       mGrid[i][j] = F.mGrid[i][j];
   }
 
-  SetPose(F.mTcw);  
+  SetPose(F.mTcw);
+
+  // Copy pyramid
+  int size = F.mvImagePyramid.size();
+  mvImagePyramid.resize(size);
+  for (int i=0; i<size; i++)
+    mvImagePyramid[i] = F.mvImagePyramid[i].clone();
 }
 
 void KeyFrame::ComputeBoW() {
@@ -216,8 +221,7 @@ void KeyFrame::ReplaceMapPointMatch(const size_t &idx, MapPoint* pMP)
   mvpMapPoints[idx]=pMP;
 }
 
-set<MapPoint*> KeyFrame::GetMapPoints()
-{
+set<MapPoint*> KeyFrame::GetMapPoints() {
   unique_lock<mutex> lock(mMutexFeatures);
   set<MapPoint*> s;
   for (size_t i=0, iend=mvpMapPoints.size(); i<iend; i++)

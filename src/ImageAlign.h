@@ -34,24 +34,25 @@ class ImageAlign {
   ImageAlign();
   ~ImageAlign();
 
-  // Compute Pose between frames
-  bool ComputePose(Frame &CurrentFrame, const Frame &LastFrame, bool fast = false);
+  // Compute pose between frames. Used to track last frame (Tracking)
+  bool ComputePose(Frame &CurrentFrame, const Frame &LastFrame);
 
-  //inline double GetError() { return error_; }
+  // Compute pose between a frame and a keyframe. Used to track last keyframe and in relocalization (Tracking)
+  bool ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast = false);
 
  private:
   // Optimize using Gauss Newton strategy
-  void Optimize(const Frame &CurrentFrame, const Frame &LastFrame, cv::Mat &se3, int level);
+  void Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose, cv::Mat &se3, float scale);
 
   // Compute residual and jacobians
-  double ComputeResiduals(const Frame &CurrentFrame, const Frame &LastFrame, const cv::Mat &se3,
-                          int level, bool linearize, bool patches);
+  double ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose,
+                          const cv::Mat &se3, float scale, bool patches);
 
   // Compute patches within a pyramid level
-  void PrecomputePatches(const Frame &LastFrame, int level);
+  void PrecomputePatches(const cv::Mat &src, const cv::Mat &pose, float scale);
 
   // Project point in image
-  bool Project(const Frame &frame, const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
+  bool Project(const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
                const Eigen::Vector3d &p, Eigen::Vector2d &res);
 
   // Jacobian of 3D point projection in frame coordinates to unit plane coordinates
@@ -74,6 +75,11 @@ class ImageAlign {
   size_t  n_meas_;    // Number of measurements
   bool stop_;         // Stop flag
   double error_;      // Last optimization error
+
+  double cam_fx_;
+  double cam_fy_;
+  double cam_cx_;
+  double cam_cy_;
 
   cv::Mat patch_cache_;                 // Cache for patches
   std::vector<bool> visible_pts_;       // Visible points

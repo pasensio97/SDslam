@@ -31,8 +31,6 @@
 #include "ORBVocabulary.h"
 #include "ORBextractor.h"
 #include "Frame.h"
-#include "KeyFrameDatabase.h"
-
 #include <mutex>
 
 
@@ -42,11 +40,10 @@ namespace ORB_SLAM2
 class Map;
 class MapPoint;
 class Frame;
-class KeyFrameDatabase;
 
 class KeyFrame {
 public:
-  KeyFrame(Frame &F, Map* pMap, KeyFrameDatabase* pKFDB);
+  KeyFrame(Frame &F, Map* pMap);
 
   // Pose functions
   void SetPose(const cv::Mat &Tcw);
@@ -204,7 +201,6 @@ protected:
   std::vector<MapPoint*> mvpMapPoints;
 
   // BoW
-  KeyFrameDatabase* mpKeyFrameDB;
   ORBVocabulary* mpORBvocabulary;
 
   // Grid over the image to speed up feature matching

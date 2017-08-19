@@ -35,11 +35,9 @@
 #include"Frame.h"
 
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
-class ORBmatcher
-{  
+class ORBmatcher {
 public:
 
   ORBmatcher(float nnratio=0.6, bool checkOri=true);
@@ -56,6 +54,10 @@ public:
   int SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, const bool bMono);
   int SearchByProjection(Frame &CurrentFrame, KeyFrame* pKF, const float th, const bool bMono);
 
+  // Compare matched points in both keyframes.
+  // Used to search loops (LoopClosing)
+  int SearchByPoints(KeyFrame* currentKF, KeyFrame* pKF, std::vector<MapPoint*> &matches);
+
   // Project MapPoints seen in KeyFrame into the Frame and search matches.
   // Used in relocalisation (Tracking)
   int SearchByProjection(Frame &CurrentFrame, KeyFrame* pKF, const std::set<MapPoint*> &sAlreadyFound, const float th, const int ORBdist);
@@ -63,12 +65,6 @@ public:
   // Project MapPoints using a Similarity Transformation and search matches.
   // Used in loop detection (Loop Closing)
    int SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const std::vector<MapPoint*> &vpPoints, std::vector<MapPoint*> &vpMatched, int th);
-
-  // Search matches between MapPoints in a KeyFrame and ORB in a Frame.
-  // Brute force constrained to ORB that belong to the same vocabulary node (at a certain level)
-  // Used in Relocalisation and Loop Detection
-  int SearchByBoW(KeyFrame *pKF, Frame &F, std::vector<MapPoint*> &vpMapPointMatches);
-  int SearchByBoW(KeyFrame *pKF1, KeyFrame* pKF2, std::vector<MapPoint*> &vpMatches12);
 
   // Matching for the Map Initialization (only used in the monocular case)
   int SearchForInitialization(Frame &F1, Frame &F2, std::vector<cv::Point2f> &vbPrevMatched, std::vector<int> &vnMatches12, int windowSize=10);

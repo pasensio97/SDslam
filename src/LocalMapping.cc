@@ -124,8 +124,7 @@ bool LocalMapping::CheckNewKeyFrames()
   return(!mlNewKeyFrames.empty());
 }
 
-void LocalMapping::ProcessNewKeyFrame()
-{
+void LocalMapping::ProcessNewKeyFrame() {
   {
     unique_lock<mutex> lock(mMutexNewKFs);
     mpCurrentKeyFrame = mlNewKeyFrames.front();
@@ -138,21 +137,15 @@ void LocalMapping::ProcessNewKeyFrame()
   // Associate MapPoints to the new keyframe and update normal and descriptor
   const vector<MapPoint*> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-  for (size_t i=0; i<vpMapPointMatches.size(); i++)
-  {
+  for (size_t i=0; i<vpMapPointMatches.size(); i++) {
     MapPoint* pMP = vpMapPointMatches[i];
-    if (pMP)
-    {
-      if (!pMP->isBad())
-      {
-        if (!pMP->IsInKeyFrame(mpCurrentKeyFrame))
-        {
+    if (pMP) {
+      if (!pMP->isBad()) {
+        if (!pMP->IsInKeyFrame(mpCurrentKeyFrame)) {
           pMP->AddObservation(mpCurrentKeyFrame, i);
           pMP->UpdateNormalAndDepth();
           pMP->ComputeDistinctiveDescriptors();
-        }
-        else // this can only happen for new stereo points inserted by the Tracking
-        {
+        } else { // this can only happen for new stereo points inserted by the Tracking
           mlpRecentAddedMapPoints.push_back(pMP);
         }
       }
@@ -203,8 +196,7 @@ void LocalMapping::MapPointCulling()
   }
 }
 
-void LocalMapping::CreateNewMapPoints()
-{
+void LocalMapping::CreateNewMapPoints() {
   // Retrieve neighbor keyframes in covisibility graph
   int nn = 10;
   if (mbMonocular)
@@ -282,8 +274,7 @@ void LocalMapping::CreateNewMapPoints()
 
     // Triangulate each match
     const int nmatches = vMatchedIndices.size();
-    for (int ikp=0; ikp<nmatches; ikp++)
-    {
+    for (int ikp=0; ikp<nmatches; ikp++) {
       const int &idx1 = vMatchedIndices[ikp].first;
       const int &idx2 = vMatchedIndices[ikp].second;
 

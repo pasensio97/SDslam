@@ -40,6 +40,11 @@ class ImageAlign {
   // Compute pose between a frame and a keyframe. Used to track last keyframe and in relocalization (Tracking)
   bool ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast = false);
 
+  // Compute pose between two keyframes. Used to detect loops (LoopClosing)
+  bool ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF);
+
+  inline double GetError() { return error_; }
+
  private:
   // Optimize using Gauss Newton strategy
   void Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose, cv::Mat &se3, float scale);

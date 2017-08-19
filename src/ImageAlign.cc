@@ -166,8 +166,67 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
 
   CurrentFrame.SetPose(current_se3 * last_pose);
 
-  total.Stop();
-  cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
+  if (!fast) {
+    total.Stop();
+    cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
+  }
+
+  return true;
+}
+
+bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
+  int size, patch_area, counter;
+  float scale;
+  int max_points = 100;
+
+  cam_fx_ = CurrentKF->fx;
+  cam_fy_ = CurrentKF->fy;
+  cam_cx_ = CurrentKF->cx;
+  cam_cy_ = CurrentKF->cy;
+
+  if (static_cast<int>(CurrentKF->mvImagePyramid.size()) <= max_level_) {
+    cerr << "[ERROR] Not enough pyramid levels" << endl;
+    return false;
+  }
+
+  // Save valid points seen in last keyframe
+  const set<MapPoint*> mappoints = LastKF->GetMapPoints();
+  counter = 0;
+  for (auto it=mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
+    MapPoint* pMP = *it;
+    cv::Mat pos = pMP->GetWorldPos();
+    Eigen::Vector3d p = Converter::toVector3d(pos);
+    points_.push_back(p);
+    counter++;
+  }
+
+  size = points_.size();
+  if (size == 0) {
+    cerr << "[ERROR] No points to track!" << endl;
+    return false;
+  }
+
+  patch_area = patch_size_*patch_size_;
+  patch_cache_ = cv::Mat(size, patch_area, CV_32F);
+  visible_pts_.resize(size, false);
+  jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
+
+  // Initial displacement between frames.
+  cv::Mat current_se3 = cv::Mat::eye(4, 4, CV_32F);
+  cv::Mat last_pose = LastKF->GetPose();
+
+  // Only last level
+  int level = max_level_;
+  jacobian_cache_.setZero();
+
+  scale = 1.0/CurrentKF->mvScaleFactors[level];
+  Optimize(CurrentKF->mvImagePyramid[level], LastKF->mvImagePyramid[level], last_pose, current_se3, scale);
+
+  // High error in max level means frames are not close, skip other levels
+  if (error_ > 0.03) {
+    error_ = 1e10;
+    return false;
+  }
 
   return true;
 }

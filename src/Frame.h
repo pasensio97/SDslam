@@ -61,9 +61,6 @@ public:
   // Extract ORB on the image
   void ExtractORB(const cv::Mat &im);
 
-  // Compute Bag of Words representation.
-  void ComputeBoW();
-
   // Set the camera pose.
   void SetPose(cv::Mat Tcw);
 
@@ -147,10 +144,6 @@ public:
   // "Monocular" keypoints have a negative value.
   std::vector<float> mvuRight;
   std::vector<float> mvDepth;
-
-  // Bag of Words Vector structures.
-  DBoW2::BowVector mBowVec;
-  DBoW2::FeatureVector mFeatVec;
 
   // ORB descriptor, each row associated to a keypoint.
   cv::Mat mDescriptors;

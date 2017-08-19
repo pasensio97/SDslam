@@ -28,25 +28,17 @@
 #include "KeyFrame.h"
 #include "LocalMapping.h"
 #include "Map.h"
-#include "ORBVocabulary.h"
 #include "Tracking.h"
-
-#include "KeyFrameDatabase.h"
-
 #include <thread>
 #include <mutex>
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 class Tracking;
 class LocalMapping;
-class KeyFrameDatabase;
 
-
-class LoopClosing
-{
+class LoopClosing {
 public:
 
   typedef pair<set<KeyFrame*>,int> ConsistentGroup;  
@@ -55,7 +47,7 @@ public:
 
 public:
 
-  LoopClosing(Map* pMap, KeyFrameDatabase* pDB, ORBVocabulary* pVoc,const bool bFixScale);
+  LoopClosing(Map* pMap, const bool bFixScale);
 
   void SetTracker(Tracking* pTracker);
 
@@ -111,9 +103,6 @@ protected:
   Map* mpMap;
   Tracking* mpTracker;
 
-  KeyFrameDatabase* mpKeyFrameDB;
-  ORBVocabulary* mpORBVocabulary;
-
   LocalMapping *mpLocalMapper;
 
   std::list<KeyFrame*> mlpLoopKeyFrameQueue;
@@ -145,7 +134,6 @@ protected:
 
   // Fix scale in the stereo/RGB-D case
   bool mbFixScale;
-
 
   bool mnFullBAIdx;
 };

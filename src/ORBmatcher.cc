@@ -42,12 +42,10 @@ const int ORBmatcher::TH_HIGH = 100;
 const int ORBmatcher::TH_LOW = 50;
 const int ORBmatcher::HISTO_LENGTH = 30;
 
-ORBmatcher::ORBmatcher(float nnratio, bool checkOri): mfNNratio(nnratio), mbCheckOrientation(checkOri)
-{
+ORBmatcher::ORBmatcher(float nnratio, bool checkOri): mfNNratio(nnratio), mbCheckOrientation(checkOri) {
 }
 
-int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints, const float th)
-{
+int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints, const float th) {
   int nmatches=0;
 
   const bool bFactor = th!=1.0;
@@ -160,138 +158,7 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoin
   return dsqr<3.84*pKF2->mvLevelSigma2[kp2.octave];
 }
 
-int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPointMatches) {
-  const vector<MapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
-
-  vpMapPointMatches = vector<MapPoint*>(F.N,static_cast<MapPoint*>(NULL));
-
-  const DBoW2::FeatureVector &vFeatVecKF = pKF->mFeatVec;
-
-  int nmatches=0;
-
-  vector<int> rotHist[HISTO_LENGTH];
-  for (int i=0;i<HISTO_LENGTH;i++)
-    rotHist[i].reserve(500);
-  const float factor = 1.0f/HISTO_LENGTH;
-
-  // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
-  DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
-  DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin();
-  DBoW2::FeatureVector::const_iterator KFend = vFeatVecKF.end();
-  DBoW2::FeatureVector::const_iterator Fend = F.mFeatVec.end();
-
-  while (KFit != KFend && Fit != Fend)
-  {
-    if (KFit->first == Fit->first)
-    {
-      const vector<unsigned int> vIndicesKF = KFit->second;
-      const vector<unsigned int> vIndicesF = Fit->second;
-
-      for (size_t iKF=0; iKF<vIndicesKF.size(); iKF++)
-      {
-        const unsigned int realIdxKF = vIndicesKF[iKF];
-
-        MapPoint* pMP = vpMapPointsKF[realIdxKF];
-
-        if (!pMP)
-          continue;
-
-        if (pMP->isBad())
-          continue;        
-
-        const cv::Mat &dKF= pKF->mDescriptors.row(realIdxKF);
-
-        int bestDist1=256;
-        int bestIdxF =-1 ;
-        int bestDist2=256;
-
-        for (size_t iF=0; iF<vIndicesF.size(); iF++)
-        {
-          const unsigned int realIdxF = vIndicesF[iF];
-
-          if (vpMapPointMatches[realIdxF])
-            continue;
-
-          const cv::Mat &dF = F.mDescriptors.row(realIdxF);
-
-          const int dist =  DescriptorDistance(dKF,dF);
-
-          if (dist<bestDist1)
-          {
-            bestDist2=bestDist1;
-            bestDist1=dist;
-            bestIdxF=realIdxF;
-          }
-          else if (dist<bestDist2)
-          {
-            bestDist2=dist;
-          }
-        }
-
-        if (bestDist1<=TH_LOW)
-        {
-          if (static_cast<float>(bestDist1)<mfNNratio*static_cast<float>(bestDist2))
-          {
-            vpMapPointMatches[bestIdxF]=pMP;
-
-            const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
-
-            if (mbCheckOrientation)
-            {
-              float rot = kp.angle-F.mvKeys[bestIdxF].angle;
-              if (rot<0.0)
-                rot+=360.0f;
-              int bin = round(rot*factor);
-              if (bin==HISTO_LENGTH)
-                bin=0;
-              assert(bin>=0 && bin<HISTO_LENGTH);
-              rotHist[bin].push_back(bestIdxF);
-            }
-            nmatches++;
-          }
-        }
-
-      }
-
-      KFit++;
-      Fit++;
-    }
-    else if (KFit->first < Fit->first)
-    {
-      KFit = vFeatVecKF.lower_bound(Fit->first);
-    }
-    else
-    {
-      Fit = F.mFeatVec.lower_bound(KFit->first);
-    }
-  }
-
-
-  if (mbCheckOrientation)
-  {
-    int ind1=-1;
-    int ind2=-1;
-    int ind3=-1;
-
-    ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
-
-    for (int i=0; i<HISTO_LENGTH; i++)
-    {
-      if (i==ind1 || i==ind2 || i==ind3)
-        continue;
-      for (size_t j=0, jend=rotHist[i].size(); j<jend; j++)
-      {
-        vpMapPointMatches[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
-        nmatches--;
-      }
-    }
-  }
-
-  return nmatches;
-}
-
-int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th)
-{
+int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th) {
   // Get Calibration Parameters for later projection
   const float &fx = pKF->fx;
   const float &fy = pKF->fy;
@@ -522,144 +389,8 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
   return nmatches;
 }
 
-int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches12)
-{
-  const vector<cv::KeyPoint> &vKeysUn1 = pKF1->mvKeysUn;
-  const DBoW2::FeatureVector &vFeatVec1 = pKF1->mFeatVec;
-  const vector<MapPoint*> vpMapPoints1 = pKF1->GetMapPointMatches();
-  const cv::Mat &Descriptors1 = pKF1->mDescriptors;
-
-  const vector<cv::KeyPoint> &vKeysUn2 = pKF2->mvKeysUn;
-  const DBoW2::FeatureVector &vFeatVec2 = pKF2->mFeatVec;
-  const vector<MapPoint*> vpMapPoints2 = pKF2->GetMapPointMatches();
-  const cv::Mat &Descriptors2 = pKF2->mDescriptors;
-
-  vpMatches12 = vector<MapPoint*>(vpMapPoints1.size(),static_cast<MapPoint*>(NULL));
-  vector<bool> vbMatched2(vpMapPoints2.size(),false);
-
-  vector<int> rotHist[HISTO_LENGTH];
-  for (int i=0;i<HISTO_LENGTH;i++)
-    rotHist[i].reserve(500);
-
-  const float factor = 1.0f/HISTO_LENGTH;
-
-  int nmatches = 0;
-
-  DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin();
-  DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin();
-  DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end();
-  DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end();
-
-  while (f1it != f1end && f2it != f2end)
-  {
-    if (f1it->first == f2it->first)
-    {
-      for (size_t i1=0, iend1=f1it->second.size(); i1<iend1; i1++)
-      {
-        const size_t idx1 = f1it->second[i1];
-
-        MapPoint* pMP1 = vpMapPoints1[idx1];
-        if (!pMP1)
-          continue;
-        if (pMP1->isBad())
-          continue;
-
-        const cv::Mat &d1 = Descriptors1.row(idx1);
-
-        int bestDist1=256;
-        int bestIdx2 =-1 ;
-        int bestDist2=256;
-
-        for (size_t i2=0, iend2=f2it->second.size(); i2<iend2; i2++)
-        {
-          const size_t idx2 = f2it->second[i2];
-
-          MapPoint* pMP2 = vpMapPoints2[idx2];
-
-          if (vbMatched2[idx2] || !pMP2)
-            continue;
-
-          if (pMP2->isBad())
-            continue;
-
-          const cv::Mat &d2 = Descriptors2.row(idx2);
-
-          int dist = DescriptorDistance(d1,d2);
-
-          if (dist<bestDist1)
-          {
-            bestDist2=bestDist1;
-            bestDist1=dist;
-            bestIdx2=idx2;
-          }
-          else if (dist<bestDist2)
-          {
-            bestDist2=dist;
-          }
-        }
-
-        if (bestDist1<TH_LOW)
-        {
-          if (static_cast<float>(bestDist1)<mfNNratio*static_cast<float>(bestDist2))
-          {
-            vpMatches12[idx1]=vpMapPoints2[bestIdx2];
-            vbMatched2[bestIdx2]=true;
-
-            if (mbCheckOrientation)
-            {
-              float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle;
-              if (rot<0.0)
-                rot+=360.0f;
-              int bin = round(rot*factor);
-              if (bin==HISTO_LENGTH)
-                bin=0;
-              assert(bin>=0 && bin<HISTO_LENGTH);
-              rotHist[bin].push_back(idx1);
-            }
-            nmatches++;
-          }
-        }
-      }
-
-      f1it++;
-      f2it++;
-    }
-    else if (f1it->first < f2it->first)
-    {
-      f1it = vFeatVec1.lower_bound(f2it->first);
-    }
-    else
-    {
-      f2it = vFeatVec2.lower_bound(f1it->first);
-    }
-  }
-
-  if (mbCheckOrientation)
-  {
-    int ind1=-1;
-    int ind2=-1;
-    int ind3=-1;
-
-    ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
-
-    for (int i=0; i<HISTO_LENGTH; i++)
-    {
-      if (i==ind1 || i==ind2 || i==ind3)
-        continue;
-      for (size_t j=0, jend=rotHist[i].size(); j<jend; j++)
-      {
-        vpMatches12[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
-        nmatches--;
-      }
-    }
-  }
-
-  return nmatches;
-}
-
 int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,
-                     vector<pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo)
-{  
+                     vector<pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo) {
   const DBoW2::FeatureVector &vFeatVec1 = pKF1->mFeatVec;
   const DBoW2::FeatureVector &vFeatVec2 = pKF2->mFeatVec;
 
@@ -1596,6 +1327,103 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame* pKF, const flo
       }
     }
   }
+
+  return nmatches;
+}
+
+int ORBmatcher::SearchByPoints(KeyFrame* currentKF, KeyFrame* pKF, vector<MapPoint*> &matches) {
+  int nmatches = 0;
+
+  // Rotation Histogram (to check rotation consistency)
+  vector<int> rotHist[HISTO_LENGTH];
+  for (int i=0;i<HISTO_LENGTH;i++)
+    rotHist[i].reserve(500);
+  const float factor = 1.0f/HISTO_LENGTH;
+
+  const vector<cv::KeyPoint> &vKeysUn1 = currentKF->mvKeysUn;
+  const vector<MapPoint*> vpMapPoints1 = currentKF->GetMapPointMatches();
+  const cv::Mat &Descriptors1 = currentKF->mDescriptors;
+
+  const vector<cv::KeyPoint> &vKeysUn2 = pKF->mvKeysUn;
+  const vector<MapPoint*> vpMapPoints2 = pKF->GetMapPointMatches();
+  const cv::Mat &Descriptors2 = pKF->mDescriptors;
+
+  matches = vector<MapPoint*>(vpMapPoints1.size(),static_cast<MapPoint*>(NULL));
+  vector<bool> vbMatched2(vpMapPoints2.size(),false);
+
+  for (size_t idx1=0; idx1<vpMapPoints1.size(); idx1++) {
+    MapPoint* pMP1 = vpMapPoints1[idx1];
+    if (!pMP1)
+      continue;
+
+    if (pMP1->isBad())
+      continue;
+
+    const cv::Mat &d1 = Descriptors1.row(idx1);
+
+    int bestDist1=256;
+    int bestIdx2 =-1 ;
+    int bestDist2=256;
+
+    for (size_t idx2=0; idx2<vpMapPoints2.size(); idx2++) {
+      MapPoint* pMP2 = vpMapPoints2[idx2];
+      if (!pMP2 || vbMatched2[idx2])
+        continue;
+
+      if (pMP2->isBad())
+        continue;
+
+      const cv::Mat &d2 = Descriptors2.row(idx2);
+
+      int dist = DescriptorDistance(d1,d2);
+
+      if (dist<bestDist1) {
+        bestDist2=bestDist1;
+        bestDist1=dist;
+        bestIdx2=idx2;
+      } else if (dist<bestDist2) {
+        bestDist2=dist;
+      }
+    }
+
+    if (bestDist1<TH_LOW) {
+      if (static_cast<float>(bestDist1)<mfNNratio*static_cast<float>(bestDist2)) {
+        matches[idx1] = vpMapPoints2[bestIdx2];
+        vbMatched2[bestIdx2] = true;
+
+        if (mbCheckOrientation){
+          float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle;
+          if (rot<0.0)
+            rot+=360.0f;
+          int bin = round(rot*factor);
+          if (bin==HISTO_LENGTH)
+            bin=0;
+          assert(bin>=0 && bin<HISTO_LENGTH);
+          rotHist[bin].push_back(idx1);
+        }
+        nmatches++;
+      }
+    }
+  }
+
+  //Apply rotation consistency
+  if (mbCheckOrientation) {
+    int ind1=-1;
+    int ind2=-1;
+    int ind3=-1;
+
+    ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
+
+    for (int i=0; i<HISTO_LENGTH; i++) {
+      if (i==ind1 || i==ind2 || i==ind3)
+        continue;
+      for (size_t j=0, jend=rotHist[i].size(); j<jend; j++) {
+        matches[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
+        nmatches--;
+      }
+    }
+  }
+
 
   return nmatches;
 }

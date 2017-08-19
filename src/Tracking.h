@@ -25,9 +25,8 @@
 #ifndef TRACKING_H
 #define TRACKING_H
 
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
-
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 #include "Viewer.h"
 #include "FrameDrawer.h"
 #include "Map.h"
@@ -35,7 +34,6 @@
 #include "LoopClosing.h"
 #include "Frame.h"
 #include "ORBVocabulary.h"
-#include "KeyFrameDatabase.h"
 #include "ORBextractor.h"
 #include "Initializer.h"
 #include "MapDrawer.h"
@@ -43,8 +41,7 @@
 
 #include <mutex>
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 class Viewer;
 class FrameDrawer;
@@ -53,12 +50,11 @@ class LocalMapping;
 class LoopClosing;
 class System;
 
-class Tracking
-{  
+class Tracking {
 
 public:
   Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
-       KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor);
+           const string &strSettingPath, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
   cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
@@ -149,7 +145,6 @@ protected:
 
   //BoW
   ORBVocabulary* mpORBVocabulary;
-  KeyFrameDatabase* mpKeyFrameDB;
 
   // Initalization (only for monocular)
   Initializer* mpInitializer;

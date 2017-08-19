@@ -25,9 +25,9 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-#include<string>
-#include<thread>
-#include<opencv2/core/core.hpp>
+#include <string>
+#include <thread>
+#include <opencv2/core/core.hpp>
 
 #include "Tracking.h"
 #include "FrameDrawer.h"
@@ -35,12 +35,10 @@
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
-#include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 #include "Viewer.h"
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 class Viewer;
 class FrameDrawer;
@@ -49,8 +47,7 @@ class Tracking;
 class LocalMapping;
 class LoopClosing;
 
-class System
-{
+class System {
 public:
   // Input sensor
   enum eSensor{
@@ -99,9 +96,6 @@ private:
 
   // ORB vocabulary used for place recognition and feature matching.
   ORBVocabulary* mpVocabulary;
-
-  // KeyFrame database for place recognition (relocalization and loop detection).
-  KeyFrameDatabase* mpKeyFrameDatabase;
 
   // Map structure that stores the pointers to all KeyFrames and MapPoints.
   Map* mpMap;

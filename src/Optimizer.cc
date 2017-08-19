@@ -240,8 +240,7 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
 
 }
 
-int Optimizer::PoseOptimization(Frame *pFrame)
-{
+int Optimizer::PoseOptimization(Frame *pFrame) {
   g2o::SparseOptimizer optimizer;
   g2o::BlockSolver_6_3::LinearSolverType * linearSolver;
 
@@ -284,11 +283,9 @@ int Optimizer::PoseOptimization(Frame *pFrame)
   for (int i=0; i<N; i++)
   {
     MapPoint* pMP = pFrame->mvpMapPoints[i];
-    if (pMP)
-    {
+    if (pMP) {
       // Monocular observation
-      if (pFrame->mvuRight[i]<0)
-      {
+      if (pFrame->mvuRight[i]<0) {
         nInitialCorrespondences++;
         pFrame->mvbOutlier[i] = false;
 
@@ -375,8 +372,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
   const int its[4]={10,10,10,10};  
 
   int nBad=0;
-  for (size_t it=0; it<4; it++)
-  {
+  for (size_t it=0; it<4; it++) {
 
     vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
     optimizer.initializeOptimization(0);

@@ -30,7 +30,7 @@
 
 using std::vector;
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 long unsigned int Frame::nNextId=0;
 bool Frame::mbInitialComputations=true;
@@ -289,19 +289,15 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
 
   const bool bCheckLevels = (minLevel>0) || (maxLevel>=0);
 
-  for (int ix = nMinCellX; ix<=nMaxCellX; ix++)
-  {
-    for (int iy = nMinCellY; iy<=nMaxCellY; iy++)
-    {
+  for (int ix = nMinCellX; ix<=nMaxCellX; ix++) {
+    for (int iy = nMinCellY; iy<=nMaxCellY; iy++) {
       const vector<size_t> vCell = mGrid[ix][iy];
       if (vCell.empty())
         continue;
 
-      for (size_t j=0, jend=vCell.size(); j<jend; j++)
-      {
+      for (size_t j=0, jend=vCell.size(); j<jend; j++) {
         const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
-        if (bCheckLevels)
-        {
+        if (bCheckLevels) {
           if (kpUn.octave<minLevel)
             continue;
           if (maxLevel>=0)
@@ -321,8 +317,7 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
   return vIndices;
 }
 
-bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY)
-{
+bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY) {
   posX = round((kp.pt.x-mnMinX)*mfGridElementWidthInv);
   posY = round((kp.pt.y-mnMinY)*mfGridElementHeightInv);
 
@@ -342,8 +337,7 @@ void Frame::UndistortKeyPoints() {
 
   // Fill matrix with points
   cv::Mat mat(N,2,CV_32F);
-  for (int i=0; i<N; i++)
-  {
+  for (int i=0; i<N; i++) {
     mat.at<float>(i,0)=mvKeys[i].pt.x;
     mat.at<float>(i,1)=mvKeys[i].pt.y;
   }
@@ -355,8 +349,7 @@ void Frame::UndistortKeyPoints() {
 
   // Fill undistorted keypoint vector
   mvKeysUn.resize(N);
-  for (int i=0; i<N; i++)
-  {
+  for (int i=0; i<N; i++) {
     cv::KeyPoint kp = mvKeys[i];
     kp.pt.x=mat.at<float>(i,0);
     kp.pt.y=mat.at<float>(i,1);
@@ -364,10 +357,8 @@ void Frame::UndistortKeyPoints() {
   }
 }
 
-void Frame::ComputeImageBounds(const cv::Mat &imLeft)
-{
-  if (mDistCoef.at<float>(0)!=0.0)
-  {
+void Frame::ComputeImageBounds(const cv::Mat &imLeft) {
+  if (mDistCoef.at<float>(0)!=0.0) {
     cv::Mat mat(4,2,CV_32F);
     mat.at<float>(0,0)=0.0; mat.at<float>(0,1)=0.0;
     mat.at<float>(1,0)=imLeft.cols; mat.at<float>(1,1)=0.0;
@@ -384,9 +375,7 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
     mnMinY = std::min(mat.at<float>(0,1),mat.at<float>(1,1));
     mnMaxY = std::max(mat.at<float>(2,1),mat.at<float>(3,1));
 
-  }
-  else
-  {
+  } else {
     mnMinX = 0.0f;
     mnMaxX = imLeft.cols;
     mnMinY = 0.0f;
@@ -394,13 +383,11 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
   }
 }
 
-void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
-{
+void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth) {
   mvuRight = vector<float>(N,-1);
   mvDepth = vector<float>(N,-1);
 
-  for (int i=0; i<N; i++)
-  {
+  for (int i=0; i<N; i++) {
     const cv::KeyPoint &kp = mvKeys[i];
     const cv::KeyPoint &kpU = mvKeysUn[i];
 
@@ -409,16 +396,14 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
 
     const float d = imDepth.at<float>(v,u);
 
-    if (d>0)
-    {
+    if (d>0) {
       mvDepth[i] = d;
       mvuRight[i] = kpU.pt.x-mbf/d;
     }
   }
 }
 
-cv::Mat Frame::UnprojectStereo(const int &i)
-{
+cv::Mat Frame::UnprojectStereo(const int &i) {
   const float z = mvDepth[i];
   if (z>0) {
     const float u = mvKeysUn[i].pt.x;
@@ -427,8 +412,7 @@ cv::Mat Frame::UnprojectStereo(const int &i)
     const float y = (v-cy)*z*invfy;
     cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x, y, z);
     return mRwc*x3Dc+mOw;
-  }
-  else
+  } else
     return cv::Mat();
 }
 

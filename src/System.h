@@ -37,7 +37,7 @@
 #include "LoopClosing.h"
 #include "Viewer.h"
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Viewer;
 class FrameDrawer;
@@ -47,15 +47,14 @@ class LocalMapping;
 class LoopClosing;
 
 class System {
-public:
+ public:
   // Input sensor
   enum eSensor{
     MONOCULAR=0,
     RGBD=1
   };
 
-public:
-
+ public:
   // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
   System(const std::string &strSettingsFile, const eSensor sensor, const bool bUseViewer = true);
 
@@ -88,8 +87,7 @@ public:
   std::vector<MapPoint*> GetTrackedMapPoints();
   std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
 
-private:
-
+ private:
   // Input sensor
   eSensor mSensor;
 

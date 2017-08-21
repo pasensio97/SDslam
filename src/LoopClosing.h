@@ -33,20 +33,18 @@
 #include <mutex>
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Tracking;
 class LocalMapping;
 
 class LoopClosing {
-public:
-
+ public:
   typedef std::pair<std::set<KeyFrame*>,int> ConsistentGroup;  
   typedef std::map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
     Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
 
-public:
-
+ public:
   LoopClosing(Map* pMap, const bool bFixScale);
 
   void SetTracker(Tracking* pTracker);
@@ -78,8 +76,7 @@ public:
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-protected:
-
+ protected:
   bool CheckNewKeyFrames();
 
   bool DetectLoop();

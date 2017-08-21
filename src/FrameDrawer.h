@@ -32,13 +32,13 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <mutex>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Tracking;
 class Viewer;
 
 class FrameDrawer {
-public:
+ public:
   FrameDrawer(Map* pMap);
 
   // Update info from the last processed frame.
@@ -47,8 +47,7 @@ public:
   // Draw last processed frame.
   cv::Mat DrawFrame();
 
-protected:
-
+ protected:
   void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
 
   // Info of the frame to be drawn

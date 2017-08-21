@@ -31,14 +31,14 @@
 #include "Tracking.h"
 #include <mutex>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Tracking;
 class LoopClosing;
 class Map;
 
 class LocalMapping {
-public:
+ public:
   LocalMapping(Map* pMap, const float bMonocular);
 
   void SetLoopCloser(LoopClosing* pLoopCloser);
@@ -71,8 +71,7 @@ public:
     return mlNewKeyFrames.size();
   }
 
-protected:
-
+ protected:
   bool CheckNewKeyFrames();
   void ProcessNewKeyFrame();
   void CreateNewMapPoints();

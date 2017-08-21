@@ -8,7 +8,7 @@ make -j4
 
 cd ../../../
 
-echo "Configuring and building ORB_SLAM2 ..."
+echo "Configuring and building SD_SLAM ..."
 
 mkdir build
 cd build

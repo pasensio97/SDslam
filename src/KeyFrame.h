@@ -30,14 +30,14 @@
 #include "Frame.h"
 #include <mutex>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Map;
 class MapPoint;
 class Frame;
 
 class KeyFrame {
-public:
+ public:
   KeyFrame(Frame &F, Map* pMap);
 
   // Pose functions
@@ -109,8 +109,7 @@ public:
 
 
   // The following variables are accesed from only 1 thread or never change (no mutex needed).
-public:
-
+ public:
   static long unsigned int nNextId;
   long unsigned int mnId;
   const long unsigned int mnFrameId;
@@ -178,8 +177,7 @@ public:
   std::vector<cv::Mat> mvImagePyramid;
 
   // The following variables need to be accessed trough a mutex to be thread safe.
-protected:
-
+ protected:
   // SE3 Pose and camera center
   cv::Mat Tcw;
   cv::Mat Twc;

@@ -33,14 +33,14 @@
 
 
 
-namespace ORB_SLAM2
+namespace SD_SLAM
 {
 
 class MapPoint;
 class KeyFrame;
 
 class Map {
-public:
+ public:
   Map();
 
   void AddKeyFrame(KeyFrame* pKF);
@@ -69,7 +69,7 @@ public:
   // This avoid that two points are created simultaneously in separate threads (id conflict)
   std::mutex mMutexPointCreation;
 
-protected:
+ protected:
   std::set<MapPoint*> mspMapPoints;
   std::set<KeyFrame*> mspKeyFrames;
 

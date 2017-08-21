@@ -16,19 +16,19 @@
  *
  */
 
-#ifndef ORB_SLAM2_UTILS_H_
-#define ORB_SLAM2_UTILS_H_
+#ifndef SD_SLAM_UTILS_H_
+#define SD_SLAM_UTILS_H_
 
 #include <cstdlib>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 // Get a random int in range [min..max]
 int Random(int min, int max);
 
-}  // namespace ORB_SLAM2
+}  // namespace SD_SLAM
 
-#endif  // ORB_SLAM2_UTILS_H_
+#endif  // SD_SLAM_UTILS_H_
 
 
 

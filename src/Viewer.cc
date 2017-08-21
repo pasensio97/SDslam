@@ -30,12 +30,11 @@
 using std::mutex;
 using std::unique_lock;
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Tracking *pTracking, const std::string &strSettingPath):
   mpSystem(pSystem), mpFrameDrawer(pFrameDrawer),mpMapDrawer(pMapDrawer), mpTracker(pTracking),
-  mbFinishRequested(false), mbFinished(true), mbStopped(true), mbStopRequested(false)
-{
+  mbFinishRequested(false), mbFinished(true), mbStopped(true), mbStopRequested(false) {
   cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
   float fps = fSettings["Camera.fps"];
@@ -45,8 +44,7 @@ Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer
 
   mImageWidth = fSettings["Camera.width"];
   mImageHeight = fSettings["Camera.height"];
-  if (mImageWidth<1 || mImageHeight<1)
-  {
+  if (mImageWidth<1 || mImageHeight<1) {
     mImageWidth = 640;
     mImageHeight = 480;
   }
@@ -57,12 +55,11 @@ Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer
   mViewpointF = fSettings["Viewer.ViewpointF"];
 }
 
-void Viewer::Run()
-{
+void Viewer::Run() {
   mbFinished = false;
   mbStopped = false;
 
-  pangolin::CreateWindowAndBind("ORB-SLAM2: Map Viewer",1024,768);
+  pangolin::CreateWindowAndBind("SD-SLAM: Map Viewer",1024,768);
 
   // 3D Mouse handler requires depth testing to be enabled
   glEnable(GL_DEPTH_TEST);
@@ -92,7 +89,7 @@ void Viewer::Run()
   pangolin::OpenGlMatrix Twc;
   Twc.SetIdentity();
 
-  cv::namedWindow("ORB-SLAM2: Current Frame");
+  cv::namedWindow("SD-SLAM: Current Frame");
 
   bool bFollow = true;
 
@@ -103,15 +100,11 @@ void Viewer::Run()
 
     if (menuFollowCamera && bFollow) {
       s_cam.Follow(Twc);
-    }
-    else if (menuFollowCamera && !bFollow)
-    {
+    } else if (menuFollowCamera && !bFollow) {
       s_cam.SetModelViewMatrix(pangolin::ModelViewLookAt(mViewpointX,mViewpointY,mViewpointZ, 0,0,0,0.0,-1.0, 0.0));
       s_cam.Follow(Twc);
       bFollow = true;
-    }
-    else if (!menuFollowCamera && bFollow)
-    {
+    } else if (!menuFollowCamera && bFollow) {
       bFollow = false;
     }
 
@@ -126,7 +119,7 @@ void Viewer::Run()
     pangolin::FinishFrame();
 
     cv::Mat im = mpFrameDrawer->DrawFrame();
-    cv::imshow("ORB-SLAM2: Current Frame",im);
+    cv::imshow("SD-SLAM: Current Frame",im);
     cv::waitKey(mT);
 
     if (menuReset) {
@@ -139,10 +132,8 @@ void Viewer::Run()
       menuReset = false;
     }
 
-    if (Stop())
-    {
-      while (isStopped())
-      {
+    if (Stop()) {
+      while (isStopped()) {
         usleep(3000);
       }
     }
@@ -154,52 +145,44 @@ void Viewer::Run()
   SetFinish();
 }
 
-void Viewer::RequestFinish()
-{
+void Viewer::RequestFinish() {
   unique_lock<mutex> lock(mMutexFinish);
   mbFinishRequested = true;
 }
 
-bool Viewer::CheckFinish()
-{
+bool Viewer::CheckFinish() {
   unique_lock<mutex> lock(mMutexFinish);
   return mbFinishRequested;
 }
 
-void Viewer::SetFinish()
-{
+void Viewer::SetFinish() {
   unique_lock<mutex> lock(mMutexFinish);
   mbFinished = true;
 }
 
-bool Viewer::isFinished()
-{
+bool Viewer::isFinished() {
   unique_lock<mutex> lock(mMutexFinish);
   return mbFinished;
 }
 
-void Viewer::RequestStop()
-{
+void Viewer::RequestStop() {
   unique_lock<mutex> lock(mMutexStop);
   if (!mbStopped)
     mbStopRequested = true;
 }
 
-bool Viewer::isStopped()
-{
+bool Viewer::isStopped() {
   unique_lock<mutex> lock(mMutexStop);
   return mbStopped;
 }
 
-bool Viewer::Stop()
-{
+bool Viewer::Stop() {
   unique_lock<mutex> lock(mMutexStop);
   unique_lock<mutex> lock2(mMutexFinish);
 
   if (mbFinishRequested)
     return false;
-  else if (mbStopRequested)
-  {
+  else if (mbStopRequested) {
     mbStopped = true;
     mbStopRequested = false;
     return true;
@@ -209,8 +192,7 @@ bool Viewer::Stop()
 
 }
 
-void Viewer::Release()
-{
+void Viewer::Release() {
   unique_lock<mutex> lock(mMutexStop);
   mbStopped = false;
 }

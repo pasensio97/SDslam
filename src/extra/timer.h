@@ -16,14 +16,14 @@
  *
  */
 
-#ifndef ORB_SLAM2_TIMER_H_
-#define ORB_SLAM2_TIMER_H_
+#ifndef SD_SLAM_TIMER_H_
+#define SD_SLAM_TIMER_H_
 
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Timer {
  public:
@@ -58,7 +58,7 @@ class Timer {
   double time_;
 };
 
-}  // namespace ORB_SLAM2
+}  // namespace SD_SLAM
 
 
-#endif  // ORB_SLAM2_TIMER_H_
+#endif  // SD_SLAM_TIMER_H_

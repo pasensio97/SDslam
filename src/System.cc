@@ -37,7 +37,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 System::System(const string &strSettingsFile, const eSensor sensor,
          const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false) {
@@ -72,11 +72,11 @@ System::System(const string &strSettingsFile, const eSensor sensor,
 
   //Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
-  mptLocalMapping = new std::thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
+  mptLocalMapping = new std::thread(&SD_SLAM::LocalMapping::Run,mpLocalMapper);
 
   //Initialize the Loop Closing thread and launch
   mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
-  mptLoopClosing = new std::thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+  mptLoopClosing = new std::thread(&SD_SLAM::LoopClosing::Run, mpLoopCloser);
 
   //Initialize the Viewer thread and launch
   if (bUseViewer) {
@@ -120,8 +120,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
   return Tcw;
 }
 
-cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
-{
+cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   if (mSensor!=MONOCULAR) {
     cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." << endl;
     exit(-1);
@@ -149,17 +148,14 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
 bool System::MapChanged() {
   static int n=0;
   int curn = mpMap->GetLastBigChangeIdx();
-  if (n<curn)
-  {
+  if (n<curn) {
     n=curn;
     return true;
-  }
-  else
+  } else
     return false;
 }
 
-void System::Reset()
-{
+void System::Reset() {
   unique_lock<mutex> lock(mMutexReset);
   mbReset = true;
 }
@@ -179,23 +175,20 @@ void System::Shutdown() {
   }
 
   if (mpViewer)
-    pangolin::BindToContext("ORB-SLAM2: Map Viewer");
+    pangolin::BindToContext("SD-SLAM: Map Viewer");
 }
 
-int System::GetTrackingState()
-{
+int System::GetTrackingState() {
   unique_lock<mutex> lock(mMutexState);
   return mTrackingState;
 }
 
-vector<MapPoint*> System::GetTrackedMapPoints()
-{
+vector<MapPoint*> System::GetTrackedMapPoints() {
   unique_lock<mutex> lock(mMutexState);
   return mTrackedMapPoints;
 }
 
-vector<cv::KeyPoint> System::GetTrackedKeyPointsUn()
-{
+vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   unique_lock<mutex> lock(mMutexState);
   return mTrackedKeyPointsUn;
 }

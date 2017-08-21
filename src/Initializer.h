@@ -28,14 +28,13 @@
 #include <opencv2/opencv.hpp>
 #include "Frame.h"
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 // THIS IS THE INITIALIZER FOR MONOCULAR SLAM. NOT USED IN THE STEREO OR RGBD CASE.
 class Initializer {
   typedef std::pair<int,int> Match;
 
-public:
-
+ public:
   // Fix the reference frame
   Initializer(const Frame &ReferenceFrame, float sigma = 1.0, int iterations = 200);
 
@@ -44,8 +43,7 @@ public:
   bool Initialize(const Frame &CurrentFrame, const std::vector<int> &vMatches12,
           cv::Mat &R21, cv::Mat &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated);
 
-private:
-
+ private:
   void FindHomography(std::vector<bool> &vbMatchesInliers, float &score, cv::Mat &H21);
   void FindFundamental(std::vector<bool> &vbInliers, float &score, cv::Mat &F21);
 

@@ -31,7 +31,7 @@
 using std::vector;
 using std::mutex;
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap) {
   mState=Tracking::SYSTEM_NOT_READY;

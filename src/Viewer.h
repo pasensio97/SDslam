@@ -30,8 +30,9 @@
 #include "Tracking.h"
 #include "System.h"
 #include <mutex>
+#include <string>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Tracking;
 class FrameDrawer;
@@ -39,7 +40,7 @@ class MapDrawer;
 class System;
 
 class Viewer {
-public:
+ public:
   Viewer(System* pSystem, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Tracking *pTracking, const std::string &strSettingPath);
 
   // Main thread function. Draw points, keyframes, the current camera pose and the last processed
@@ -56,8 +57,7 @@ public:
 
   void Release();
 
-private:
-
+ private:
   bool Stop();
 
   System* mpSystem;
@@ -80,12 +80,10 @@ private:
   bool mbStopped;
   bool mbStopRequested;
   std::mutex mMutexStop;
-
 };
 
-}
+}  // namespace SD_SLAM
 
 
-#endif // VIEWER_H
-	
+#endif  // VIEWER_H
 

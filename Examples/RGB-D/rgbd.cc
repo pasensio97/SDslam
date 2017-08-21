@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     }
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM2::System SLAM(argv[1], ORB_SLAM2::System::RGBD, true);
+    SD_SLAM::System SLAM(argv[1], SD_SLAM::System::RGBD, true);
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        ORB_SLAM2::Timer ttracking(true);
+        SD_SLAM::Timer ttracking(true);
 
         // Pass the image to the SLAM system
         SLAM.TrackRGBD(imRGB,imD,tframe);

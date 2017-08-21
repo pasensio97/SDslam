@@ -35,11 +35,10 @@
 #include"Frame.h"
 
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class ORBmatcher {
-public:
-
+ public:
   ORBmatcher(float nnratio=0.6, bool checkOri=true);
 
   // Computes the Hamming distance between two ORB descriptors
@@ -83,15 +82,12 @@ public:
   // Project MapPoints into KeyFrame using a given Sim3 and search for duplicated MapPoints.
   int Fuse(KeyFrame* pKF, cv::Mat Scw, const std::vector<MapPoint*> &vpPoints, float th, std::vector<MapPoint *> &vpReplacePoint);
 
-public:
-
+ public:
   static const int TH_LOW;
   static const int TH_HIGH;
   static const int HISTO_LENGTH;
 
-
-protected:
-
+ protected:
   bool CheckDistEpipolarLine(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &F12, const KeyFrame *pKF);
 
   float RadiusByViewingCos(const float &viewCos);

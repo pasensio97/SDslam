@@ -32,13 +32,12 @@
 
 
 
-namespace ORB_SLAM2
+namespace SD_SLAM
 {
 
 class Sim3Solver
 {
-public:
-
+ public:
   Sim3Solver(KeyFrame* pKF1, KeyFrame* pKF2, const std::vector<MapPoint*> &vpMatched12, const bool bFixScale = true);
 
   void SetRansacParameters(double probability = 0.99, int minInliers = 6 , int maxIterations = 300);
@@ -52,8 +51,7 @@ public:
   float GetEstimatedScale();
 
 
-protected:
-
+ protected:
   void ComputeCentroid(cv::Mat &P, cv::Mat &Pr, cv::Mat &C);
 
   void ComputeSim3(cv::Mat &P1, cv::Mat &P2);
@@ -64,8 +62,7 @@ protected:
   void FromCameraToImage(const std::vector<cv::Mat> &vP3Dc, std::vector<cv::Mat> &vP2D, cv::Mat K);
 
 
-protected:
-
+ protected:
   // KeyFrames and matches
   KeyFrame* mpKF1;
   KeyFrame* mpKF2;

@@ -27,7 +27,7 @@ using std::cerr;
 using std::endl;
 using std::set;
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 ImageAlign::ImageAlign() {
   stop_ = false;
@@ -540,4 +540,4 @@ Eigen::Matrix3d ImageAlign::RotationHat(const Eigen::Vector3d &v) {
   return Omega;
 }
 
-}  // namespace ORB_SLAM2
+}  // namespace SD_SLAM

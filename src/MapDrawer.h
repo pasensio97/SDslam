@@ -32,10 +32,10 @@
 
 #include<mutex>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class MapDrawer {
-public:
+ public:
   MapDrawer(Map* pMap, const std::string &strSettingPath);
 
   Map* mpMap;
@@ -47,8 +47,7 @@ public:
   void SetReferenceKeyFrame(KeyFrame *pKF);
   void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
 
-private:
-
+ private:
   float mKeyFrameSize;
   float mKeyFrameLineWidth;
   float mGraphLineWidth;

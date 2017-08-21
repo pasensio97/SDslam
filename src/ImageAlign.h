@@ -17,15 +17,15 @@
  *
  */
 
-#ifndef ORB_SLAM2_IMAGEALIGN_H_
-#define ORB_SLAM2_IMAGEALIGN_H_
+#ifndef SD_SLAM_IMAGEALIGN_H_
+#define SD_SLAM_IMAGEALIGN_H_
 
 #include <iostream>
 #include <vector>
 #include <Eigen/Dense>
 #include "Frame.h"
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class ImageAlign {
  public:
@@ -94,6 +94,6 @@ class ImageAlign {
   Eigen::Matrix<double, 6, Eigen::Dynamic, Eigen::ColMajor> jacobian_cache_;
 };
 
-}  // namespace ORB_SLAM2
+}  // namespace SD_SLAM
 
-#endif  // ORB_SLAM2_IMAGEALIGN_H_
+#endif  // SD_SLAM_IMAGEALIGN_H_

@@ -70,16 +70,14 @@
 using namespace cv;
 using namespace std;
 
-namespace ORB_SLAM2
-{
+namespace SD_SLAM {
 
 const int PATCH_SIZE = 31;
 const int HALF_PATCH_SIZE = 15;
 const int EDGE_THRESHOLD = 19;
 
 
-static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
-{
+static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max) {
   int m_01 = 0, m_10 = 0;
 
   const uchar* center = &image.at<uchar> (cvRound(pt.y), cvRound(pt.x));
@@ -90,13 +88,11 @@ static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
 
   // Go line by line in the circuI853lar patch
   int step = (int)image.step1();
-  for (int v = 1; v <= HALF_PATCH_SIZE; ++v)
-  {
+  for (int v = 1; v <= HALF_PATCH_SIZE; ++v) {
     // Proceed over the two lines
     int v_sum = 0;
     int d = u_max[v];
-    for (int u = -d; u <= d; ++u)
-    {
+    for (int u = -d; u <= d; ++u) {
       int val_plus = center[u + v*step], val_minus = center[u - v*step];
       v_sum += (val_plus - val_minus);
       m_10 += u * (val_plus + val_minus);
@@ -111,8 +107,7 @@ static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
 const float factorPI = (float)(CV_PI/180.f);
 static void computeOrbDescriptor(const KeyPoint& kpt,
                  const Mat& img, const Point* pattern,
-                 uchar* desc)
-{
+                 uchar* desc) {
   float angle = (float)kpt.angle*factorPI;
   float a = (float)cos(angle), b = (float)sin(angle);
 
@@ -124,8 +119,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt,
          cvRound(pattern[idx].x*a - pattern[idx].y*b)]
 
 
-  for (int i = 0; i < 32; ++i, pattern += 16)
-  {
+  for (int i = 0; i < 32; ++i, pattern += 16) {
     int t0, t1, val;
     t0 = GET_VALUE(0); t1 = GET_VALUE(1);
     val = t0 < t1;
@@ -425,8 +419,7 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int
 
   mvInvScaleFactor.resize(nlevels);
   mvInvLevelSigma2.resize(nlevels);
-  for (int i=0; i<nlevels; i++)
-  {
+  for (int i=0; i<nlevels; i++) {
     mvInvScaleFactor[i]=1.0f/mvScaleFactor[i];
     mvInvLevelSigma2[i]=1.0f/mvLevelSigma2[i];
   }
@@ -436,8 +429,7 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int
   float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
 
   int sumFeatures = 0;
-  for ( int level = 0; level < nlevels-1; level++ )
-  {
+  for ( int level = 0; level < nlevels-1; level++ ) {
     mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
     sumFeatures += mnFeaturesPerLevel[level];
     nDesiredFeaturesPerScale *= factor;
@@ -459,8 +451,7 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int
     umax[v] = cvRound(sqrt(hp2 - v * v));
 
   // Make sure we are symmetric
-  for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
-  {
+  for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v) {
     while (umax[v0] == umax[v0 + 1])
       ++v0;
     umax[v] = v0;
@@ -512,13 +503,11 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
 
     float hY = cellH + 6;
 
-    for (int i=0; i<levelRows; i++)
-    {
+    for (int i=0; i<levelRows; i++) {
       const float iniY = minBorderY + i*cellH - 3;
       iniYRow[i] = iniY;
 
-      if (i == levelRows-1)
-      {
+      if (i == levelRows-1) {
         hY = maxBorderY+3-iniY;
         if (hY<=0)
           continue;
@@ -526,23 +515,18 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
 
       float hX = cellW + 6;
 
-      for (int j=0; j<levelCols; j++)
-      {
+      for (int j=0; j<levelCols; j++) {
         float iniX;
 
-        if (i==0)
-        {
+        if (i==0) {
           iniX = minBorderX + j*cellW - 3;
           iniXCol[j] = iniX;
-        }
-        else
-        {
+        } else {
           iniX = iniXCol[j];
         }
 
 
-        if (j == levelCols-1)
-        {
+        if (j == levelCols-1) {
           hX = maxBorderX+3-iniX;
           if (hX<=0)
             continue;
@@ -555,8 +539,7 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
 
         FAST(cellImage,cellKeyPoints[i][j],iniThFAST,true);
 
-        if (cellKeyPoints[i][j].size()<=3)
-        {
+        if (cellKeyPoints[i][j].size()<=3) {
           cellKeyPoints[i][j].clear();
 
           FAST(cellImage,cellKeyPoints[i][j],minThFAST,true);
@@ -566,13 +549,10 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
         const int nKeys = cellKeyPoints[i][j].size();
         nTotal[i][j] = nKeys;
 
-        if (nKeys>nfeaturesCell)
-        {
+        if (nKeys>nfeaturesCell) {
           nToRetain[i][j] = nfeaturesCell;
           bNoMore[i][j] = false;
-        }
-        else
-        {
+        } else {
           nToRetain[i][j] = nKeys;
           nToDistribute += nfeaturesCell-nKeys;
           bNoMore[i][j] = true;
@@ -585,24 +565,17 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
 
     // Retain by score
 
-    while (nToDistribute>0 && nNoMore<nCells)
-    {
+    while (nToDistribute>0 && nNoMore<nCells) {
       int nNewFeaturesCell = nfeaturesCell + ceil((float)nToDistribute/(nCells-nNoMore));
       nToDistribute = 0;
 
-      for (int i=0; i<levelRows; i++)
-      {
-        for (int j=0; j<levelCols; j++)
-        {
-          if (!bNoMore[i][j])
-          {
-            if (nTotal[i][j]>nNewFeaturesCell)
-            {
+      for (int i=0; i<levelRows; i++) {
+        for (int j=0; j<levelCols; j++) {
+          if (!bNoMore[i][j]) {
+            if (nTotal[i][j]>nNewFeaturesCell) {
               nToRetain[i][j] = nNewFeaturesCell;
               bNoMore[i][j] = false;
-            }
-            else
-            {
+            } else {
               nToRetain[i][j] = nTotal[i][j];
               nToDistribute += nNewFeaturesCell-nTotal[i][j];
               bNoMore[i][j] = true;
@@ -619,18 +592,15 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
     const int scaledPatchSize = PATCH_SIZE*mvScaleFactor[level];
 
     // Retain by score and transform coordinates
-    for (int i=0; i<levelRows; i++)
-    {
-      for (int j=0; j<levelCols; j++)
-      {
+    for (int i=0; i<levelRows; i++) {
+      for (int j=0; j<levelCols; j++) {
         vector<KeyPoint> &keysCell = cellKeyPoints[i][j];
         KeyPointsFilter::retainBest(keysCell,nToRetain[i][j]);
         if ((int)keysCell.size()>nToRetain[i][j])
           keysCell.resize(nToRetain[i][j]);
 
 
-        for (size_t k=0, kend=keysCell.size(); k<kend; k++)
-        {
+        for (size_t k=0, kend=keysCell.size(); k<kend; k++) {
           keysCell[k].pt.x+=iniXCol[j];
           keysCell[k].pt.y+=iniYRow[i];
           keysCell[k].octave=level;
@@ -640,8 +610,7 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
       }
     }
 
-    if ((int)keypoints.size()>nDesiredFeatures)
-    {
+    if ((int)keypoints.size()>nDesiredFeatures) {
       KeyPointsFilter::retainBest(keypoints,nDesiredFeatures);
       keypoints.resize(nDesiredFeatures);
     }
@@ -709,8 +678,7 @@ void ORBextractor::operator()(InputArray _image, InputArray _mask, vector<KeyPoi
     offset += nkeypointsLevel;
 
     // Scale keypoint coordinates
-    if (level != 0)
-    {
+    if (level != 0) {
       float scale = mvScaleFactor[level]; //getScale(level, firstLevel, scaleFactor);
       for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
          keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint)

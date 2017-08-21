@@ -59,7 +59,7 @@
 #include "MapPoint.h"
 #include "Frame.h"
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class PnPsolver {
  public:
@@ -75,7 +75,6 @@ class PnPsolver {
   cv::Mat iterate(int nIterations, bool &bNoMore, std::vector<bool> &vbInliers, int &nInliers);
 
  private:
-
   void CheckInliers();
   bool Refine();
 

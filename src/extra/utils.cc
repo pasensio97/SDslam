@@ -18,14 +18,14 @@
 
 #include "utils.h"
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
-int Random(int min, int max){
-	int d = max - min + 1;
-	return int(((double)rand()/((double)RAND_MAX + 1.0)) * d) + min;
+int Random(int min, int max) {
+  int d = max - min + 1;
+  return static_cast<int>(((static_cast<double>(rand())/(static_cast<double>(RAND_MAX) + 1.0)) * d) + min);
 }
 
-}  // namespace ORB_SLAM2
+}  // namespace SD_SLAM
 
 
 

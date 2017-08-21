@@ -33,7 +33,7 @@
 
 #include <opencv2/opencv.hpp>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 #define FRAME_GRID_ROWS 48
 #define FRAME_GRID_COLS 64
 
@@ -41,7 +41,7 @@ class MapPoint;
 class KeyFrame;
 
 class Frame {
-public:
+ public:
   Frame();
 
   // Copy constructor.
@@ -97,7 +97,7 @@ public:
   // Backprojects a keypoint (if stereo/depth info available) into 3D world coordinates.
   cv::Mat UnprojectStereo(const int &i);
 
-public:
+ public:
   // Feature extractor.
   ORBextractor* mpORBextractorLeft;
 
@@ -181,7 +181,7 @@ public:
 
   std::vector<cv::Mat> mvImagePyramid;
 
-private:
+ private:
   // Undistort keypoints given OpenCV distortion parameters.
   // Only for the RGB-D case.
   // (called in the constructor).

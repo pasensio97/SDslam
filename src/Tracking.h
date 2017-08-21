@@ -40,7 +40,7 @@
 
 #include <mutex>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class Viewer;
 class FrameDrawer;
@@ -51,7 +51,7 @@ class System;
 
 class Tracking {
 
-public:
+ public:
   Tracking(System* pSys, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
            const std::string &strSettingPath, const int sensor);
 
@@ -68,8 +68,7 @@ public:
   // TODO: Modify MapPoint::PredictScale to take into account focal lenght
   void ChangeCalibration(const std::string &strSettingPath);
 
-public:
-
+ public:
   // Tracking states
   enum eTrackingState{
     SYSTEM_NOT_READY=-1,
@@ -105,8 +104,7 @@ public:
 
   void Reset();
 
-protected:
-
+ protected:
   // Main tracking function. It is independent of the input sensor.
   void Track();
 

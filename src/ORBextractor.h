@@ -29,11 +29,10 @@
 #include <list>
 #include <opencv/cv.h>
 
-namespace ORB_SLAM2 {
+namespace SD_SLAM {
 
 class ORBextractor {
-public:
-  
+ public:
   enum {HARRIS_SCORE=0, FAST_SCORE=1 };
 
   ORBextractor(int nfeatures, float scaleFactor, int nlevels, int iniThFAST, int minThFAST);
@@ -70,8 +69,7 @@ public:
     return mvInvLevelSigma2;
   }
 
-protected:
-
+ protected:
   void ComputePyramid(cv::Mat image, std::vector<cv::Mat> &imagePyramid);
   void ComputeKeyPoints(std::vector<std::vector<cv::KeyPoint> >& allKeypoints, std::vector<cv::Mat> &imagePyramid);
   std::vector<cv::Point> pattern;

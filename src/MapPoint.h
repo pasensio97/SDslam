@@ -32,7 +32,7 @@
 #include<opencv2/core/core.hpp>
 #include<mutex>
 
-namespace ORB_SLAM2
+namespace SD_SLAM
 {
 
 class KeyFrame;
@@ -42,7 +42,7 @@ class Frame;
 
 class MapPoint
 {
-public:
+ public:
   MapPoint(const cv::Mat &Pos, KeyFrame* pRefKF, Map* pMap);
   MapPoint(const cv::Mat &Pos,  Map* pMap, Frame* pFrame, const int &idxF);
 
@@ -85,7 +85,7 @@ public:
   int PredictScale(const float &currentDist, KeyFrame*pKF);
   int PredictScale(const float &currentDist, Frame* pF);
 
-public:
+ public:
   long unsigned int mnId;
   static long unsigned int nNextId;
   long int mnFirstKFid;
@@ -116,8 +116,7 @@ public:
 
   static std::mutex mGlobalMutex;
 
-protected:  
-
+ protected:  
    // Position in absolute coordinates
    cv::Mat mWorldPos;
 

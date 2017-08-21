@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     int nImages = vstrImageFilenames.size();
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM2::System SLAM(argv[1], ORB_SLAM2::System::MONOCULAR, true);
+    SD_SLAM::System SLAM(argv[1], SD_SLAM::System::MONOCULAR, true);
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        ORB_SLAM2::Timer ttracking(true);
+        SD_SLAM::Timer ttracking(true);
 
         // Pass the image to the SLAM system
         SLAM.TrackMonocular(im,tframe);

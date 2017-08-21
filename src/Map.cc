@@ -23,13 +23,16 @@
  */
 
 #include "Map.h"
-#include<mutex>
+#include <mutex>
 
-namespace ORB_SLAM2
-{
+using std::mutex;
+using std::unique_lock;
+using std::vector;
+using std::set;
 
-Map::Map():mnMaxKFid(0),mnBigChangeIdx(0)
-{
+namespace ORB_SLAM2 {
+
+Map::Map():mnMaxKFid(0),mnBigChangeIdx(0) {
 }
 
 void Map::AddKeyFrame(KeyFrame *pKF)

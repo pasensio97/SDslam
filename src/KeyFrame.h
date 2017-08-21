@@ -26,16 +26,11 @@
 #define KEYFRAME_H
 
 #include "MapPoint.h"
-#include "Thirdparty/DBoW2/DBoW2/BowVector.h"
-#include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
-#include "ORBVocabulary.h"
 #include "ORBextractor.h"
 #include "Frame.h"
 #include <mutex>
 
-
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 class Map;
 class MapPoint;
@@ -52,9 +47,6 @@ public:
   cv::Mat GetCameraCenter();
   cv::Mat GetRotation();
   cv::Mat GetTranslation();
-
-  // Bag of Words Representation
-  void ComputeBoW();
 
   // Covisibility graph functions
   void AddConnection(KeyFrame* pKF, const int &weight);
@@ -165,10 +157,6 @@ public:
   const std::vector<float> mvDepth; // negative value for monocular points
   const cv::Mat mDescriptors;
 
-  //BoW
-  DBoW2::BowVector mBowVec;
-  DBoW2::FeatureVector mFeatVec;
-
   // Pose relative to parent (this is computed when bad flag is activated)
   cv::Mat mTcp;
 
@@ -199,9 +187,6 @@ protected:
 
   // MapPoints associated to keypoints
   std::vector<MapPoint*> mvpMapPoints;
-
-  // BoW
-  ORBVocabulary* mpORBvocabulary;
 
   // Grid over the image to speed up feature matching
   std::vector< std::vector <std::vector<size_t> > > mGrid;

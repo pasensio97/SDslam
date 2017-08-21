@@ -43,9 +43,9 @@ using namespace std;
 
 namespace ORB_SLAM2 {
 
-Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap,
+Tracking::Tracking(System *pSys, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap,
                    const string &strSettingPath, const int sensor):
-  mState(NO_IMAGES_YET), mSensor(sensor), mpORBVocabulary(pVoc),
+  mState(NO_IMAGES_YET), mSensor(sensor),
   mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
   mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0) {
   // Load camera parameters from settings file
@@ -172,7 +172,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
   if ((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
     imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-  mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+  mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mK,mDistCoef,mbf,mThDepth);
 
   Track();
 
@@ -197,9 +197,9 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
   }
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
-    mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mK,mDistCoef,mbf,mThDepth);
   else
-    mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mK,mDistCoef,mbf,mThDepth);
 
   Track();
 
@@ -472,9 +472,6 @@ void Tracking::CreateInitialMapMonocular() {
   // Create KeyFrames
   KeyFrame* pKFini = new KeyFrame(mInitialFrame,mpMap);
   KeyFrame* pKFcur = new KeyFrame(mCurrentFrame,mpMap);
-
-  pKFini->ComputeBoW();
-  pKFcur->ComputeBoW();
 
   // Insert KFs in the map
   mpMap->AddKeyFrame(pKFini);

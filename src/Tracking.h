@@ -33,7 +33,6 @@
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Frame.h"
-#include "ORBVocabulary.h"
 #include "ORBextractor.h"
 #include "Initializer.h"
 #include "MapDrawer.h"
@@ -53,8 +52,8 @@ class System;
 class Tracking {
 
 public:
-  Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
-           const string &strSettingPath, const int sensor);
+  Tracking(System* pSys, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
+           const std::string &strSettingPath, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
   cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
@@ -67,7 +66,7 @@ public:
   // Load new settings
   // The focal lenght should be similar or scale prediction will fail when projecting points
   // TODO: Modify MapPoint::PredictScale to take into account focal lenght
-  void ChangeCalibration(const string &strSettingPath);
+  void ChangeCalibration(const std::string &strSettingPath);
 
 public:
 
@@ -99,10 +98,10 @@ public:
 
   // Lists used to recover the full camera trajectory at the end of the execution.
   // Basically we store the reference keyframe for each frame and its relative transformation
-  list<cv::Mat> mlRelativeFramePoses;
-  list<KeyFrame*> mlpReferences;
-  list<double> mlFrameTimes;
-  list<bool> mlbLost;
+  std::list<cv::Mat> mlRelativeFramePoses;
+  std::list<KeyFrame*> mlpReferences;
+  std::list<double> mlFrameTimes;
+  std::list<bool> mlbLost;
 
   void Reset();
 
@@ -142,9 +141,6 @@ protected:
   //ORB
   ORBextractor* mpORBextractorLeft;
   ORBextractor* mpIniORBextractor;
-
-  //BoW
-  ORBVocabulary* mpORBVocabulary;
 
   // Initalization (only for monocular)
   Initializer* mpInitializer;
@@ -197,7 +193,7 @@ protected:
   //Color order (true RGB, false BGR, ignored if grayscale)
   bool mbRGB;
 
-  list<MapPoint*> mlpTemporalPoints;
+  std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
 };
 

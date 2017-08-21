@@ -28,12 +28,14 @@
 #include <pangolin/pangolin.h>
 #include <mutex>
 
-namespace ORB_SLAM2
-{
+using std::vector;
+using std::set;
+using std::mutex;
+using std::unique_lock;
 
+namespace ORB_SLAM2 {
 
-MapDrawer::MapDrawer(Map* pMap, const string &strSettingPath):mpMap(pMap)
-{
+MapDrawer::MapDrawer(Map* pMap, const std::string &strSettingPath):mpMap(pMap) {
   cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
   mKeyFrameSize = fSettings["Viewer.KeyFrameSize"];

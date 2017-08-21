@@ -59,19 +59,19 @@
 #include <vector>
 #include <cmath>
 #include <opencv2/core/core.hpp>
-#include "Thirdparty/DBoW2/DUtils/Random.h"
 #include <algorithm>
+#include "utils.h"
 
-using namespace std;
+using std::vector;
+using std::cout;
+using std::cerr;
+using std::endl;
 
-namespace ORB_SLAM2
-{
-
+namespace ORB_SLAM2 {
 
 PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint*> &vpMapPointMatches):
   pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), number_of_correspondences(0), mnInliersi(0),
-  mnIterations(0), mnBestInliers(0), N(0)
-{
+  mnIterations(0), mnBestInliers(0), N(0) {
   mvpMapPointMatches = vpMapPointMatches;
   mvP2D.reserve(F.mvpMapPoints.size());
   mvSigma2.reserve(F.mvpMapPoints.size());
@@ -80,8 +80,7 @@ PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint*> &vpMapPointMatches)
   mvAllIndices.reserve(F.mvpMapPoints.size());
 
   int idx=0;
-  for (size_t i=0, iend=vpMapPointMatches.size(); i<iend; i++)
-  {
+  for (size_t i=0, iend=vpMapPointMatches.size(); i<iend; i++) {
     MapPoint* pMP = vpMapPointMatches[i];
 
     if (pMP)
@@ -153,7 +152,7 @@ void PnPsolver::SetRansacParameters(double probability, int minInliers, int maxI
   else
     nIterations = ceil(log(1-mRansacProb)/log(1-pow(mRansacEpsilon,3)));
 
-  mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
+  mRansacMaxIts = std::max(1, std::min(nIterations,mRansacMaxIts));
 
   mvMaxError.resize(mvSigma2.size());
   for (size_t i=0; i<mvSigma2.size(); i++)
@@ -194,7 +193,7 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
     // Get min set of points
     for (short i = 0; i < mRansacMinSet; ++i)
     {
-      int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size()-1);
+      int randi = Random(0, vAvailableIndices.size()-1);
 
       int idx = vAvailableIndices[randi];
 
@@ -976,7 +975,7 @@ void PnPsolver::relative_error(double & rot_err, double & transl_err,
 			 (qtrue[3] + qest[3]) * (qtrue[3] + qest[3]) ) /
   sqrt(qtrue[0] * qtrue[0] + qtrue[1] * qtrue[1] + qtrue[2] * qtrue[2] + qtrue[3] * qtrue[3]);
 
-  rot_err = min(rot_err1, rot_err2);
+  rot_err = std::min(rot_err1, rot_err2);
 
   transl_err =
   sqrt((ttrue[0] - test[0]) * (ttrue[0] - test[0]) +
@@ -985,8 +984,7 @@ void PnPsolver::relative_error(double & rot_err, double & transl_err,
   sqrt(ttrue[0] * ttrue[0] + ttrue[1] * ttrue[1] + ttrue[2] * ttrue[2]);
 }
 
-void PnPsolver::mat_to_quat(const double R[3][3], double q[4])
-{
+void PnPsolver::mat_to_quat(const double R[3][3], double q[4]) {
   double tr = R[0][0] + R[1][1] + R[2][2];
   double n4;
 

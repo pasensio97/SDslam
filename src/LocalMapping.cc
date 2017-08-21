@@ -26,13 +26,18 @@
 #include "LoopClosing.h"
 #include "ORBmatcher.h"
 #include "Optimizer.h"
-
-#include<mutex>
+#include <mutex>
 #include <unistd.h>
 
-namespace ORB_SLAM2
-{
+using std::vector;
+using std::list;
+using std::map;
+using std::mutex;
+using std::unique_lock;
+using std::cout;
+using std::endl;
 
+namespace ORB_SLAM2 {
 LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
   mbMonocular(bMonocular), mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
   mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true) {
@@ -54,9 +59,8 @@ void LocalMapping::Run() {
     SetAcceptKeyFrames(false);
 
     // Check if there are keyframes in the queue
-    if (CheckNewKeyFrames())
-    {
-      // BoW conversion and insertion in Map
+    if (CheckNewKeyFrames()) {
+      // Insertion in Map
       ProcessNewKeyFrame();
 
       // Check recent MapPoints
@@ -65,8 +69,7 @@ void LocalMapping::Run() {
       // Triangulate new MapPoints
       CreateNewMapPoints();
 
-      if (!CheckNewKeyFrames())
-      {
+      if (!CheckNewKeyFrames()) {
         // Find more matches in neighbor keyframes and fuse point duplications
         SearchInNeighbors();
       }
@@ -130,9 +133,6 @@ void LocalMapping::ProcessNewKeyFrame() {
     mpCurrentKeyFrame = mlNewKeyFrames.front();
     mlNewKeyFrames.pop_front();
   }
-
-  // Compute Bags of Words structures
-  mpCurrentKeyFrame->ComputeBoW();
 
   // Associate MapPoints to the new keyframe and update normal and descriptor
   const vector<MapPoint*> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
@@ -225,8 +225,7 @@ void LocalMapping::CreateNewMapPoints() {
   int nnew=0;
 
   // Search matches with epipolar restriction and triangulate
-  for (size_t i=0; i<vpNeighKFs.size(); i++)
-  {
+  for (size_t i=0; i<vpNeighKFs.size(); i++) {
     if (i>0 && CheckNewKeyFrames())
       return;
 
@@ -237,13 +236,10 @@ void LocalMapping::CreateNewMapPoints() {
     cv::Mat vBaseline = Ow2-Ow1;
     const float baseline = cv::norm(vBaseline);
 
-    if (!mbMonocular)
-    {
+    if (!mbMonocular) {
       if (baseline<pKF2->mb)
       continue;
-    }
-    else
-    {
+    } else {
       const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
       const float ratioBaselineDepth = baseline/medianDepthKF2;
 
@@ -255,7 +251,7 @@ void LocalMapping::CreateNewMapPoints() {
     cv::Mat F12 = ComputeF12(mpCurrentKeyFrame,pKF2);
 
     // Search matches that fullfil epipolar constraint
-    vector<pair<size_t,size_t> > vMatchedIndices;
+    vector<std::pair<size_t,size_t> > vMatchedIndices;
     matcher.SearchForTriangulation(mpCurrentKeyFrame,pKF2,F12,vMatchedIndices,false);
 
     cv::Mat Rcw2 = pKF2->GetRotation();
@@ -303,7 +299,7 @@ void LocalMapping::CreateNewMapPoints() {
       else if (bStereo2)
         cosParallaxStereo2 = cos(2*atan2(pKF2->mb/2,pKF2->mvDepth[idx2]));
 
-      cosParallaxStereo = min(cosParallaxStereo1,cosParallaxStereo2);
+      cosParallaxStereo = std::min(cosParallaxStereo1,cosParallaxStereo2);
 
       cv::Mat x3D;
       if (cosParallaxRays<cosParallaxStereo && cosParallaxRays>0 && (bStereo1 || bStereo2 || cosParallaxRays<0.9998))

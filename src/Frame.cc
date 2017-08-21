@@ -28,6 +28,8 @@
 #include <thread>
 #include "timer.h"
 
+using std::vector;
+
 namespace ORB_SLAM2 {
 
 long unsigned int Frame::nNextId=0;
@@ -41,7 +43,7 @@ Frame::Frame() {
 
 //Copy Constructor
 Frame::Frame(const Frame &frame)
-  :mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft),
+  :mpORBextractorLeft(frame.mpORBextractorLeft),
    mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()),
    mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
    mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight),
@@ -66,8 +68,8 @@ Frame::Frame(const Frame &frame)
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-  :mpORBvocabulary(voc),mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),
+Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+  :mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),
   mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
@@ -119,10 +121,8 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-  :mpORBvocabulary(voc),mpORBextractorLeft(extractor),
-   mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
-{
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+  :mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
 
@@ -271,19 +271,19 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
   vector<size_t> vIndices;
   vIndices.reserve(N);
 
-  const int nMinCellX = max(0,(int)floor((x-mnMinX-r)*mfGridElementWidthInv));
+  const int nMinCellX = std::max(0,(int)floor((x-mnMinX-r)*mfGridElementWidthInv));
   if (nMinCellX>=FRAME_GRID_COLS)
     return vIndices;
 
-  const int nMaxCellX = min((int)FRAME_GRID_COLS-1,(int)ceil((x-mnMinX+r)*mfGridElementWidthInv));
+  const int nMaxCellX = std::min((int)FRAME_GRID_COLS-1,(int)ceil((x-mnMinX+r)*mfGridElementWidthInv));
   if (nMaxCellX<0)
     return vIndices;
 
-  const int nMinCellY = max(0,(int)floor((y-mnMinY-r)*mfGridElementHeightInv));
+  const int nMinCellY = std::max(0,(int)floor((y-mnMinY-r)*mfGridElementHeightInv));
   if (nMinCellY>=FRAME_GRID_ROWS)
     return vIndices;
 
-  const int nMaxCellY = min((int)FRAME_GRID_ROWS-1,(int)ceil((y-mnMinY+r)*mfGridElementHeightInv));
+  const int nMaxCellY = std::min((int)FRAME_GRID_ROWS-1,(int)ceil((y-mnMinY+r)*mfGridElementHeightInv));
   if (nMaxCellY<0)
     return vIndices;
 
@@ -379,10 +379,10 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
     cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
     mat=mat.reshape(1);
 
-    mnMinX = min(mat.at<float>(0,0),mat.at<float>(2,0));
-    mnMaxX = max(mat.at<float>(1,0),mat.at<float>(3,0));
-    mnMinY = min(mat.at<float>(0,1),mat.at<float>(1,1));
-    mnMaxY = max(mat.at<float>(2,1),mat.at<float>(3,1));
+    mnMinX = std::min(mat.at<float>(0,0),mat.at<float>(2,0));
+    mnMaxX = std::max(mat.at<float>(1,0),mat.at<float>(3,0));
+    mnMinY = std::min(mat.at<float>(0,1),mat.at<float>(1,1));
+    mnMaxY = std::max(mat.at<float>(2,1),mat.at<float>(3,1));
 
   }
   else

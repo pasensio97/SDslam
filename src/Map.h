@@ -39,8 +39,7 @@ namespace ORB_SLAM2
 class MapPoint;
 class KeyFrame;
 
-class Map
-{
+class Map {
 public:
   Map();
 
@@ -63,7 +62,7 @@ public:
 
   void clear();
 
-  vector<KeyFrame*> mvpKeyFrameOrigins;
+  std::vector<KeyFrame*> mvpKeyFrameOrigins;
 
   std::mutex mMutexMapUpdate;
 

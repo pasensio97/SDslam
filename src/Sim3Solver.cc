@@ -27,19 +27,16 @@
 #include <vector>
 #include <cmath>
 #include <opencv2/core/core.hpp>
-
 #include "KeyFrame.h"
 #include "ORBmatcher.h"
+#include "utils.h"
 
-#include "Thirdparty/DBoW2/DUtils/Random.h"
+using std::vector;
 
-namespace ORB_SLAM2
-{
-
+namespace ORB_SLAM2 {
 
 Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> &vpMatched12, const bool bFixScale):
-  mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale)
-{
+  mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale) {
   mpKF1 = pKF1;
   mpKF2 = pKF2;
 
@@ -135,7 +132,7 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers, int max
   else
     nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon,3)));
 
-  mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
+  mRansacMaxIts = std::max(1, std::min(nIterations,mRansacMaxIts));
 
   mnIterations = 0;
 }
@@ -166,9 +163,8 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
     vAvailableIndices = mvAllIndices;
 
     // Get min set of points
-    for (short i = 0; i < 3; ++i)
-    {
-      int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size()-1);
+    for (short i = 0; i < 3; ++i) {
+      int randi = Random(0, vAvailableIndices.size()-1);
 
       int idx = vAvailableIndices[randi];
 

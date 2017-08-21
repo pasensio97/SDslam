@@ -24,23 +24,21 @@
 
 #include "FrameDrawer.h"
 #include "Tracking.h"
-
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <mutex>
 
-#include<mutex>
+using std::vector;
+using std::mutex;
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
-FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap)
-{
+FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap) {
   mState=Tracking::SYSTEM_NOT_READY;
   mIm = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
 }
 
-cv::Mat FrameDrawer::DrawFrame()
-{
+cv::Mat FrameDrawer::DrawFrame() {
   cv::Mat im;
   vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
   vector<int> vMatches; // Initialization: correspondeces with reference keypoints
@@ -50,7 +48,7 @@ cv::Mat FrameDrawer::DrawFrame()
 
   //Copy variables within scoped mutex
   {
-    unique_lock<mutex> lock(mMutex);
+    std::unique_lock<mutex> lock(mMutex);
     state=mState;
     if (mState==Tracking::SYSTEM_NOT_READY)
       mState=Tracking::NO_IMAGES_YET;
@@ -106,7 +104,7 @@ cv::Mat FrameDrawer::DrawFrame()
 
 
 void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
-  stringstream s;
+  std::stringstream s;
   if (nState==Tracking::NO_IMAGES_YET)
     s << " WAITING FOR IMAGES";
   else if (nState==Tracking::NOT_INITIALIZED)
@@ -132,7 +130,7 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
 }
 
 void FrameDrawer::Update(Tracking *pTracker) {
-  unique_lock<mutex> lock(mMutex);
+  std::unique_lock<mutex> lock(mMutex);
   pTracker->mImGray.copyTo(mIm);
   mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
   N = mvCurrentKeys.size();

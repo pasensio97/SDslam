@@ -28,21 +28,16 @@
 #include "Tracking.h"
 #include "MapPoint.h"
 #include "Map.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <mutex>
 
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
-
-#include<mutex>
-
-
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 class Tracking;
 class Viewer;
 
-class FrameDrawer
-{
+class FrameDrawer {
 public:
   FrameDrawer(Map* pMap);
 
@@ -59,11 +54,11 @@ protected:
   // Info of the frame to be drawn
   cv::Mat mIm;
   int N;
-  vector<cv::KeyPoint> mvCurrentKeys;
-  vector<bool> mvbMap;
+  std::vector<cv::KeyPoint> mvCurrentKeys;
+  std::vector<bool> mvbMap;
   int mnTracked;
-  vector<cv::KeyPoint> mvIniKeys;
-  vector<int> mvIniMatches;
+  std::vector<cv::KeyPoint> mvIniKeys;
+  std::vector<int> mvIniMatches;
   int mState;
 
   Map* mpMap;

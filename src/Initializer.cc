@@ -23,16 +23,15 @@
  */
 
 #include "Initializer.h"
-
-#include "Thirdparty/DBoW2/DUtils/Random.h"
-
 #include "Optimizer.h"
 #include "ORBmatcher.h"
+#include <thread>
+#include "utils.h"
 
-#include<thread>
+using std::vector;
+using std::list;
 
-namespace ORB_SLAM2
-{
+namespace ORB_SLAM2 {
 
 Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iterations)
 {
@@ -59,7 +58,7 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
   {
     if (vMatches12[i]>=0)
     {
-      mvMatches12.push_back(make_pair(i,vMatches12[i]));
+      mvMatches12.push_back(std::make_pair(i,vMatches12[i]));
       mvbMatched1[i]=true;
     }
     else
@@ -81,8 +80,6 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
   // Generate sets of 8 points for each RANSAC iteration
   mvSets = vector< vector<size_t> >(mMaxIterations,vector<size_t>(8,0));
 
-  DUtils::Random::SeedRandOnce(0);
-
   for (int it=0; it<mMaxIterations; it++)
   {
     vAvailableIndices = vAllIndices;
@@ -90,7 +87,7 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     // Select a minimum set
     for (size_t j=0; j<8; j++)
     {
-      int randi = DUtils::Random::RandomInt(0,vAvailableIndices.size()-1);
+      int randi = Random(0,vAvailableIndices.size()-1);
       int idx = vAvailableIndices[randi];
 
       mvSets[it][j] = idx;
@@ -105,8 +102,8 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
   float SH, SF;
   cv::Mat H, F;
 
-  thread threadH(&Initializer::FindHomography,this,ref(vbMatchesInliersH), ref(SH), ref(H));
-  thread threadF(&Initializer::FindFundamental,this,ref(vbMatchesInliersF), ref(SF), ref(F));
+  std::thread threadH(&Initializer::FindHomography,this, std::ref(vbMatchesInliersH), std::ref(SH), std::ref(H));
+  std::thread threadF(&Initializer::FindFundamental,this, std::ref(vbMatchesInliersF), std::ref(SF), std::ref(F));
 
   // Wait until both threads have finished
   threadH.join();
@@ -500,12 +497,12 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
   int nGood3 = CheckRT(R1,t2,mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K, vP3D3, 4.0*mSigma2, vbTriangulated3, parallax3);
   int nGood4 = CheckRT(R2,t2,mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K, vP3D4, 4.0*mSigma2, vbTriangulated4, parallax4);
 
-  int maxGood = max(nGood1,max(nGood2,max(nGood3,nGood4)));
+  int maxGood = std::max(nGood1, std::max(nGood2, std::max(nGood3,nGood4)));
 
   R21 = cv::Mat();
   t21 = cv::Mat();
 
-  int nMinGood = max(static_cast<int>(0.9*N),minTriangulated);
+  int nMinGood = std::max(static_cast<int>(0.9*N),minTriangulated);
 
   int nsimilar = 0;
   if (nGood1>0.7*maxGood)
@@ -842,7 +839,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
 
     Triangulate(kp1,kp2,P1,P2,p3dC1);
 
-    if (!isfinite(p3dC1.at<float>(0)) || !isfinite(p3dC1.at<float>(1)) || !isfinite(p3dC1.at<float>(2)))
+    if (!std::isfinite(p3dC1.at<float>(0)) || !std::isfinite(p3dC1.at<float>(1)) || !std::isfinite(p3dC1.at<float>(2)))
     {
       vbGood[vMatches12[i].first]=false;
       continue;
@@ -902,7 +899,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
   {
     sort(vCosParallax.begin(),vCosParallax.end());
 
-    size_t idx = min(50,int(vCosParallax.size()-1));
+    size_t idx = std::min(50,int(vCosParallax.size()-1));
     parallax = acos(vCosParallax[idx])*180/CV_PI;
   }
   else

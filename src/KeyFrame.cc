@@ -25,7 +25,14 @@
 #include "KeyFrame.h"
 #include "Converter.h"
 #include "ORBmatcher.h"
-#include<mutex>
+#include <mutex>
+
+using std::vector;
+using std::set;
+using std::list;
+using std::map;
+using std::mutex;
+using std::unique_lock;
 
 namespace ORB_SLAM2 {
 
@@ -43,7 +50,7 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), mvLevelSigma2(F.mvLevelSigma2),
   mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
   mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints), 
-  mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
+  mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
   mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap) {
   mnId=nNextId++;
 
@@ -61,15 +68,6 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mvImagePyramid.resize(size);
   for (int i=0; i<size; i++)
     mvImagePyramid[i] = F.mvImagePyramid[i].clone();
-}
-
-void KeyFrame::ComputeBoW() {
-  if (mBowVec.empty() || mFeatVec.empty()) {
-    vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
-    // Feature vector associate features with nodes in the 4th level (from leaves up)
-    // We assume the vocabulary tree has 6 levels, change the 4 otherwise
-    mpORBvocabulary->transform(vCurrentDesc,mBowVec,mFeatVec,4);
-  }
 }
 
 void KeyFrame::SetPose(const cv::Mat &Tcw_) {
@@ -131,12 +129,12 @@ void KeyFrame::AddConnection(KeyFrame *pKF, const int &weight)
 void KeyFrame::UpdateBestCovisibles()
 {
   unique_lock<mutex> lock(mMutexConnections);
-  vector<pair<int,KeyFrame*> > vPairs;
+  vector<std::pair<int,KeyFrame*> > vPairs;
   vPairs.reserve(mConnectedKeyFrameWeights.size());
   for (map<KeyFrame*,int>::iterator mit=mConnectedKeyFrameWeights.begin(), mend=mConnectedKeyFrameWeights.end(); mit!=mend; mit++)
-     vPairs.push_back(make_pair(mit->second,mit->first));
+     vPairs.push_back(std::make_pair(mit->second,mit->first));
 
-  sort(vPairs.begin(),vPairs.end());
+  std::sort(vPairs.begin(),vPairs.end());
   list<KeyFrame*> lKFs;
   list<int> lWs;
   for (size_t i=0, iend=vPairs.size(); i<iend;i++)
@@ -312,7 +310,7 @@ void KeyFrame::UpdateConnections()
   KeyFrame* pKFmax=NULL;
   int th = 15;
 
-  vector<pair<int,KeyFrame*> > vPairs;
+  vector<std::pair<int,KeyFrame*> > vPairs;
   vPairs.reserve(KFcounter.size());
   for (map<KeyFrame*,int>::iterator mit=KFcounter.begin(), mend=KFcounter.end(); mit!=mend; mit++)
   {
@@ -323,18 +321,18 @@ void KeyFrame::UpdateConnections()
     }
     if (mit->second>=th)
     {
-      vPairs.push_back(make_pair(mit->second,mit->first));
+      vPairs.push_back(std::make_pair(mit->second,mit->first));
       (mit->first)->AddConnection(this,mit->second);
     }
   }
 
   if (vPairs.empty())
   {
-    vPairs.push_back(make_pair(nmax,pKFmax));
+    vPairs.push_back(std::make_pair(nmax,pKFmax));
     pKFmax->AddConnection(this,nmax);
   }
 
-  sort(vPairs.begin(),vPairs.end());
+  std::sort(vPairs.begin(),vPairs.end());
   list<KeyFrame*> lKFs;
   list<int> lWs;
   for (size_t i=0; i<vPairs.size();i++)
@@ -553,29 +551,26 @@ vector<size_t> KeyFrame::GetFeaturesInArea(const float &x, const float &y, const
   vector<size_t> vIndices;
   vIndices.reserve(N);
 
-  const int nMinCellX = max(0,(int)floor((x-mnMinX-r)*mfGridElementWidthInv));
+  const int nMinCellX = std::max(0,(int)floor((x-mnMinX-r)*mfGridElementWidthInv));
   if (nMinCellX>=mnGridCols)
     return vIndices;
 
-  const int nMaxCellX = min((int)mnGridCols-1,(int)ceil((x-mnMinX+r)*mfGridElementWidthInv));
+  const int nMaxCellX = std::min((int)mnGridCols-1,(int)ceil((x-mnMinX+r)*mfGridElementWidthInv));
   if (nMaxCellX<0)
     return vIndices;
 
-  const int nMinCellY = max(0,(int)floor((y-mnMinY-r)*mfGridElementHeightInv));
+  const int nMinCellY = std::max(0,(int)floor((y-mnMinY-r)*mfGridElementHeightInv));
   if (nMinCellY>=mnGridRows)
     return vIndices;
 
-  const int nMaxCellY = min((int)mnGridRows-1,(int)ceil((y-mnMinY+r)*mfGridElementHeightInv));
+  const int nMaxCellY = std::min((int)mnGridRows-1,(int)ceil((y-mnMinY+r)*mfGridElementHeightInv));
   if (nMaxCellY<0)
     return vIndices;
 
-  for (int ix = nMinCellX; ix<=nMaxCellX; ix++)
-  {
-    for (int iy = nMinCellY; iy<=nMaxCellY; iy++)
-    {
+  for (int ix = nMinCellX; ix<=nMaxCellX; ix++) {
+    for (int iy = nMinCellY; iy<=nMaxCellY; iy++) {
       const vector<size_t> vCell = mGrid[ix][iy];
-      for (size_t j=0, jend=vCell.size(); j<jend; j++)
-      {
+      for (size_t j=0, jend=vCell.size(); j<jend; j++) {
         const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
         const float distx = kpUn.pt.x-x;
         const float disty = kpUn.pt.y-y;
@@ -639,7 +634,7 @@ float KeyFrame::ComputeSceneMedianDepth(const int q)
     }
   }
 
-  sort(vDepths.begin(),vDepths.end());
+  std::sort(vDepths.begin(),vDepths.end());
 
   return vDepths[(vDepths.size()-1)/q];
 }

@@ -29,9 +29,17 @@
 #include <iomanip>
 #include <unistd.h>
 
+using std::mutex;
+using std::unique_lock;
+using std::vector;
+using std::string;
+using std::cout;
+using std::cerr;
+using std::endl;
+
 namespace ORB_SLAM2 {
 
-System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
+System::System(const string &strSettingsFile, const eSensor sensor,
          const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false) {
 
   cout << "Input sensor was set to: ";
@@ -50,15 +58,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
   //Load ORB Vocabulary
   cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
 
-  mpVocabulary = new ORBVocabulary();
-  bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
-  if (!bVocLoad) {
-    cerr << "Wrong path to vocabulary. " << endl;
-    cerr << "Falied to open at: " << strVocFile << endl;
-    exit(-1);
-  }
-  cout << "Vocabulary loaded!" << endl << endl;
-
   //Create the Map
   mpMap = new Map();
 
@@ -68,21 +67,21 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
   //Initialize the Tracking thread
   //(it will live in the main thread of execution, the one that called this constructor)
-  mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
+  mpTracker = new Tracking(this, mpFrameDrawer, mpMapDrawer,
                mpMap, strSettingsFile, mSensor);
 
   //Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
-  mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
+  mptLocalMapping = new std::thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
 
   //Initialize the Loop Closing thread and launch
   mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
-  mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+  mptLoopClosing = new std::thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
   //Initialize the Viewer thread and launch
   if (bUseViewer) {
     mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile);
-    mptViewer = new thread(&Viewer::Run, mpViewer);
+    mptViewer = new std::thread(&Viewer::Run, mpViewer);
     mpTracker->SetViewer(mpViewer);
   }
 
@@ -165,8 +164,7 @@ void System::Reset()
   mbReset = true;
 }
 
-void System::Shutdown()
-{
+void System::Shutdown() {
   mpLocalMapper->RequestFinish();
   mpLoopCloser->RequestFinish();
   if (mpViewer) {
@@ -176,8 +174,7 @@ void System::Shutdown()
   }
 
   // Wait until all thread have effectively stopped
-  while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())
-  {
+  while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA()) {
     usleep(5000);
   }
 

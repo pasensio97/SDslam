@@ -31,16 +31,18 @@
 #include "Thirdparty/g2o/g2o/core/robust_kernel_impl.h"
 #include "Thirdparty/g2o/g2o/solvers/linear_solver_dense.h"
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
-
-#include<Eigen/StdVector>
-
+#include <Eigen/StdVector>
 #include "Converter.h"
+#include <mutex>
 
-#include<mutex>
+using std::map;
+using std::set;
+using std::vector;
+using std::list;
+using std::mutex;
+using std::unique_lock;
 
-namespace ORB_SLAM2
-{
-
+namespace ORB_SLAM2 {
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
@@ -708,7 +710,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
 
   }
 
-  vector<pair<KeyFrame*,MapPoint*> > vToErase;
+  vector<std::pair<KeyFrame*,MapPoint*> > vToErase;
   vToErase.reserve(vpEdgesMono.size()+vpEdgesStereo.size());
 
   // Check inlier observations     
@@ -723,7 +725,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
     if (e->chi2()>5.991 || !e->isDepthPositive())
     {
       KeyFrame* pKFi = vpEdgeKFMono[i];
-      vToErase.push_back(make_pair(pKFi,pMP));
+      vToErase.push_back(std::make_pair(pKFi,pMP));
     }
   }
 
@@ -738,7 +740,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
     if (e->chi2()>7.815 || !e->isDepthPositive())
     {
       KeyFrame* pKFi = vpEdgeKFStereo[i];
-      vToErase.push_back(make_pair(pKFi,pMP));
+      vToErase.push_back(std::make_pair(pKFi,pMP));
     }
   }
 
@@ -844,7 +846,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
   }
 
 
-  set<pair<long unsigned int,long unsigned int> > sInsertedEdges;
+  set<std::pair<long unsigned int,long unsigned int> > sInsertedEdges;
 
   const Eigen::Matrix<double,7,7> matLambda = Eigen::Matrix<double,7,7>::Identity();
 
@@ -875,7 +877,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
       optimizer.addEdge(e);
 
-      sInsertedEdges.insert(make_pair(min(nIDi,nIDj),max(nIDi,nIDj)));
+      sInsertedEdges.insert(std::make_pair(std::min(nIDi,nIDj), std::max(nIDi,nIDj)));
     }
   }
 
@@ -957,7 +959,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
       {
         if (!pKFn->isBad() && pKFn->mnId<pKF->mnId)
         {
-          if (sInsertedEdges.count(make_pair(min(pKF->mnId,pKFn->mnId),max(pKF->mnId,pKFn->mnId))))
+          if (sInsertedEdges.count(std::make_pair(std::min(pKF->mnId,pKFn->mnId), std::max(pKF->mnId,pKFn->mnId))))
             continue;
 
           g2o::Sim3 Snw;

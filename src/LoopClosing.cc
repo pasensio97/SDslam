@@ -32,6 +32,15 @@
 #include <thread>
 #include <unistd.h>
 
+using std::mutex;
+using std::unique_lock;
+using std::vector;
+using std::set;
+using std::map;
+using std::cout;
+using std::endl;
+using std::list;
+
 namespace ORB_SLAM2 {
 
 LoopClosing::LoopClosing(Map *pMap, const bool bFixScale):
@@ -528,7 +537,7 @@ void LoopClosing::CorrectLoop() {
   mbRunningGBA = true;
   mbFinishedGBA = false;
   mbStopGBA = false;
-  mpThreadGBA = new thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
+  mpThreadGBA = new std::thread(&LoopClosing::RunGlobalBundleAdjustment,this,mpCurrentKF->mnId);
 
   // Loop closed. Release Local Mapping.
   mpLocalMapper->Release();  

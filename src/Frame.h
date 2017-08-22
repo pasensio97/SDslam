@@ -22,18 +22,17 @@
  *
  */
 
-#ifndef FRAME_H
-#define FRAME_H
+#ifndef SD_SLAM_FRAME_H
+#define SD_SLAM_FRAME_H
 
-#include<vector>
-
+#include <vector>
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include "ORBextractor.h"
-
 #include <opencv2/opencv.hpp>
 
 namespace SD_SLAM {
+
 #define FRAME_GRID_ROWS 48
 #define FRAME_GRID_COLS 64
 
@@ -200,6 +199,6 @@ class Frame {
   cv::Mat mOw; //==mtwc
 };
 
-}// namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // FRAME_H
+#endif // SD_SLAM_FRAME_H

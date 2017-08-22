@@ -416,4 +416,4 @@ cv::Mat Frame::UnprojectStereo(const int &i) {
     return cv::Mat();
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

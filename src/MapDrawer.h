@@ -22,14 +22,13 @@
  *
  */
 
-#ifndef MAPDRAWER_H
-#define MAPDRAWER_H
+#ifndef SD_SLAM_MAPDRAWER_H
+#define SD_SLAM_MAPDRAWER_H
 
-#include"Map.h"
-#include"MapPoint.h"
-#include"KeyFrame.h"
-#include<pangolin/pangolin.h>
-
+#include "Map.h"
+#include "MapPoint.h"
+#include "KeyFrame.h"
+#include <pangolin/pangolin.h>
 #include<mutex>
 
 namespace SD_SLAM {
@@ -60,6 +59,6 @@ class MapDrawer {
   std::mutex mMutexCamera;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // MAPDRAWER_H
+#endif // SD_SLAM_MAPDRAWER_H

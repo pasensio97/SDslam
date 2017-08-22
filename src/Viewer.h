@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef VIEWER_H
-#define VIEWER_H
+#ifndef SD_SLAM_VIEWER_H
+#define SD_SLAM_VIEWER_H
 
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
@@ -85,5 +85,5 @@ class Viewer {
 }  // namespace SD_SLAM
 
 
-#endif  // VIEWER_H
+#endif  // SD_SLAM_VIEWER_H
 

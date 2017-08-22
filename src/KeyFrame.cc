@@ -582,4 +582,4 @@ float KeyFrame::ComputeSceneMedianDepth(const int q) {
   return vDepths[(vDepths.size()-1)/q];
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

@@ -52,12 +52,6 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 
 2. Change `X.yaml` to TUM1.yaml,TUM2.yaml or TUM3.yaml for freiburg1, freiburg2 and freiburg3 sequences respectively.
 
-## KITTI Dataset  
-
-1. Download the dataset (grayscale images) from http://www.cvlibs.net/datasets/kitti/eval_odometry.php 
-
-2. Change `X.yaml`by KITTI00-02.yaml, KITTI03.yaml or KITTI04-12.yaml for sequence 0 to 2, 3, and 4 to 12 respectively. 
-
 ## EuRoC Dataset
 
 1. Download a sequence (ASL format) from http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets
@@ -83,7 +77,7 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
   ```
  
 # 7. Processing your own sequences
-You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM and KITTI datasets for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the ORB-SLAM2 library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
+You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM dataset for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the SD-SLAM library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
 
 # 8. SLAM and Localization Modes
 You can change between the *SLAM* and *Localization mode* using the GUI of the map viewer.

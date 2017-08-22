@@ -707,4 +707,4 @@ bool LoopClosing::isFinished() {
 }
 
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

@@ -122,4 +122,4 @@ void Map::clear() {
   mvpKeyFrameOrigins.clear();
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

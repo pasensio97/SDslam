@@ -22,26 +22,22 @@
  *
  */
 
-#ifndef MAPPOINT_H
-#define MAPPOINT_H
+#ifndef SD_SLAM_MAPPOINT_H
+#define SD_SLAM_MAPPOINT_H
 
-#include"KeyFrame.h"
-#include"Frame.h"
-#include"Map.h"
+#include "KeyFrame.h"
+#include "Frame.h"
+#include "Map.h"
+#include <opencv2/core/core.hpp>
+#include <mutex>
 
-#include<opencv2/core/core.hpp>
-#include<mutex>
-
-namespace SD_SLAM
-{
+namespace SD_SLAM {
 
 class KeyFrame;
 class Map;
 class Frame;
 
-
-class MapPoint
-{
+class MapPoint {
  public:
   MapPoint(const cv::Mat &Pos, KeyFrame* pRefKF, Map* pMap);
   MapPoint(const cv::Mat &Pos,  Map* pMap, Frame* pFrame, const int &idxF);
@@ -150,6 +146,6 @@ class MapPoint
    std::mutex mMutexFeatures;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // MAPPOINT_H
+#endif // SD_SLAM_MAPPOINT_H

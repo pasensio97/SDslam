@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef FRAMEDRAWER_H
-#define FRAMEDRAWER_H
+#ifndef SD_SLAM_FRAMEDRAWER_H
+#define SD_SLAM_FRAMEDRAWER_H
 
 #include "Tracking.h"
 #include "MapPoint.h"
@@ -65,6 +65,6 @@ class FrameDrawer {
   std::mutex mMutex;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // FRAMEDRAWER_H
+#endif // SD_SLAM_FRAMEDRAWER_H

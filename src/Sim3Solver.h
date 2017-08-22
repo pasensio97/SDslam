@@ -22,21 +22,16 @@
  *
  */
 
-#ifndef SIM3SOLVER_H
-#define SIM3SOLVER_H
+#ifndef SD_SLAM_SIM3SOLVER_H
+#define SD_SLAM_SIM3SOLVER_H
 
 #include <opencv2/opencv.hpp>
 #include <vector>
-
 #include "KeyFrame.h"
 
+namespace SD_SLAM {
 
-
-namespace SD_SLAM
-{
-
-class Sim3Solver
-{
+class Sim3Solver {
  public:
   Sim3Solver(KeyFrame* pKF1, KeyFrame* pKF2, const std::vector<MapPoint*> &vpMatched12, const bool bFixScale = true);
 
@@ -128,6 +123,6 @@ class Sim3Solver
 
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // SIM3SOLVER_H
+#endif // SD_SLAM_SIM3SOLVER_H

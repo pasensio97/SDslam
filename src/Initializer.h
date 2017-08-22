@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef INITIALIZER_H
-#define INITIALIZER_H
+#ifndef SD_SLAM_INITIALIZER_H
+#define SD_SLAM_INITIALIZER_H
 
 #include <opencv2/opencv.hpp>
 #include "Frame.h"
@@ -95,6 +95,6 @@ class Initializer {
 
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // INITIALIZER_H
+#endif // SD_SLAM_INITIALIZER_H

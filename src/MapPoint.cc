@@ -388,4 +388,4 @@ int MapPoint::PredictScale(const float &currentDist, Frame* pF) {
 
 
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

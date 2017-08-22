@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef TRACKING_H
-#define TRACKING_H
+#ifndef SD_SLAM_TRACKING_H
+#define SD_SLAM_TRACKING_H
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
@@ -37,7 +37,6 @@
 #include "Initializer.h"
 #include "MapDrawer.h"
 #include "System.h"
-
 #include <mutex>
 
 namespace SD_SLAM {
@@ -195,6 +194,6 @@ class Tracking {
   int threshold_;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // TRACKING_H
+#endif // SD_SLAM_TRACKING_H

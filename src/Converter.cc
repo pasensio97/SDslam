@@ -135,4 +135,4 @@ std::vector<float> Converter::toQuaternion(const cv::Mat &M) {
   return v;
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

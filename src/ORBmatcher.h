@@ -23,17 +23,15 @@
  */
 
 
-#ifndef ORBMATCHER_H
-#define ORBMATCHER_H
+#ifndef SD_SLAM_ORBMATCHER_H
+#define SD_SLAM_ORBMATCHER_H
 
-#include<vector>
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
-
-#include"MapPoint.h"
-#include"KeyFrame.h"
-#include"Frame.h"
-
+#include <vector>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include "MapPoint.h"
+#include "KeyFrame.h"
+#include "Frame.h"
 
 namespace SD_SLAM {
 
@@ -98,6 +96,6 @@ class ORBmatcher {
   bool mbCheckOrientation;
 };
 
-}// namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // ORBMATCHER_H
+#endif // SD_SLAM_ORBMATCHER_H

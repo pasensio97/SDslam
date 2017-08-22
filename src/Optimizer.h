@@ -22,15 +22,14 @@
  *
  */
 
-#ifndef OPTIMIZER_H
-#define OPTIMIZER_H
+#ifndef SD_SLAM_OPTIMIZER_H
+#define SD_SLAM_OPTIMIZER_H
 
 #include "Map.h"
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include "LoopClosing.h"
 #include "Frame.h"
-
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
 namespace SD_SLAM {
@@ -59,6 +58,6 @@ class Optimizer {
               g2o::Sim3 &g2oS12, const float th2, const bool bFixScale);
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // OPTIMIZER_H
+#endif // SD_SLAM_OPTIMIZER_H

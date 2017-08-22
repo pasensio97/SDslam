@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef ORBEXTRACTOR_H
-#define ORBEXTRACTOR_H
+#ifndef SD_SLAM_ORBEXTRACTOR_H
+#define SD_SLAM_ORBEXTRACTOR_H
 
 #include <vector>
 #include <list>
@@ -90,7 +90,7 @@ class ORBextractor {
   std::vector<float> mvInvLevelSigma2;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif
+#endif // SD_SLAM_ORBEXTRACTOR_H
 

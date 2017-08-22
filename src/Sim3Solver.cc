@@ -394,4 +394,4 @@ void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat>
   }
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

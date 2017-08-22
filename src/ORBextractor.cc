@@ -711,4 +711,4 @@ void ORBextractor::ComputePyramid(cv::Mat image, vector<cv::Mat> &imagePyramid) 
 
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

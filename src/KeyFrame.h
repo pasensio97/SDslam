@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef KEYFRAME_H
-#define KEYFRAME_H
+#ifndef SD_SLAM_KEYFRAME_H
+#define SD_SLAM_KEYFRAME_H
 
 #include "MapPoint.h"
 #include "ORBextractor.h"
@@ -213,6 +213,6 @@ class KeyFrame {
   std::mutex mMutexFeatures;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // KEYFRAME_H
+#endif // SD_SLAM_KEYFRAME_H

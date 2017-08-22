@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef LOCALMAPPING_H
-#define LOCALMAPPING_H
+#ifndef SD_SLAM_LOCALMAPPING_H
+#define SD_SLAM_LOCALMAPPING_H
 
 #include "KeyFrame.h"
 #include "Map.h"
@@ -121,6 +121,6 @@ class LocalMapping {
   std::mutex mMutexAccept;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // LOCALMAPPING_H
+#endif // SD_SLAM_LOCALMAPPING_H

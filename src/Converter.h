@@ -22,20 +22,18 @@
  *
  */
 
-#ifndef CONVERTER_H
-#define CONVERTER_H
+#ifndef SD_SLAM_CONVERTER_H
+#define SD_SLAM_CONVERTER_H
 
-#include<opencv2/core/core.hpp>
+#include <opencv2/core/core.hpp>
 
-#include<Eigen/Dense>
-#include"Thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
-#include"Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
+#include <Eigen/Dense>
+#include "Thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
+#include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
-namespace SD_SLAM
-{
+namespace SD_SLAM {
 
-class Converter
-{
+class Converter {
  public:
   static std::vector<cv::Mat> toDescriptorVector(const cv::Mat &Descriptors);
 
@@ -56,6 +54,6 @@ class Converter
   static std::vector<float> toQuaternion(const cv::Mat &M);
 };
 
-}// namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // CONVERTER_H
+#endif // SD_SLAM_CONVERTER_H

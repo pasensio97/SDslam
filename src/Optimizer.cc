@@ -1152,4 +1152,4 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
 }
 
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

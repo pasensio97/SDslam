@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef LOOPCLOSING_H
-#define LOOPCLOSING_H
+#ifndef SD_SLAM_LOOPCLOSING_H
+#define SD_SLAM_LOOPCLOSING_H
 
 #include "KeyFrame.h"
 #include "LocalMapping.h"
@@ -135,6 +135,6 @@ class LoopClosing {
   bool mnFullBAIdx;
 };
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM
 
-#endif // LOOPCLOSING_H
+#endif // SD_SLAM_LOOPCLOSING_H

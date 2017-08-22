@@ -22,13 +22,12 @@
  *
  */
 
-#ifndef SYSTEM_H
-#define SYSTEM_H
+#ifndef SD_SLAM_SYSTEM_H
+#define SD_SLAM_SYSTEM_H
 
 #include <string>
 #include <thread>
 #include <opencv2/core/core.hpp>
-
 #include "Tracking.h"
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
@@ -129,6 +128,6 @@ class System {
   std::mutex mMutexState;
 };
 
-}// namespace ORB_SLAM
+}  // namespace SD_SLAM
 
-#endif // SYSTEM_H
+#endif // SD_SLAM_SYSTEM_H

@@ -1120,4 +1120,4 @@ void Tracking::ChangeCalibration(const string &strSettingPath) {
   Frame::mbInitialComputations = true;
 }
 
-} //namespace ORB_SLAM
+}  //namespace SD_SLAM

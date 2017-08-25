@@ -153,12 +153,6 @@ T stringToType(const std::string& s, bool failIfLeftoverChars = true)
  bool strEndsWith(const std::string & str, const std::string& substr);
 
 /**
- * expand the given filename like a posix shell, e.g., ~ $CARMEN_HOME and other will get expanded.
- * Also command substitution, e.g. `pwd` will give the current directory.
- */
- std::string strExpandFilename(const std::string& filename);
-
-/**
  * split a string into token based on the characters given in delim
  */
  std::vector<std::string> strSplit(const std::string& s, const std::string& delim);

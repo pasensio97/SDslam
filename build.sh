@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Configuring and building SD_SLAM ..."
 
 mkdir build

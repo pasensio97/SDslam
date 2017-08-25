@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project(SD_SLAM)
+option(USE_ANDROID "Android Cross Compilation" OFF)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
@@ -7,27 +8,35 @@ ENDIF()
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
-# Detect OS and define macros appropriately
-IF(UNIX)
-  ADD_DEFINITIONS(-DUNIX)
+if(USE_ANDROID)
+  ADD_DEFINITIONS(-DANDROID)
+  MESSAGE(STATUS "Compiling for Android")
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -std=c++11")
+
+  set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
+  set(OPENCV_SDK /opt/OpenCV-android-sdk)
+
+  # Configure OpenCV
+  include_directories(${OPENCV_SDK}/sdk/native/jni/include)
+  add_library(lib_opencv SHARED IMPORTED)
+  set_target_properties(lib_opencv PROPERTIES IMPORTED_LOCATION ${OPENCV_SDK}/sdk/native/libs/${ANDROID_ABI}/libopencv_java3.so)
+else()
   MESSAGE(STATUS "Compiling on Unix")
-ENDIF(UNIX)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
 
-LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+  LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-find_package(OpenCV 3.0 QUIET)
-if(NOT OpenCV_FOUND)
-   find_package(OpenCV 2.4.3 QUIET)
-   if(NOT OpenCV_FOUND)
-      message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
-   endif()
+  find_package(OpenCV 3.0 QUIET)
+  if(NOT OpenCV_FOUND)
+     find_package(OpenCV 2.4.3 REQUIRED)
+  endif()
+  find_package(Eigen3 3.1.0 REQUIRED)
+  find_package(Pangolin REQUIRED)
 endif()
-
-find_package(Eigen3 3.1.0 REQUIRED)
-find_package(Pangolin REQUIRED)
 
 include_directories(
   ${PROJECT_SOURCE_DIR}
@@ -36,7 +45,7 @@ include_directories(
 
   ${PROJECT_SOURCE_DIR}/src/extra/g2o/core
   ${PROJECT_SOURCE_DIR}/src/extra/g2o/types
-  ${PROJECT_SOURCE_DIR}/src/extra/g2o/stuff 
+  ${PROJECT_SOURCE_DIR}/src/extra/g2o/stuff
 
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
@@ -85,94 +94,92 @@ add_library(${PROJECT_NAME} SHARED
   src/extra/g2o/core/hyper_graph_action.cpp
   src/extra/g2o/core/base_binary_edge.hpp
   src/extra/g2o/core/hyper_graph_action.h
-  src/extra/g2o/core/base_multi_edge.h           
+  src/extra/g2o/core/base_multi_edge.h
   src/extra/g2o/core/hyper_graph.cpp
-  src/extra/g2o/core/base_multi_edge.hpp         
+  src/extra/g2o/core/base_multi_edge.hpp
   src/extra/g2o/core/hyper_graph.h
-  src/extra/g2o/core/base_unary_edge.h          
+  src/extra/g2o/core/base_unary_edge.h
   src/extra/g2o/core/linear_solver.h
-  src/extra/g2o/core/base_unary_edge.hpp         
+  src/extra/g2o/core/base_unary_edge.hpp
   src/extra/g2o/core/marginal_covariance_cholesky.cpp
-  src/extra/g2o/core/base_vertex.h               
+  src/extra/g2o/core/base_vertex.h
   src/extra/g2o/core/marginal_covariance_cholesky.h
-  src/extra/g2o/core/base_vertex.hpp             
+  src/extra/g2o/core/base_vertex.hpp
   src/extra/g2o/core/matrix_structure.cpp
-  src/extra/g2o/core/batch_stats.cpp             
+  src/extra/g2o/core/batch_stats.cpp
   src/extra/g2o/core/matrix_structure.h
-  src/extra/g2o/core/batch_stats.h               
+  src/extra/g2o/core/batch_stats.h
   src/extra/g2o/core/openmp_mutex.h
-  src/extra/g2o/core/block_solver.h              
-  src/extra/g2o/core/block_solver.hpp            
-  src/extra/g2o/core/parameter.cpp               
-  src/extra/g2o/core/parameter.h                 
-  src/extra/g2o/core/cache.cpp                   
+  src/extra/g2o/core/block_solver.h
+  src/extra/g2o/core/block_solver.hpp
+  src/extra/g2o/core/parameter.cpp
+  src/extra/g2o/core/parameter.h
+  src/extra/g2o/core/cache.cpp
   src/extra/g2o/core/cache.h
-  src/extra/g2o/core/optimizable_graph.cpp       
-  src/extra/g2o/core/optimizable_graph.h         
-  src/extra/g2o/core/solver.cpp                  
+  src/extra/g2o/core/optimizable_graph.cpp
+  src/extra/g2o/core/optimizable_graph.h
+  src/extra/g2o/core/solver.cpp
   src/extra/g2o/core/solver.h
-  src/extra/g2o/core/creators.h                 
+  src/extra/g2o/core/creators.h
   src/extra/g2o/core/optimization_algorithm_factory.cpp
-  src/extra/g2o/core/estimate_propagator.cpp     
+  src/extra/g2o/core/estimate_propagator.cpp
   src/extra/g2o/core/optimization_algorithm_factory.h
-  src/extra/g2o/core/estimate_propagator.h       
-  src/extra/g2o/core/factory.cpp                 
+  src/extra/g2o/core/estimate_propagator.h
+  src/extra/g2o/core/factory.cpp
   src/extra/g2o/core/optimization_algorithm_property.h
-  src/extra/g2o/core/factory.h                   
+  src/extra/g2o/core/factory.h
   src/extra/g2o/core/sparse_block_matrix.h
-  src/extra/g2o/core/sparse_optimizer.cpp  
+  src/extra/g2o/core/sparse_optimizer.cpp
   src/extra/g2o/core/sparse_block_matrix.hpp
   src/extra/g2o/core/sparse_optimizer.h
-  src/extra/g2o/core/hyper_dijkstra.cpp 
+  src/extra/g2o/core/hyper_dijkstra.cpp
   src/extra/g2o/core/hyper_dijkstra.h
-  src/extra/g2o/core/parameter_container.cpp     
+  src/extra/g2o/core/parameter_container.cpp
   src/extra/g2o/core/parameter_container.h
-  src/extra/g2o/core/optimization_algorithm.cpp 
+  src/extra/g2o/core/optimization_algorithm.cpp
   src/extra/g2o/core/optimization_algorithm.h
-  src/extra/g2o/core/optimization_algorithm_with_hessian.cpp 
+  src/extra/g2o/core/optimization_algorithm_with_hessian.cpp
   src/extra/g2o/core/optimization_algorithm_with_hessian.h
-  src/extra/g2o/core/optimization_algorithm_levenberg.cpp 
+  src/extra/g2o/core/optimization_algorithm_levenberg.cpp
   src/extra/g2o/core/optimization_algorithm_levenberg.h
-  src/extra/g2o/core/jacobian_workspace.cpp 
+  src/extra/g2o/core/jacobian_workspace.cpp
   src/extra/g2o/core/jacobian_workspace.h
-  src/extra/g2o/core/robust_kernel.cpp 
+  src/extra/g2o/core/robust_kernel.cpp
   src/extra/g2o/core/robust_kernel.h
   src/extra/g2o/core/robust_kernel_factory.cpp
   src/extra/g2o/core/robust_kernel_factory.h
-  src/extra/g2o/core/robust_kernel_impl.cpp 
+  src/extra/g2o/core/robust_kernel_impl.cpp
   src/extra/g2o/core/robust_kernel_impl.h
   # g2o stuff
   src/extra/g2o/stuff/string_tools.h
-  src/extra/g2o/stuff/color_macros.h 
+  src/extra/g2o/stuff/color_macros.h
   src/extra/g2o/stuff/macros.h
   src/extra/g2o/stuff/timeutil.cpp
   src/extra/g2o/stuff/misc.h
   src/extra/g2o/stuff/timeutil.h
-  src/extra/g2o/stuff/os_specific.c    
-  src/extra/g2o/stuff/os_specific.h
   src/extra/g2o/stuff/string_tools.cpp
-  src/extra/g2o/stuff/property.cpp       
-  src/extra/g2o/stuff/property.h 
+  src/extra/g2o/stuff/property.cpp
+  src/extra/g2o/stuff/property.h
 )
 
-target_link_libraries(${PROJECT_NAME}
-${OpenCV_LIBS}
-${EIGEN3_LIBS}
-${Pangolin_LIBRARIES}
-#${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
-)
+if(USE_ANDROID)
+  target_link_libraries(${PROJECT_NAME} lib_opencv)
+else()
+  target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Pangolin_LIBRARIES})
+endif()
 
-# Build examples
+if(NOT USE_ANDROID)
+  # Build examples
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
+  add_executable(monocular
+  Examples/Monocular/monocular.cc)
+  target_link_libraries(monocular ${PROJECT_NAME})
 
-add_executable(monocular
-Examples/Monocular/monocular.cc)
-target_link_libraries(monocular ${PROJECT_NAME})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/RGB-D)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/RGB-D)
-
-add_executable(rgbd
-Examples/RGB-D/rgbd.cc)
-target_link_libraries(rgbd ${PROJECT_NAME})
+  add_executable(rgbd
+  Examples/RGB-D/rgbd.cc)
+  target_link_libraries(rgbd ${PROJECT_NAME})
+endif()
 

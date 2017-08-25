@@ -27,12 +27,7 @@
 #ifndef G2O_TIMEUTIL_H
 #define G2O_TIMEUTIL_H
 
-#ifdef _WINDOWS
-#include <time.h>
-#else
 #include <sys/time.h>
-#endif
-
 #include <string>
 
 
@@ -76,14 +71,6 @@ if (1) {\
 #endif
 
 namespace g2o {
-
-#ifdef _WINDOWS
-typedef struct timeval {
-  long tv_sec;
-  long tv_usec;
-} timeval;
- int gettimeofday(struct timeval *tv, struct timezone *tz);
-#endif
 
 /**
  * return the current time in seconds since 1. Jan 1970

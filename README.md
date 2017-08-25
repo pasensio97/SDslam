@@ -17,10 +17,10 @@ We use [Pangolin](https://github.com/stevenlovegrove/Pangolin) for visualization
 We use [OpenCV](http://opencv.org) to manipulate images and features. Dowload and install instructions can be found at: http://opencv.org. **Required at leat 2.4.3. Tested with OpenCV 2.4.11 and OpenCV 3.2**.
 
 ## Eigen3
-Required by g2o (see below). Download and install instructions can be found at: http://eigen.tuxfamily.org. **Required at least 3.1.0**.
+We use [Eigen3](http://eigen.tuxfamily.org) to perform matrices operations. Download and install instructions can be found at: http://eigen.tuxfamily.org. **Required at least 3.1.0**.
 
-## g2o (Included in Thirdparty folder)
-We use modified versions of the [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. This library (which is BSD) is included in the *Thirdparty* folder.
+## g2o (Included in extra folder)
+We use modified versions of the [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. This library (which is BSD) is included in the *extra* folder.
 
 # 3. Building ORB-SLAM2 library and examples
 

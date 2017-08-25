@@ -7,6 +7,12 @@ ENDIF()
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
+# Detect OS and define macros appropriately
+IF(UNIX)
+  ADD_DEFINITIONS(-DUNIX)
+  MESSAGE(STATUS "Compiling on Unix")
+ENDIF(UNIX)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
 
@@ -27,6 +33,11 @@ include_directories(
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_SOURCE_DIR}/src/extra
+
+  ${PROJECT_SOURCE_DIR}/src/extra/g2o/core
+  ${PROJECT_SOURCE_DIR}/src/extra/g2o/types
+  ${PROJECT_SOURCE_DIR}/src/extra/g2o/stuff 
+
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
 )
@@ -34,6 +45,7 @@ include_directories(
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(${PROJECT_NAME} SHARED
+  # SD-SLAM system
   src/System.cc
   src/Tracking.cc
   src/ImageAlign.cc
@@ -53,15 +65,101 @@ add_library(${PROJECT_NAME} SHARED
   src/Sim3Solver.cc
   src/Initializer.cc
   src/Viewer.cc
+
   # Extra
   src/extra/utils.cc
+
+  # g2o types
+  src/extra/g2o/types/types_sba.h
+  src/extra/g2o/types/types_six_dof_expmap.h
+  src/extra/g2o/types/types_sba.cpp
+  src/extra/g2o/types/types_six_dof_expmap.cpp
+  src/extra/g2o/types/types_seven_dof_expmap.cpp
+  src/extra/g2o/types/types_seven_dof_expmap.h
+  src/extra/g2o/types/se3quat.h
+  src/extra/g2o/types/se3_ops.h
+  src/extra/g2o/types/se3_ops.hpp
+  # g2o core
+  src/extra/g2o/core/base_edge.h
+  src/extra/g2o/core/base_binary_edge.h
+  src/extra/g2o/core/hyper_graph_action.cpp
+  src/extra/g2o/core/base_binary_edge.hpp
+  src/extra/g2o/core/hyper_graph_action.h
+  src/extra/g2o/core/base_multi_edge.h           
+  src/extra/g2o/core/hyper_graph.cpp
+  src/extra/g2o/core/base_multi_edge.hpp         
+  src/extra/g2o/core/hyper_graph.h
+  src/extra/g2o/core/base_unary_edge.h          
+  src/extra/g2o/core/linear_solver.h
+  src/extra/g2o/core/base_unary_edge.hpp         
+  src/extra/g2o/core/marginal_covariance_cholesky.cpp
+  src/extra/g2o/core/base_vertex.h               
+  src/extra/g2o/core/marginal_covariance_cholesky.h
+  src/extra/g2o/core/base_vertex.hpp             
+  src/extra/g2o/core/matrix_structure.cpp
+  src/extra/g2o/core/batch_stats.cpp             
+  src/extra/g2o/core/matrix_structure.h
+  src/extra/g2o/core/batch_stats.h               
+  src/extra/g2o/core/openmp_mutex.h
+  src/extra/g2o/core/block_solver.h              
+  src/extra/g2o/core/block_solver.hpp            
+  src/extra/g2o/core/parameter.cpp               
+  src/extra/g2o/core/parameter.h                 
+  src/extra/g2o/core/cache.cpp                   
+  src/extra/g2o/core/cache.h
+  src/extra/g2o/core/optimizable_graph.cpp       
+  src/extra/g2o/core/optimizable_graph.h         
+  src/extra/g2o/core/solver.cpp                  
+  src/extra/g2o/core/solver.h
+  src/extra/g2o/core/creators.h                 
+  src/extra/g2o/core/optimization_algorithm_factory.cpp
+  src/extra/g2o/core/estimate_propagator.cpp     
+  src/extra/g2o/core/optimization_algorithm_factory.h
+  src/extra/g2o/core/estimate_propagator.h       
+  src/extra/g2o/core/factory.cpp                 
+  src/extra/g2o/core/optimization_algorithm_property.h
+  src/extra/g2o/core/factory.h                   
+  src/extra/g2o/core/sparse_block_matrix.h
+  src/extra/g2o/core/sparse_optimizer.cpp  
+  src/extra/g2o/core/sparse_block_matrix.hpp
+  src/extra/g2o/core/sparse_optimizer.h
+  src/extra/g2o/core/hyper_dijkstra.cpp 
+  src/extra/g2o/core/hyper_dijkstra.h
+  src/extra/g2o/core/parameter_container.cpp     
+  src/extra/g2o/core/parameter_container.h
+  src/extra/g2o/core/optimization_algorithm.cpp 
+  src/extra/g2o/core/optimization_algorithm.h
+  src/extra/g2o/core/optimization_algorithm_with_hessian.cpp 
+  src/extra/g2o/core/optimization_algorithm_with_hessian.h
+  src/extra/g2o/core/optimization_algorithm_levenberg.cpp 
+  src/extra/g2o/core/optimization_algorithm_levenberg.h
+  src/extra/g2o/core/jacobian_workspace.cpp 
+  src/extra/g2o/core/jacobian_workspace.h
+  src/extra/g2o/core/robust_kernel.cpp 
+  src/extra/g2o/core/robust_kernel.h
+  src/extra/g2o/core/robust_kernel_factory.cpp
+  src/extra/g2o/core/robust_kernel_factory.h
+  src/extra/g2o/core/robust_kernel_impl.cpp 
+  src/extra/g2o/core/robust_kernel_impl.h
+  # g2o stuff
+  src/extra/g2o/stuff/string_tools.h
+  src/extra/g2o/stuff/color_macros.h 
+  src/extra/g2o/stuff/macros.h
+  src/extra/g2o/stuff/timeutil.cpp
+  src/extra/g2o/stuff/misc.h
+  src/extra/g2o/stuff/timeutil.h
+  src/extra/g2o/stuff/os_specific.c    
+  src/extra/g2o/stuff/os_specific.h
+  src/extra/g2o/stuff/string_tools.cpp
+  src/extra/g2o/stuff/property.cpp       
+  src/extra/g2o/stuff/property.h 
 )
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
+#${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 )
 
 # Build examples

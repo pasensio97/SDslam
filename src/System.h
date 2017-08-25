@@ -25,21 +25,25 @@
 #ifndef SD_SLAM_SYSTEM_H
 #define SD_SLAM_SYSTEM_H
 
+#include "Tracking.h"
 #include <string>
 #include <thread>
 #include <opencv2/core/core.hpp>
-#include "Tracking.h"
-#include "FrameDrawer.h"
-#include "MapDrawer.h"
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
+#ifdef PANGOLIN
 #include "Viewer.h"
+#include "FrameDrawer.h"
+#include "MapDrawer.h"
+#endif
 
 namespace SD_SLAM {
 
+#ifdef PANGOLIN
 class Viewer;
 class FrameDrawer;
+#endif
 class Map;
 class Tracking;
 class LocalMapping;
@@ -106,16 +110,19 @@ class System {
   LoopClosing* mpLoopCloser;
 
   // The viewer draws the map and the current camera pose. It uses Pangolin.
+#ifdef PANGOLIN
   Viewer* mpViewer;
-
   FrameDrawer* mpFrameDrawer;
   MapDrawer* mpMapDrawer;
+#endif
 
   // System threads: Local Mapping, Loop Closing, Viewer.
   // The Tracking thread "lives" in the main execution thread that creates the System object.
   std::thread* mptLocalMapping;
   std::thread* mptLoopClosing;
+#ifdef PANGOLIN
   std::thread* mptViewer;
+#endif
 
   // Reset flag
   std::mutex mMutexReset;

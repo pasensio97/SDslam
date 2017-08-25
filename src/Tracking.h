@@ -25,24 +25,28 @@
 #ifndef SD_SLAM_TRACKING_H
 #define SD_SLAM_TRACKING_H
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include "Viewer.h"
-#include "FrameDrawer.h"
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Frame.h"
 #include "ORBextractor.h"
 #include "Initializer.h"
-#include "MapDrawer.h"
 #include "System.h"
+#ifdef PANGOLIN
+#include "Viewer.h"
+#include "FrameDrawer.h"
+#include "MapDrawer.h"
+#endif
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 #include <mutex>
 
 namespace SD_SLAM {
 
+#ifdef PANGOLIN
 class Viewer;
 class FrameDrawer;
+#endif
 class Map;
 class LocalMapping;
 class LoopClosing;
@@ -51,16 +55,33 @@ class System;
 class Tracking {
 
  public:
-  Tracking(System* pSys, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
-           const std::string &strSettingPath, const int sensor);
+  Tracking(System* pSys, Map* pMap, const std::string &strSettingPath, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
   cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
   cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp);
 
-  void SetLocalMapper(LocalMapping* pLocalMapper);
-  void SetLoopClosing(LoopClosing* pLoopClosing);
-  void SetViewer(Viewer* pViewer);
+  inline void SetLocalMapper(LocalMapping* pLocalMapper) {
+    mpLocalMapper=pLocalMapper;
+  }
+
+  inline void SetLoopClosing(LoopClosing* pLoopClosing) {
+    mpLoopClosing=pLoopClosing;
+  }
+
+#ifdef PANGOLIN
+  inline void SetViewer(Viewer* pViewer) {
+    mpViewer=pViewer;
+  }
+
+  inline void SetFrameDrawer(FrameDrawer* pFrameDrawer) {
+    mpFrameDrawer=pFrameDrawer;
+  }
+
+  inline void SetMapDrawer(MapDrawer* pMapDrawer) {
+    mpMapDrawer=pMapDrawer;
+  }
+#endif
 
   // Load new settings
   // The focal lenght should be similar or scale prediction will fail when projecting points
@@ -146,14 +167,16 @@ class Tracking {
   KeyFrame* mpReferenceKF;
   std::vector<KeyFrame*> mvpLocalKeyFrames;
   std::vector<MapPoint*> mvpLocalMapPoints;
-  
+
   // System
   System* mpSystem;
-  
+
+#ifdef PANGOLIN
   //Drawers
   Viewer* mpViewer;
   FrameDrawer* mpFrameDrawer;
   MapDrawer* mpMapDrawer;
+#endif
 
   //Map
   Map* mpMap;

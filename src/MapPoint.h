@@ -60,7 +60,7 @@ class MapPoint {
   void SetBadFlag();
   bool isBad();
 
-  void Replace(MapPoint* pMP);  
+  void Replace(MapPoint* pMP);
   MapPoint* GetReplaced();
 
   void IncreaseVisible(int n=1);
@@ -105,14 +105,14 @@ class MapPoint {
   // Variables used by loop closing
   long unsigned int mnLoopPointForKF;
   long unsigned int mnCorrectedByKF;
-  long unsigned int mnCorrectedReference;  
+  long unsigned int mnCorrectedReference;
   cv::Mat mPosGBA;
   long unsigned int mnBAGlobalForKF;
 
 
   static std::mutex mGlobalMutex;
 
- protected:  
+ protected:
    // Position in absolute coordinates
    cv::Mat mWorldPos;
 

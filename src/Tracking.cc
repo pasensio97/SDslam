@@ -43,11 +43,9 @@ using namespace std;
 
 namespace SD_SLAM {
 
-Tracking::Tracking(System *pSys, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap,
-                   const string &strSettingPath, const int sensor):
-  mState(NO_IMAGES_YET), mSensor(sensor),
-  mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
-  mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0) {
+Tracking::Tracking(System *pSys, Map *pMap, const string &strSettingPath, const int sensor):
+  mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
+  mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0) {
   // Load camera parameters from settings file
   cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
   float fx = fSettings["Camera.fx"];
@@ -138,18 +136,12 @@ Tracking::Tracking(System *pSys, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawe
   }
 
   threshold_ = 8;
-}
 
-void Tracking::SetLocalMapper(LocalMapping *pLocalMapper) {
-  mpLocalMapper=pLocalMapper;
-}
-
-void Tracking::SetLoopClosing(LoopClosing *pLoopClosing) {
-  mpLoopClosing=pLoopClosing;
-}
-
-void Tracking::SetViewer(Viewer *pViewer) {
-  mpViewer=pViewer;
+#ifdef PANGOLIN
+  mpViewer = nullptr;
+  mpFrameDrawer = nullptr;
+  mpMapDrawer = nullptr;
+#endif
 }
 
 cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp) {
@@ -219,7 +211,10 @@ void Tracking::Track() {
     else
       MonocularInitialization();
 
-    mpFrameDrawer->Update(this);
+#ifdef PANGOLIN
+    if (mpFrameDrawer != nullptr)
+      mpFrameDrawer->Update(this);
+#endif
 
     if (mState!=OK)
       return;
@@ -256,7 +251,10 @@ void Tracking::Track() {
       mState=LOST;
 
     // Update drawer
-    mpFrameDrawer->Update(this);
+#ifdef PANGOLIN
+    if (mpFrameDrawer != nullptr)
+      mpFrameDrawer->Update(this);
+#endif
 
     // If tracking were good, check if we insert a keyframe
     if (bOK) {
@@ -269,7 +267,10 @@ void Tracking::Track() {
       } else
         mVelocity = cv::Mat();
 
-      mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+#ifdef PANGOLIN
+      if (mpMapDrawer != nullptr)
+        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+#endif
 
       // Clean VO matches
       for (int i=0; i<mCurrentFrame.N; i++) {
@@ -379,7 +380,10 @@ void Tracking::StereoInitialization() {
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
-    mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+#ifdef PANGOLIN
+    if (mpMapDrawer != nullptr)
+      mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+#endif
 
     mState=OK;
   }
@@ -535,7 +539,10 @@ void Tracking::CreateInitialMapMonocular() {
 
   mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
-  mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
+#ifdef PANGOLIN
+  if (mpMapDrawer != nullptr)
+    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
+#endif
 
   mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
@@ -1052,11 +1059,14 @@ bool Tracking::Relocalization() {
 void Tracking::Reset() {
 
   cout << "System Reseting" << endl;
+
+#ifdef PANGOLIN
   if (mpViewer) {
     mpViewer->RequestStop();
     while (!mpViewer->isStopped())
       usleep(3000);
   }
+#endif
 
   // Reset Local Mapping
   cout << "Reseting Local Mapper...";
@@ -1085,8 +1095,10 @@ void Tracking::Reset() {
   mlFrameTimes.clear();
   mlbLost.clear();
 
+#ifdef PANGOLIN
   if (mpViewer)
     mpViewer->Release();
+#endif
 }
 
 void Tracking::ChangeCalibration(const string &strSettingPath) {

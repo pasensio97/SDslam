@@ -40,7 +40,7 @@ class LocalMapping;
 
 class LoopClosing {
  public:
-  typedef std::pair<std::set<KeyFrame*>,int> ConsistentGroup;  
+  typedef std::pair<std::set<KeyFrame*>,int> ConsistentGroup;
   typedef std::map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
     Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
 
@@ -61,14 +61,14 @@ class LoopClosing {
   // This function will run in a separate thread
   void RunGlobalBundleAdjustment(unsigned long nLoopKF);
 
-  bool isRunningGBA(){
+  bool isRunningGBA() {
     std::unique_lock<std::mutex> lock(mMutexGBA);
     return mbRunningGBA;
   }
-  bool isFinishedGBA(){
+  bool isFinishedGBA() {
     std::unique_lock<std::mutex> lock(mMutexGBA);
     return mbFinishedGBA;
-  }   
+  }
 
   void RequestFinish();
 

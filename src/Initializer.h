@@ -64,7 +64,7 @@ class Initializer {
 
   void Normalize(const std::vector<cv::KeyPoint> &vKeys, std::vector<cv::Point2f> &vNormalizedPoints, cv::Mat &T);
 
-  int CheckRT(const cv::Mat &R, const cv::Mat &t, const std::vector<cv::KeyPoint> &vKeys1, 
+  int CheckRT(const cv::Mat &R, const cv::Mat &t, const std::vector<cv::KeyPoint> &vKeys1,
               const std::vector<cv::KeyPoint> &vKeys2, const std::vector<Match> &vMatches12, std::vector<bool> &vbInliers,
               const cv::Mat &K, std::vector<cv::Point3f> &vP3D, float th2, std::vector<bool> &vbGood, float &parallax);
 
@@ -91,7 +91,7 @@ class Initializer {
   int mMaxIterations;
 
   // Ransac sets
-  std::vector<std::vector<size_t> > mvSets;   
+  std::vector<std::vector<size_t> > mvSets;
 
 };
 

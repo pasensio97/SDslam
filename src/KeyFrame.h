@@ -202,7 +202,7 @@ class KeyFrame {
   // Bad flags
   bool mbNotErase;
   bool mbToBeErased;
-  bool mbBad;  
+  bool mbBad;
 
   float mHalfBaseline; // Only for visualization
 

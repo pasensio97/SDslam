@@ -29,7 +29,7 @@
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include <pangolin/pangolin.h>
-#include<mutex>
+#include <mutex>
 
 namespace SD_SLAM {
 

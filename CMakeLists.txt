@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(SD_SLAM)
 option(USE_ANDROID "Android Cross Compilation" OFF)
+set(USE_PANGOLIN ON)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
@@ -9,8 +10,10 @@ ENDIF()
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
 if(USE_ANDROID)
-  ADD_DEFINITIONS(-DANDROID)
   MESSAGE(STATUS "Compiling for Android")
+  set(USE_PANGOLIN OFF)
+
+  ADD_DEFINITIONS(-DANDROID)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -std=c++11")
@@ -25,6 +28,10 @@ if(USE_ANDROID)
 else()
   MESSAGE(STATUS "Compiling on Unix")
 
+  if(USE_PANGOLIN)
+    ADD_DEFINITIONS(-DPANGOLIN)
+  endif()
+
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
 
@@ -35,12 +42,15 @@ else()
      find_package(OpenCV 2.4.3 REQUIRED)
   endif()
   find_package(Eigen3 3.1.0 REQUIRED)
-  find_package(Pangolin REQUIRED)
+  if(USE_PANGOLIN)
+    find_package(Pangolin REQUIRED)
+  endif()
 endif()
 
 include_directories(
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/src/ui
   ${PROJECT_SOURCE_DIR}/src/extra
 
   ${PROJECT_SOURCE_DIR}/src/extra/g2o/core
@@ -48,12 +58,16 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/src/extra/g2o/stuff
 
   ${EIGEN3_INCLUDE_DIR}
-  ${Pangolin_INCLUDE_DIRS}
 )
+
+if(USE_PANGOLIN)
+  include_directories(${Pangolin_INCLUDE_DIRS})
+endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
-add_library(${PROJECT_NAME} SHARED
+# Set SD-SLAM sourcefiles
+LIST(APPEND SOURCEFILES
   # SD-SLAM system
   src/System.cc
   src/Tracking.cc
@@ -62,22 +76,31 @@ add_library(${PROJECT_NAME} SHARED
   src/LoopClosing.cc
   src/ORBextractor.cc
   src/ORBmatcher.cc
-  src/FrameDrawer.cc
   src/Converter.cc
   src/MapPoint.cc
   src/KeyFrame.cc
   src/Map.cc
-  src/MapDrawer.cc
   src/Optimizer.cc
   src/PnPsolver.cc
   src/Frame.cc
   src/Sim3Solver.cc
   src/Initializer.cc
-  src/Viewer.cc
 
   # Extra
   src/extra/utils.cc
+)
 
+if(USE_PANGOLIN)
+  LIST(APPEND SOURCEFILES
+    # UI
+    src/ui/FrameDrawer.cc
+    src/ui/MapDrawer.cc
+    src/ui/Viewer.cc
+  )
+endif()
+
+# Set g2o sourcefiles
+LIST(APPEND SOURCEFILES
   # g2o types
   src/extra/g2o/types/types_sba.h
   src/extra/g2o/types/types_six_dof_expmap.h
@@ -162,10 +185,16 @@ add_library(${PROJECT_NAME} SHARED
   src/extra/g2o/stuff/property.h
 )
 
+add_library(${PROJECT_NAME} SHARED ${SOURCEFILES})
+
 if(USE_ANDROID)
   target_link_libraries(${PROJECT_NAME} lib_opencv)
 else()
-  target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Pangolin_LIBRARIES})
+  if(USE_PANGOLIN)
+    target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Pangolin_LIBRARIES})
+  else()
+    target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+  endif()
 endif()
 
 if(NOT USE_ANDROID)

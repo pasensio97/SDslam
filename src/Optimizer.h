@@ -58,6 +58,6 @@ class Optimizer {
               g2o::Sim3 &g2oS12, const float th2, const bool bFixScale);
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_OPTIMIZER_H
+#endif  // SD_SLAM_OPTIMIZER_H

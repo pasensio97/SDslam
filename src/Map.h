@@ -25,10 +25,10 @@
 #ifndef SD_SLAM_MAP_H
 #define SD_SLAM_MAP_H
 
-#include "MapPoint.h"
-#include "KeyFrame.h"
 #include <set>
 #include <mutex>
+#include "MapPoint.h"
+#include "KeyFrame.h"
 
 namespace SD_SLAM {
 
@@ -79,6 +79,6 @@ class Map {
   std::mutex mMutexMap;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_MAP_H
+#endif  // SD_SLAM_MAP_H

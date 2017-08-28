@@ -58,7 +58,6 @@
 
 #include <vector>
 #include <cmath>
-#include <opencv2/core/core.hpp>
 #include <algorithm>
 #include "utils.h"
 
@@ -969,4 +968,4 @@ void PnPsolver::mat_to_quat(const double R[3][3], double q[4]) {
   q[3] *= scale;
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

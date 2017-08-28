@@ -95,6 +95,6 @@ class Initializer {
 
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_INITIALIZER_H
+#endif  // SD_SLAM_INITIALIZER_H

@@ -25,6 +25,12 @@
 #ifndef SD_SLAM_TRACKING_H
 #define SD_SLAM_TRACKING_H
 
+#include <mutex>
+#include <string>
+#include <list>
+#include <vector>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
@@ -37,9 +43,6 @@
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
 #endif
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <mutex>
 
 namespace SD_SLAM {
 
@@ -53,33 +56,32 @@ class LoopClosing;
 class System;
 
 class Tracking {
-
  public:
   Tracking(System* pSys, Map* pMap, const std::string &strSettingPath, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
-  cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
+  cv::Mat GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp);
   cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp);
 
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
-    mpLocalMapper=pLocalMapper;
+    mpLocalMapper = pLocalMapper;
   }
 
   inline void SetLoopClosing(LoopClosing* pLoopClosing) {
-    mpLoopClosing=pLoopClosing;
+    mpLoopClosing = pLoopClosing;
   }
 
 #ifdef PANGOLIN
   inline void SetViewer(Viewer* pViewer) {
-    mpViewer=pViewer;
+    mpViewer = pViewer;
   }
 
   inline void SetFrameDrawer(FrameDrawer* pFrameDrawer) {
-    mpFrameDrawer=pFrameDrawer;
+    mpFrameDrawer = pFrameDrawer;
   }
 
   inline void SetMapDrawer(MapDrawer* pMapDrawer) {
-    mpMapDrawer=pMapDrawer;
+    mpMapDrawer = pMapDrawer;
   }
 #endif
 
@@ -91,11 +93,11 @@ class Tracking {
  public:
   // Tracking states
   enum eTrackingState{
-    SYSTEM_NOT_READY=-1,
-    NO_IMAGES_YET=0,
-    NOT_INITIALIZED=1,
-    OK=2,
-    LOST=3
+    SYSTEM_NOT_READY = -1,
+    NO_IMAGES_YET = 0,
+    NOT_INITIALIZED = 1,
+    OK = 2,
+    LOST = 3
   };
 
   eTrackingState mState;
@@ -152,18 +154,18 @@ class Tracking {
   bool NeedNewKeyFrame();
   void CreateNewKeyFrame();
 
-  //Other Thread Pointers
+  // Other Thread Pointers
   LocalMapping* mpLocalMapper;
   LoopClosing* mpLoopClosing;
 
-  //ORB
+  // ORB
   ORBextractor* mpORBextractorLeft;
   ORBextractor* mpIniORBextractor;
 
   // Initalization (only for monocular)
   Initializer* mpInitializer;
 
-  //Local Map
+  // Local Map
   KeyFrame* mpReferenceKF;
   std::vector<KeyFrame*> mvpLocalKeyFrames;
   std::vector<MapPoint*> mvpLocalMapPoints;
@@ -172,21 +174,21 @@ class Tracking {
   System* mpSystem;
 
 #ifdef PANGOLIN
-  //Drawers
+  // Drawers
   Viewer* mpViewer;
   FrameDrawer* mpFrameDrawer;
   MapDrawer* mpMapDrawer;
 #endif
 
-  //Map
+  // Map
   Map* mpMap;
 
-  //Calibration matrix
+  // Calibration matrix
   cv::Mat mK;
   cv::Mat mDistCoef;
   float mbf;
 
-  //New KeyFrame rules (according to fps)
+  // New KeyFrame rules (according to fps)
   int mMinFrames;
   int mMaxFrames;
 
@@ -198,25 +200,25 @@ class Tracking {
   // For RGB-D inputs only. For some datasets (e.g. TUM) the depthmap values are scaled.
   float mDepthMapFactor;
 
-  //Current matches in frame
+  // Current matches in frame
   int mnMatchesInliers;
 
-  //Last Frame, KeyFrame and Relocalisation Info
+  // Last Frame, KeyFrame and Relocalisation Info
   KeyFrame* mpLastKeyFrame;
   Frame mLastFrame;
   unsigned int mnLastKeyFrameId;
   unsigned int mnLastRelocFrameId;
 
-  //Motion Model
+  // Motion Model
   cv::Mat mVelocity;
 
-  //Color order (true RGB, false BGR, ignored if grayscale)
+  // Color order (true RGB, false BGR, ignored if grayscale)
   bool mbRGB;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_TRACKING_H
+#endif  // SD_SLAM_TRACKING_H

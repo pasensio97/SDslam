@@ -58,4 +58,4 @@ namespace g2o {
 
 } // end namespace
 
-#endif // SBA_TYPES
+#endif  // SBA_TYPES

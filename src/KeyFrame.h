@@ -25,10 +25,11 @@
 #ifndef SD_SLAM_KEYFRAME_H
 #define SD_SLAM_KEYFRAME_H
 
+#include <map>
+#include <mutex>
 #include "MapPoint.h"
 #include "ORBextractor.h"
 #include "Frame.h"
-#include <mutex>
 
 namespace SD_SLAM {
 
@@ -213,6 +214,6 @@ class KeyFrame {
   std::mutex mMutexFeatures;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_KEYFRAME_H
+#endif  // SD_SLAM_KEYFRAME_H

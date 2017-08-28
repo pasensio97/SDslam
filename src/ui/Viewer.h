@@ -25,12 +25,12 @@
 #ifndef SD_SLAM_VIEWER_H
 #define SD_SLAM_VIEWER_H
 
+#include <mutex>
+#include <string>
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
 #include "Tracking.h"
 #include "System.h"
-#include <mutex>
-#include <string>
 
 namespace SD_SLAM {
 

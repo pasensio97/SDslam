@@ -24,7 +24,6 @@
 
 #include "Viewer.h"
 #include <pangolin/pangolin.h>
-#include <mutex>
 #include <unistd.h>
 
 using std::mutex;

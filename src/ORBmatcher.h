@@ -96,6 +96,6 @@ class ORBmatcher {
   bool mbCheckOrientation;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_ORBMATCHER_H
+#endif  // SD_SLAM_ORBMATCHER_H

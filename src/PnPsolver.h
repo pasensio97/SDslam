@@ -55,6 +55,7 @@
 #ifndef SD_SLAM_PNPSOLVER_H
 #define SD_SLAM_PNPSOLVER_H
 
+#include <vector>
 #include <opencv2/core/core.hpp>
 #include "MapPoint.h"
 #include "Frame.h"
@@ -195,6 +196,6 @@ class PnPsolver {
 
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_PNPSOLVER_H
+#endif  // SD_SLAM_PNPSOLVER_H

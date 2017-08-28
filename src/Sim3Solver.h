@@ -25,8 +25,8 @@
 #ifndef SD_SLAM_SIM3SOLVER_H
 #define SD_SLAM_SIM3SOLVER_H
 
-#include <opencv2/opencv.hpp>
 #include <vector>
+#include <opencv2/opencv.hpp>
 #include "KeyFrame.h"
 
 namespace SD_SLAM {
@@ -120,9 +120,8 @@ class Sim3Solver {
   // Calibration
   cv::Mat mK1;
   cv::Mat mK2;
-
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_SIM3SOLVER_H
+#endif  // SD_SLAM_SIM3SOLVER_H

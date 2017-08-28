@@ -23,7 +23,6 @@
  */
 
 #include "Map.h"
-#include <mutex>
 
 using std::mutex;
 using std::unique_lock;
@@ -122,4 +121,4 @@ void Map::clear() {
   mvpKeyFrameOrigins.clear();
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

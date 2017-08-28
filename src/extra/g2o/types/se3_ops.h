@@ -44,4 +44,4 @@ namespace g2o {
 
 }
 
-#endif //MATH_STUFF
+#endif  //MATH_STUFF

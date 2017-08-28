@@ -23,14 +23,13 @@
  */
 
 #include "LoopClosing.h"
+#include <thread>
+#include <unistd.h>
 #include "Sim3Solver.h"
 #include "Converter.h"
 #include "Optimizer.h"
 #include "ORBmatcher.h"
 #include "ImageAlign.h"
-#include <mutex>
-#include <thread>
-#include <unistd.h>
 
 using std::mutex;
 using std::unique_lock;
@@ -707,4 +706,4 @@ bool LoopClosing::isFinished() {
 }
 
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

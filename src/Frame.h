@@ -26,10 +26,10 @@
 #define SD_SLAM_FRAME_H
 
 #include <vector>
+#include <opencv2/opencv.hpp>
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include "ORBextractor.h"
-#include <opencv2/opencv.hpp>
 
 namespace SD_SLAM {
 
@@ -199,6 +199,6 @@ class Frame {
   cv::Mat mOw; //==mtwc
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_FRAME_H
+#endif  // SD_SLAM_FRAME_H

@@ -97,6 +97,6 @@
   std::fixed << s << std::resetiosflags(std::ios_base::fixed)
 #endif
 
-#endif // __cplusplus
+#endif  // __cplusplus
 
 #endif

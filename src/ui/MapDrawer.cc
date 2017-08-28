@@ -23,9 +23,6 @@
  */
 
 #include "MapDrawer.h"
-#include "MapPoint.h"
-#include "KeyFrame.h"
-#include <mutex>
 
 using std::vector;
 using std::set;
@@ -249,4 +246,4 @@ void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M) {
     M.SetIdentity();
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

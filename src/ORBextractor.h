@@ -90,7 +90,7 @@ class ORBextractor {
   std::vector<float> mvInvLevelSigma2;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_ORBEXTRACTOR_H
+#endif  // SD_SLAM_ORBEXTRACTOR_H
 

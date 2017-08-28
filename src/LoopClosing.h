@@ -25,12 +25,12 @@
 #ifndef SD_SLAM_LOOPCLOSING_H
 #define SD_SLAM_LOOPCLOSING_H
 
+#include <thread>
+#include <mutex>
 #include "KeyFrame.h"
 #include "LocalMapping.h"
 #include "Map.h"
 #include "Tracking.h"
-#include <thread>
-#include <mutex>
 #include "g2o/types/types_seven_dof_expmap.h"
 
 namespace SD_SLAM {
@@ -135,6 +135,6 @@ class LoopClosing {
   bool mnFullBAIdx;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_LOOPCLOSING_H
+#endif  // SD_SLAM_LOOPCLOSING_H

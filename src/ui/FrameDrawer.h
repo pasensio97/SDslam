@@ -25,12 +25,12 @@
 #ifndef SD_SLAM_FRAMEDRAWER_H
 #define SD_SLAM_FRAMEDRAWER_H
 
+#include <mutex>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 #include "Tracking.h"
 #include "MapPoint.h"
 #include "Map.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <mutex>
 
 namespace SD_SLAM {
 
@@ -65,6 +65,6 @@ class FrameDrawer {
   std::mutex mMutex;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_FRAMEDRAWER_H
+#endif  // SD_SLAM_FRAMEDRAWER_H

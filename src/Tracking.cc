@@ -23,21 +23,13 @@
  */
 
 #include "Tracking.h"
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-
-#include "ORBmatcher.h"
-#include "FrameDrawer.h"
-#include "Converter.h"
-#include "Map.h"
-#include "Initializer.h"
-#include "Optimizer.h"
-#include "ImageAlign.h"
-
 #include <iostream>
 #include <mutex>
 #include <unistd.h>
+#include "ORBmatcher.h"
+#include "Converter.h"
+#include "Optimizer.h"
+#include "ImageAlign.h"
 
 using namespace std;
 
@@ -1132,4 +1124,4 @@ void Tracking::ChangeCalibration(const string &strSettingPath) {
   Frame::mbInitialComputations = true;
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

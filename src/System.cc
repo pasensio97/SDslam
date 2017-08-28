@@ -23,13 +23,12 @@
  */
 
 #include "System.h"
-#include "Converter.h"
-#include <thread>
 #include <iomanip>
 #include <unistd.h>
 #ifdef PANGOLIN
 #include <pangolin/pangolin.h>
 #endif
+#include "Converter.h"
 
 using std::mutex;
 using std::unique_lock;
@@ -213,4 +212,4 @@ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   return mTrackedKeyPointsUn;
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

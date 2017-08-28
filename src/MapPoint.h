@@ -25,11 +25,11 @@
 #ifndef SD_SLAM_MAPPOINT_H
 #define SD_SLAM_MAPPOINT_H
 
+#include <mutex>
+#include <opencv2/core/core.hpp>
 #include "KeyFrame.h"
 #include "Frame.h"
 #include "Map.h"
-#include <opencv2/core/core.hpp>
-#include <mutex>
 
 namespace SD_SLAM {
 
@@ -146,6 +146,6 @@ class MapPoint {
    std::mutex mMutexFeatures;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_MAPPOINT_H
+#endif  // SD_SLAM_MAPPOINT_H

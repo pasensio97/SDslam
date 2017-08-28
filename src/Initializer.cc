@@ -23,9 +23,9 @@
  */
 
 #include "Initializer.h"
+#include <thread>
 #include "Optimizer.h"
 #include "ORBmatcher.h"
-#include <thread>
 #include "utils.h"
 
 using std::vector;
@@ -876,4 +876,4 @@ void Initializer::DecomposeE(const cv::Mat &E, cv::Mat &R1, cv::Mat &R2, cv::Mat
     R2=-R2;
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

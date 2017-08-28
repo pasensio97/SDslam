@@ -23,9 +23,9 @@
  */
 
 #include "Frame.h"
+#include <thread>
 #include "Converter.h"
 #include "ORBmatcher.h"
-#include <thread>
 #include "timer.h"
 
 using std::vector;
@@ -416,4 +416,4 @@ cv::Mat Frame::UnprojectStereo(const int &i) {
     return cv::Mat();
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

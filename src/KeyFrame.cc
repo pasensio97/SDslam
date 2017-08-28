@@ -25,7 +25,6 @@
 #include "KeyFrame.h"
 #include "Converter.h"
 #include "ORBmatcher.h"
-#include <mutex>
 
 using std::vector;
 using std::set;
@@ -582,4 +581,4 @@ float KeyFrame::ComputeSceneMedianDepth(const int q) {
   return vDepths[(vDepths.size()-1)/q];
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

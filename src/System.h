@@ -25,10 +25,11 @@
 #ifndef SD_SLAM_SYSTEM_H
 #define SD_SLAM_SYSTEM_H
 
-#include "Tracking.h"
 #include <string>
 #include <thread>
+#include <vector>
 #include <opencv2/core/core.hpp>
+#include "Tracking.h"
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
@@ -53,8 +54,8 @@ class System {
  public:
   // Input sensor
   enum eSensor{
-    MONOCULAR=0,
-    RGBD=1
+    MONOCULAR = 0,
+    RGBD = 1
   };
 
  public:
@@ -137,4 +138,4 @@ class System {
 
 }  // namespace SD_SLAM
 
-#endif // SD_SLAM_SYSTEM_H
+#endif  // SD_SLAM_SYSTEM_H

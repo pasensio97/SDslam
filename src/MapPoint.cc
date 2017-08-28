@@ -25,8 +25,6 @@
 #include "MapPoint.h"
 #include "ORBmatcher.h"
 
-#include<mutex>
-
 using std::mutex;
 using std::unique_lock;
 using std::map;
@@ -388,4 +386,4 @@ int MapPoint::PredictScale(const float &currentDist, Frame* pF) {
 
 
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

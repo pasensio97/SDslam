@@ -23,11 +23,11 @@
  */
 
 #include "LocalMapping.h"
+#include <unistd.h>
 #include "LoopClosing.h"
 #include "ORBmatcher.h"
 #include "Optimizer.h"
-#include <mutex>
-#include <unistd.h>
+
 
 using std::vector;
 using std::list;
@@ -679,4 +679,4 @@ bool LocalMapping::isFinished() {
   return mbFinished;
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

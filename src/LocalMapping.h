@@ -25,11 +25,11 @@
 #ifndef SD_SLAM_LOCALMAPPING_H
 #define SD_SLAM_LOCALMAPPING_H
 
+#include <mutex>
 #include "KeyFrame.h"
 #include "Map.h"
 #include "LoopClosing.h"
 #include "Tracking.h"
-#include <mutex>
 
 namespace SD_SLAM {
 
@@ -121,6 +121,6 @@ class LocalMapping {
   std::mutex mMutexAccept;
 };
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM
 
-#endif // SD_SLAM_LOCALMAPPING_H
+#endif  // SD_SLAM_LOCALMAPPING_H

@@ -23,11 +23,8 @@
  */
 
 #include "Sim3Solver.h"
-
-#include <vector>
 #include <cmath>
 #include <opencv2/core/core.hpp>
-#include "KeyFrame.h"
 #include "ORBmatcher.h"
 #include "utils.h"
 
@@ -394,4 +391,4 @@ void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat>
   }
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

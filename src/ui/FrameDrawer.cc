@@ -23,10 +23,6 @@
  */
 
 #include "FrameDrawer.h"
-#include "Tracking.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <mutex>
 
 using std::vector;
 using std::mutex;
@@ -151,4 +147,4 @@ void FrameDrawer::Update(Tracking *pTracker) {
   mState=static_cast<int>(pTracker->mLastProcessedState);
 }
 
-}  //namespace SD_SLAM
+}  // namespace SD_SLAM

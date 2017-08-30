@@ -23,6 +23,7 @@
  */
 
 #include "MapDrawer.h"
+#include "Config.h"
 
 using std::vector;
 using std::set;
@@ -31,16 +32,7 @@ using std::unique_lock;
 
 namespace SD_SLAM {
 
-MapDrawer::MapDrawer(Map* pMap, const std::string &strSettingPath):mpMap(pMap) {
-  cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
-
-  mKeyFrameSize = fSettings["Viewer.KeyFrameSize"];
-  mKeyFrameLineWidth = fSettings["Viewer.KeyFrameLineWidth"];
-  mGraphLineWidth = fSettings["Viewer.GraphLineWidth"];
-  mPointSize = fSettings["Viewer.PointSize"];
-  mCameraSize = fSettings["Viewer.CameraSize"];
-  mCameraLineWidth = fSettings["Viewer.CameraLineWidth"];
-
+MapDrawer::MapDrawer(Map* pMap): mpMap(pMap) {
 }
 
 void MapDrawer::DrawMapPoints() {
@@ -52,7 +44,7 @@ void MapDrawer::DrawMapPoints() {
   if (vpMPs.empty())
     return;
 
-  glPointSize(mPointSize);
+  glPointSize(Config::PointSize());
   glBegin(GL_POINTS);
   glColor3f(0.0,0.0,0.0);
 
@@ -64,7 +56,7 @@ void MapDrawer::DrawMapPoints() {
   }
   glEnd();
 
-  glPointSize(mPointSize);
+  glPointSize(Config::PointSize());
   glBegin(GL_POINTS);
   glColor3f(1.0,0.0,0.0);
 
@@ -80,13 +72,14 @@ void MapDrawer::DrawMapPoints() {
 }
 
 void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
-  const float &w = mKeyFrameSize;
+  const float &w = Config::KeyFrameSize();
   const float h = w*0.75;
   const float z = w*0.6;
 
   const vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
 
   if (bDrawKF) {
+    double lwidth = Config::KeyFrameLineWidth();
     for (size_t i=0; i<vpKFs.size(); i++) {
       KeyFrame* pKF = vpKFs[i];
       cv::Mat Twc = pKF->GetPoseInverse().t();
@@ -95,7 +88,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
 
       glMultMatrixf(Twc.ptr<GLfloat>(0));
 
-      glLineWidth(mKeyFrameLineWidth);
+      glLineWidth(lwidth);
       glColor3f(0.0f,0.0f,1.0f);
       glBegin(GL_LINES);
       glVertex3f(0,0,0);
@@ -125,7 +118,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
   }
 
   if (bDrawGraph) {
-    glLineWidth(mGraphLineWidth);
+    glLineWidth(Config::GraphLineWidth());
     glColor4f(0.0f,1.0f,0.0f,0.6f);
     glBegin(GL_LINES);
 
@@ -167,7 +160,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
 }
 
 void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
-  const float &w = mCameraSize;
+  const float &w = Config::CameraSize();
   const float h = w*0.75;
   const float z = w*0.6;
 
@@ -179,7 +172,7 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
     glMultMatrixd(Twc.m);
 #endif
 
-  glLineWidth(mCameraLineWidth);
+  glLineWidth(Config::CameraLineWidth());
   glColor3f(0.0f,1.0f,0.0f);
   glBegin(GL_LINES);
   glVertex3f(0,0,0);

@@ -30,20 +30,20 @@
 #include "Converter.h"
 #include "Optimizer.h"
 #include "ImageAlign.h"
+#include "Config.h"
 
 using namespace std;
 
 namespace SD_SLAM {
 
-Tracking::Tracking(System *pSys, Map *pMap, const string &strSettingPath, const int sensor):
+Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
   mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0) {
-  // Load camera parameters from settings file
-  cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
-  float fx = fSettings["Camera.fx"];
-  float fy = fSettings["Camera.fy"];
-  float cx = fSettings["Camera.cx"];
-  float cy = fSettings["Camera.cy"];
+  // Load camera parameters
+  float fx = Config::fx();
+  float fy = Config::fy();
+  float cx = Config::cx();
+  float cy = Config::cy();
 
   cv::Mat K = cv::Mat::eye(3,3,CV_32F);
   K.at<float>(0,0) = fx;
@@ -53,20 +53,20 @@ Tracking::Tracking(System *pSys, Map *pMap, const string &strSettingPath, const 
   K.copyTo(mK);
 
   cv::Mat DistCoef(4,1,CV_32F);
-  DistCoef.at<float>(0) = fSettings["Camera.k1"];
-  DistCoef.at<float>(1) = fSettings["Camera.k2"];
-  DistCoef.at<float>(2) = fSettings["Camera.p1"];
-  DistCoef.at<float>(3) = fSettings["Camera.p2"];
-  const float k3 = fSettings["Camera.k3"];
+  DistCoef.at<float>(0) = Config::k1();
+  DistCoef.at<float>(1) = Config::k2();
+  DistCoef.at<float>(2) = Config::p1();
+  DistCoef.at<float>(3) = Config::p2();
+  const float k3 = Config::k3();
   if (k3!=0) {
     DistCoef.resize(5);
     DistCoef.at<float>(4) = k3;
   }
   DistCoef.copyTo(mDistCoef);
 
-  mbf = fSettings["Camera.bf"];
+  mbf = Config::bf();
 
-  float fps = fSettings["Camera.fps"];
+  float fps = Config::fps();
   if (fps==0)
     fps=30;
 
@@ -87,22 +87,12 @@ Tracking::Tracking(System *pSys, Map *pMap, const string &strSettingPath, const 
   cout << "- p2: " << DistCoef.at<float>(3) << endl;
   cout << "- fps: " << fps << endl;
 
-
-  int nRGB = fSettings["Camera.RGB"];
-  mbRGB = nRGB;
-
-  if (mbRGB)
-    cout << "- color order: RGB (ignored if grayscale)" << endl;
-  else
-    cout << "- color order: BGR (ignored if grayscale)" << endl;
-
   // Load ORB parameters
-
-  int nFeatures = fSettings["ORBextractor.nFeatures"];
-  float fScaleFactor = fSettings["ORBextractor.scaleFactor"];
-  int nLevels = fSettings["ORBextractor.nLevels"];
-  int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
-  int fMinThFAST = fSettings["ORBextractor.minThFAST"];
+  int nFeatures = Config::NumFeatures();
+  float fScaleFactor = Config::ScaleFactor();
+  int nLevels = Config::NumLevels();
+  int fIniThFAST = Config::IniThFAST();
+  int fMinThFAST = Config::MinThFAST();
 
   mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
@@ -117,10 +107,10 @@ Tracking::Tracking(System *pSys, Map *pMap, const string &strSettingPath, const 
   cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
 
   if (sensor==System::RGBD) {
-    mThDepth = mbf*(float)fSettings["ThDepth"]/fx;
+    mThDepth = mbf*(float)Config::ThDepth()/fx;
     cout << endl << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
 
-    mDepthMapFactor = fSettings["DepthMapFactor"];
+    mDepthMapFactor = Config::DepthMapFactor();
     if (fabs(mDepthMapFactor)<1e-5)
       mDepthMapFactor=1;
     else
@@ -140,16 +130,9 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
   mImGray = imRGB;
   cv::Mat imDepth = imD;
 
-  if (mImGray.channels()==3) {
-    if (mbRGB)
-      cvtColor(mImGray,mImGray,CV_RGB2GRAY);
-    else
-      cvtColor(mImGray,mImGray,CV_BGR2GRAY);
-  } else if (mImGray.channels()==4) {
-    if (mbRGB)
-      cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
-    else
-      cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
+  if (mImGray.channels() != 1) {
+    cout << "[ERROR] Image must be in gray scale" << endl;
+    return cv::Mat();
   }
 
   if ((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
@@ -166,16 +149,9 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
 cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp) {
   mImGray = im;
 
-  if (mImGray.channels()==3) {
-    if (mbRGB)
-      cvtColor(mImGray,mImGray,CV_RGB2GRAY);
-    else
-      cvtColor(mImGray,mImGray,CV_BGR2GRAY);
-  } else if (mImGray.channels()==4) {
-    if (mbRGB)
-      cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
-    else
-      cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
+  if (mImGray.channels() != 1) {
+    cout << "[ERROR] Image must be in gray scale" << endl;
+    return cv::Mat();
   }
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
@@ -1091,37 +1067,6 @@ void Tracking::Reset() {
   if (mpViewer)
     mpViewer->Release();
 #endif
-}
-
-void Tracking::ChangeCalibration(const string &strSettingPath) {
-  cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
-  float fx = fSettings["Camera.fx"];
-  float fy = fSettings["Camera.fy"];
-  float cx = fSettings["Camera.cx"];
-  float cy = fSettings["Camera.cy"];
-
-  cv::Mat K = cv::Mat::eye(3,3,CV_32F);
-  K.at<float>(0,0) = fx;
-  K.at<float>(1,1) = fy;
-  K.at<float>(0,2) = cx;
-  K.at<float>(1,2) = cy;
-  K.copyTo(mK);
-
-  cv::Mat DistCoef(4,1,CV_32F);
-  DistCoef.at<float>(0) = fSettings["Camera.k1"];
-  DistCoef.at<float>(1) = fSettings["Camera.k2"];
-  DistCoef.at<float>(2) = fSettings["Camera.p1"];
-  DistCoef.at<float>(3) = fSettings["Camera.p2"];
-  const float k3 = fSettings["Camera.k3"];
-  if (k3!=0) {
-    DistCoef.resize(5);
-    DistCoef.at<float>(4) = k3;
-  }
-  DistCoef.copyTo(mDistCoef);
-
-  mbf = fSettings["Camera.bf"];
-
-  Frame::mbInitialComputations = true;
 }
 
 }  // namespace SD_SLAM

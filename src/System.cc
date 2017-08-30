@@ -29,6 +29,7 @@
 #include <pangolin/pangolin.h>
 #endif
 #include "Converter.h"
+#include "Config.h"
 
 using std::mutex;
 using std::unique_lock;
@@ -40,8 +41,7 @@ using std::endl;
 
 namespace SD_SLAM {
 
-System::System(const string &strSettingsFile, const eSensor sensor, const bool bUseViewer):
-               mSensor(sensor), mbReset(false) {
+System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mbReset(false) {
 
   cout << "Input sensor was set to: ";
   if (mSensor==MONOCULAR)
@@ -55,52 +55,42 @@ System::System(const string &strSettingsFile, const eSensor sensor, const bool b
     cout << "No user interface available" << endl;
   #endif
 
-  //Check settings file
-  cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
-  if (!fsSettings.isOpened()) {
-     cerr << "Failed to open settings file at: " << strSettingsFile << endl;
-     exit(-1);
-  }
-
-  //Load ORB Vocabulary
-  cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
-
-  //Create the Map
+  // Create the Map
   mpMap = new Map();
 
 #ifdef PANGOLIN
-  //Create Drawers. These are used by the Viewer
+  // Create Drawers. These are used by the Viewer
   mpFrameDrawer = new FrameDrawer(mpMap);
-  mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
+  mpMapDrawer = new MapDrawer(mpMap);
 #endif
 
-  //Initialize the Tracking thread
-  //(it will live in the main thread of execution, the one that called this constructor)
-  mpTracker = new Tracking(this, mpMap, strSettingsFile, mSensor);
+  // Initialize the Tracking thread
+  // (it will live in the main thread of execution, the one that called this constructor)
+  mpTracker = new Tracking(this, mpMap, mSensor);
 #ifdef PANGOLIN
   mpTracker->SetFrameDrawer(mpFrameDrawer);
   mpTracker->SetMapDrawer(mpMapDrawer);
 #endif
 
-  //Initialize the Local Mapping thread and launch
+  // Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
   mptLocalMapping = new std::thread(&SD_SLAM::LocalMapping::Run,mpLocalMapper);
 
-  //Initialize the Loop Closing thread and launch
+  // Initialize the Loop Closing thread and launch
   mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
   mptLoopClosing = new std::thread(&SD_SLAM::LoopClosing::Run, mpLoopCloser);
 
-  //Initialize the Viewer thread and launch
+  // Initialize the Viewer thread and launch
 #ifdef PANGOLIN
   mpViewer = nullptr;
   if (bUseViewer) {
-    mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile);
+    mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker);
     mptViewer = new std::thread(&Viewer::Run, mpViewer);
     mpTracker->SetViewer(mpViewer);
   }
 #endif
 
-  //Set pointers between threads
+  // Set pointers between threads
   mpTracker->SetLocalMapper(mpLocalMapper);
   mpTracker->SetLoopClosing(mpLoopCloser);
 

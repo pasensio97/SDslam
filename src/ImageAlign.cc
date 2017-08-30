@@ -18,8 +18,8 @@
  */
 
 #include "ImageAlign.h"
-#include "timer.h"
 #include "Converter.h"
+#include "extra/timer.h"
 
 using std::vector;
 using std::cout;

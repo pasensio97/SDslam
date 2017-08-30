@@ -35,7 +35,7 @@ namespace SD_SLAM {
 
 class MapDrawer {
  public:
-  MapDrawer(Map* pMap, const std::string &strSettingPath);
+  MapDrawer(Map* pMap);
 
   Map* mpMap;
 
@@ -47,13 +47,6 @@ class MapDrawer {
   void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
 
  private:
-  float mKeyFrameSize;
-  float mKeyFrameLineWidth;
-  float mGraphLineWidth;
-  float mPointSize;
-  float mCameraSize;
-  float mCameraLineWidth;
-
   cv::Mat mCameraPose;
 
   std::mutex mMutexCamera;

@@ -26,20 +26,18 @@
 #include <algorithm>
 #include <fstream>
 #include <chrono>
-
-#include <opencv2/core/core.hpp>
-
-#include <System.h>
 #include <unistd.h>
-#include "timer.h"
+#include <opencv2/core/core.hpp>
+#include "System.h"
+#include "Config.h"
+#include "extra/timer.h"
 
 using namespace std;
 
 void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
                 vector<string> &vstrImageFilenamesD, vector<double> &vTimestamps);
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     if(argc != 4) {
         cerr << endl << "Usage: ./rgbd_tum path_to_settings path_to_sequence path_to_association" << endl;
         return 1;
@@ -57,15 +55,20 @@ int main(int argc, char **argv)
     if(vstrImageFilenamesRGB.empty()) {
         cerr << endl << "No images found in provided path." << endl;
         return 1;
-    }
-    else if(vstrImageFilenamesD.size()!=vstrImageFilenamesRGB.size())
-    {
+    } else if(vstrImageFilenamesD.size()!=vstrImageFilenamesRGB.size()) {
         cerr << endl << "Different number of images for rgb and depth." << endl;
         return 1;
     }
 
+    // Read parameters
+    SD_SLAM::Config &config = SD_SLAM::Config::GetInstance();
+    if (!config.ReadParameters(argv[1])) {
+      cerr << "[ERROR] Config file contains errors" << endl;
+      return 1;
+    }
+
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    SD_SLAM::System SLAM(argv[1], SD_SLAM::System::RGBD, true);
+    SD_SLAM::System SLAM(SD_SLAM::System::RGBD, true);
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -76,14 +79,15 @@ int main(int argc, char **argv)
     cout << "Images in the sequence: " << nImages << endl << endl;
 
     // Main loop
-    cv::Mat imRGB, imD;
+    cv::Mat im, imD;
     for(int ni=0; ni<nImages; ni++) {
         // Read image and depthmap from file
-        imRGB = cv::imread(string(argv[2])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
+        cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vstrImageFilenamesRGB[ni] << endl;
+        im = cv::imread(string(argv[2])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_GRAYSCALE);
         imD = cv::imread(string(argv[2])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
         double tframe = vTimestamps[ni];
 
-        if(imRGB.empty()) {
+        if(im.empty()) {
             cerr << endl << "Failed to load image at: "
                  << string(argv[2]) << "/" << vstrImageFilenamesRGB[ni] << endl;
             return 1;
@@ -92,7 +96,7 @@ int main(int argc, char **argv)
         SD_SLAM::Timer ttracking(true);
 
         // Pass the image to the SLAM system
-        SLAM.TrackRGBD(imRGB,imD,tframe);
+        SLAM.TrackRGBD(im,imD,tframe);
 
         ttracking.Stop();
         cout << "[INFO] Tracking time is " << ttracking.GetMsTime() << "ms" << endl;
@@ -128,16 +132,13 @@ int main(int argc, char **argv)
 }
 
 void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
-                vector<string> &vstrImageFilenamesD, vector<double> &vTimestamps)
-{
+                vector<string> &vstrImageFilenamesD, vector<double> &vTimestamps) {
     ifstream fAssociation;
     fAssociation.open(strAssociationFilename.c_str());
-    while(!fAssociation.eof())
-    {
+    while(!fAssociation.eof()) {
         string s;
         getline(fAssociation,s);
-        if(!s.empty())
-        {
+        if(!s.empty()) {
             stringstream ss;
             ss << s;
             double t;

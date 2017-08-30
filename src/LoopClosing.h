@@ -31,7 +31,7 @@
 #include "LocalMapping.h"
 #include "Map.h"
 #include "Tracking.h"
-#include "g2o/types/types_seven_dof_expmap.h"
+#include "extra/g2o/types/types_seven_dof_expmap.h"
 
 namespace SD_SLAM {
 

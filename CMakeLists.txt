@@ -50,13 +50,6 @@ endif()
 include_directories(
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
-  ${PROJECT_SOURCE_DIR}/src/ui
-  ${PROJECT_SOURCE_DIR}/src/extra
-
-  ${PROJECT_SOURCE_DIR}/src/extra/g2o/core
-  ${PROJECT_SOURCE_DIR}/src/extra/g2o/types
-  ${PROJECT_SOURCE_DIR}/src/extra/g2o/stuff
-
   ${EIGEN3_INCLUDE_DIR}
 )
 
@@ -64,7 +57,11 @@ if(USE_PANGOLIN)
   include_directories(${Pangolin_INCLUDE_DIRS})
 endif()
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+if(USE_ANDROID)
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/${ANDROID_ABI})
+else()
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+endif()
 
 # Set SD-SLAM sourcefiles
 LIST(APPEND SOURCEFILES
@@ -85,6 +82,7 @@ LIST(APPEND SOURCEFILES
   src/Frame.cc
   src/Sim3Solver.cc
   src/Initializer.cc
+  src/Config.cc
 
   # Extra
   src/extra/utils.cc

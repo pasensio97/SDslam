@@ -25,7 +25,6 @@
 #ifndef SD_SLAM_SYSTEM_H
 #define SD_SLAM_SYSTEM_H
 
-#include <string>
 #include <thread>
 #include <vector>
 #include <opencv2/core/core.hpp>
@@ -34,9 +33,9 @@
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #ifdef PANGOLIN
-#include "Viewer.h"
-#include "FrameDrawer.h"
-#include "MapDrawer.h"
+#include "ui/Viewer.h"
+#include "ui/FrameDrawer.h"
+#include "ui/MapDrawer.h"
 #endif
 
 namespace SD_SLAM {
@@ -60,7 +59,7 @@ class System {
 
  public:
   // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
-  System(const std::string &strSettingsFile, const eSensor sensor, const bool bUseViewer = true);
+  System(const eSensor sensor, const bool bUseViewer = true);
 
   // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
   // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.

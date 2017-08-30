@@ -30,7 +30,7 @@
 #include "KeyFrame.h"
 #include "LoopClosing.h"
 #include "Frame.h"
-#include "g2o/types/types_seven_dof_expmap.h"
+#include "extra/g2o/types/types_seven_dof_expmap.h"
 
 namespace SD_SLAM {
 

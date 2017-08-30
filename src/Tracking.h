@@ -39,9 +39,9 @@
 #include "Initializer.h"
 #include "System.h"
 #ifdef PANGOLIN
-#include "Viewer.h"
-#include "FrameDrawer.h"
-#include "MapDrawer.h"
+#include "ui/Viewer.h"
+#include "ui/FrameDrawer.h"
+#include "ui/MapDrawer.h"
 #endif
 
 namespace SD_SLAM {
@@ -57,7 +57,7 @@ class System;
 
 class Tracking {
  public:
-  Tracking(System* pSys, Map* pMap, const std::string &strSettingPath, const int sensor);
+  Tracking(System* pSys, Map* pMap, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
   cv::Mat GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp);
@@ -84,11 +84,6 @@ class Tracking {
     mpMapDrawer = pMapDrawer;
   }
 #endif
-
-  // Load new settings
-  // The focal lenght should be similar or scale prediction will fail when projecting points
-  // TODO: Modify MapPoint::PredictScale to take into account focal lenght
-  void ChangeCalibration(const std::string &strSettingPath);
 
  public:
   // Tracking states
@@ -211,9 +206,6 @@ class Tracking {
 
   // Motion Model
   cv::Mat mVelocity;
-
-  // Color order (true RGB, false BGR, ignored if grayscale)
-  bool mbRGB;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;

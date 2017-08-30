@@ -26,12 +26,11 @@
 #include <algorithm>
 #include <fstream>
 #include <chrono>
-
-#include <opencv2/core/core.hpp>
-
-#include <System.h>
 #include <unistd.h>
-#include "timer.h"
+#include <opencv2/core/core.hpp>
+#include "System.h"
+#include "Config.h"
+#include "extra/timer.h"
 
 using namespace std;
 
@@ -52,8 +51,15 @@ int main(int argc, char **argv) {
 
     int nImages = vstrImageFilenames.size();
 
+    // Read parameters
+    SD_SLAM::Config &config = SD_SLAM::Config::GetInstance();
+    if (!config.ReadParameters(argv[1])) {
+      cerr << "[ERROR] Config file contains errors" << endl;
+      return 1;
+    }
+
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    SD_SLAM::System SLAM(argv[1], SD_SLAM::System::MONOCULAR, true);
+    SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -65,15 +71,13 @@ int main(int argc, char **argv) {
 
     // Main loop
     cv::Mat im;
-    for(int ni=0; ni<nImages; ni++)
-    {
+    for(int ni=0; ni<nImages; ni++) {
         // Read image from file
         cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vstrImageFilenames[ni] << endl;
-        im = cv::imread(string(argv[2])+"/"+vstrImageFilenames[ni],CV_LOAD_IMAGE_UNCHANGED);
+        im = cv::imread(string(argv[2])+"/"+vstrImageFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);
         double tframe = vTimestamps[ni];
 
-        if(im.empty())
-        {
+        if(im.empty()) {
             cerr << endl << "Failed to load image at: "
                  << string(argv[2]) << "/" << vstrImageFilenames[ni] << endl;
             return 1;

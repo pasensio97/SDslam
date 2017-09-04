@@ -65,9 +65,6 @@ class Viewer {
   MapDrawer* mpMapDrawer;
   Tracking* mpTracker;
 
-  // 1/fps in ms
-  double mT;
-
   bool CheckFinish();
   void SetFinish();
   bool mbFinishRequested;

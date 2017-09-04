@@ -58,14 +58,13 @@ void MapDrawer::DrawMapPoints() {
 
   glPointSize(Config::PointSize());
   glBegin(GL_POINTS);
-  glColor3f(1.0,0.0,0.0);
+  glColor3f(0.0,0.8,0.0);
 
   for (set<MapPoint*>::iterator sit=spRefMPs.begin(), send=spRefMPs.end(); sit!=send; sit++) {
     if ((*sit)->isBad())
       continue;
     cv::Mat pos = (*sit)->GetWorldPos();
     glVertex3f(pos.at<float>(0),pos.at<float>(1),pos.at<float>(2));
-
   }
 
   glEnd();
@@ -89,7 +88,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
       glMultMatrixf(Twc.ptr<GLfloat>(0));
 
       glLineWidth(lwidth);
-      glColor3f(0.0f,0.0f,1.0f);
+      glColor3f(0.0f,0.0f,0.9f);
       glBegin(GL_LINES);
       glVertex3f(0,0,0);
       glVertex3f(w,h,z);
@@ -119,7 +118,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
 
   if (bDrawGraph) {
     glLineWidth(Config::GraphLineWidth());
-    glColor4f(0.0f,1.0f,0.0f,0.6f);
+    glColor4f(0.7f,0.0f,0.7f,0.6f);
     glBegin(GL_LINES);
 
     for (size_t i=0; i<vpKFs.size(); i++) {
@@ -173,7 +172,7 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
 #endif
 
   glLineWidth(Config::CameraLineWidth());
-  glColor3f(0.0f,1.0f,0.0f);
+  glColor3f(0.9f,0.0f,0.0f);
   glBegin(GL_LINES);
   glVertex3f(0,0,0);
   glVertex3f(w,h,z);

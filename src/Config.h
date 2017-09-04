@@ -26,6 +26,8 @@
 namespace SD_SLAM {
 
 struct CameraParameters {
+  int w;
+  int h;
   double fx;
   double fy;
   double cx;
@@ -50,6 +52,8 @@ class Config {
   // Read parameters from file
   bool ReadParameters(std::string filename);
 
+  static double Width() { return GetInstance().camera_params_.w; }
+  static double Height() { return GetInstance().camera_params_.h; }
   static double fx() { return GetInstance().camera_params_.fx; }
   static double fy() { return GetInstance().camera_params_.fy; }
   static double cx() { return GetInstance().camera_params_.cx; }
@@ -65,6 +69,12 @@ class Config {
   static double ThDepth() { return GetInstance().kThDepth_; }
   static double DepthMapFactor() { return GetInstance().kDepthMapFactor_; }
 
+  static int NumFeatures() { return GetInstance().kNumFeatures_; }
+  static double ScaleFactor() { return GetInstance().kScaleFactor_; }
+  static int NumLevels() { return GetInstance().kNumLevels_; }
+  static int IniThFAST() { return GetInstance().kIniThFAST_; }
+  static int MinThFAST() { return GetInstance().kMinThFAST_; }
+
   static double KeyFrameSize() { return GetInstance().kKeyFrameSize_; }
   static double KeyFrameLineWidth() { return GetInstance().kKeyFrameLineWidth_; }
   static double GraphLineWidth() { return GetInstance().kGraphLineWidth_; }
@@ -75,12 +85,6 @@ class Config {
   static double ViewpointY() { return GetInstance().kViewpointY_; }
   static double ViewpointZ() { return GetInstance().kViewpointZ_; }
   static double ViewpointF() { return GetInstance().kViewpointF_; }
-
-  static int NumFeatures() { return GetInstance().kNumFeatures_; }
-  static double ScaleFactor() { return GetInstance().kScaleFactor_; }
-  static int NumLevels() { return GetInstance().kNumLevels_; }
-  static int IniThFAST() { return GetInstance().kIniThFAST_; }
-  static int MinThFAST() { return GetInstance().kMinThFAST_; }
 
  private:
   Config();

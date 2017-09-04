@@ -27,6 +27,8 @@ namespace SD_SLAM {
 
 Config::Config() {
   // Default values
+  camera_params_.w = 640;
+  camera_params_.h = 480;
   camera_params_.fx = 500.0;
   camera_params_.fy = 500.0;
   camera_params_.cx = 320.0;
@@ -76,6 +78,8 @@ bool Config::ReadParameters(std::string filename) {
   }
 
   // Camera
+  if (fs["Camera.Width"].isNamed()) fs["Camera.Width"] >> camera_params_.w;
+  if (fs["Camera.Height"].isNamed()) fs["Camera.Height"] >> camera_params_.h;
   if (fs["Camera.fx"].isNamed()) fs["Camera.fx"] >> camera_params_.fx;
   if (fs["Camera.fy"].isNamed()) fs["Camera.fy"] >> camera_params_.fy;
   if (fs["Camera.cx"].isNamed()) fs["Camera.cx"] >> camera_params_.cx;

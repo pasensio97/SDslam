@@ -4,7 +4,9 @@
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
 
-# Camera calibration and distortion parameters (OpenCV) 
+# Camera calibration and distortion parameters (OpenCV)
+Camera.Width: 640
+Camera.Height: 480
 Camera.fx: 277.524
 Camera.fy: 291.68
 Camera.cx: 312.474

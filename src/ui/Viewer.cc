@@ -35,18 +35,21 @@ namespace SD_SLAM {
 Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Tracking *pTracking):
   mpSystem(pSystem), mpFrameDrawer(pFrameDrawer),mpMapDrawer(pMapDrawer), mpTracker(pTracking),
   mbFinishRequested(false), mbFinished(true), mbStopped(true), mbStopRequested(false) {
-
-  float fps = Config::fps();
-  if (fps < 1)
-    fps=30;
-  mT = 1e3/fps;
 }
 
 void Viewer::Run() {
+  int w, h, mw, iw, ih, ib;
+
   mbFinished = false;
   mbStopped = false;
+  iw = Config::Width();
+  ih = Config::Height();
+  w = 1024;
+  h = 768;
+  mw = 175;
+  ib = 10;
 
-  pangolin::CreateWindowAndBind("SD-SLAM: Map Viewer",1024,768);
+  pangolin::CreateWindowAndBind("SD-SLAM", w, h);
 
   // 3D Mouse handler requires depth testing to be enabled
   glEnable(GL_DEPTH_TEST);
@@ -55,32 +58,38 @@ void Viewer::Run() {
   glEnable (GL_BLEND);
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(175));
+  pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(mw));
   pangolin::Var<bool> menuFollowCamera("menu.Follow Camera",true,true);
   pangolin::Var<bool> menuShowPoints("menu.Show Points",true,true);
   pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames",true,true);
   pangolin::Var<bool> menuShowGraph("menu.Show Graph",true,true);
+  pangolin::Var<bool> menuShowFrames("menu.Show Frames",true,true);
+  pangolin::Var<double> menuImageScale("menu.Image Scale",0.5,0,1,false);
   pangolin::Var<bool> menuReset("menu.Reset",false,false);
 
   // Define Camera Render Object (for view / scene browsing)
   pangolin::OpenGlRenderState s_cam(
-        pangolin::ProjectionMatrix(1024,768,Config::ViewpointF(),Config::ViewpointF(),512,389,0.1,1000),
+        pangolin::ProjectionMatrix(w,h,Config::ViewpointF(),Config::ViewpointF(),w/2,h/2,0.1,1000),
         pangolin::ModelViewLookAt(Config::ViewpointX(),Config::ViewpointY(),Config::ViewpointZ(), 0,0,0,0.0,-1.0, 0.0)
         );
 
   // Add named OpenGL viewport to window and provide 3D Handler
   pangolin::View& d_cam = pangolin::CreateDisplay()
-      .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -1024.0f/768.0f)
+      .SetBounds(0.0, 1.0, pangolin::Attach::Pix(mw), 1.0, -w/(float)h)
       .SetHandler(new pangolin::Handler3D(s_cam));
 
   pangolin::OpenGlMatrix Twc;
   Twc.SetIdentity();
 
-  cv::namedWindow("SD-SLAM: Current Frame");
+  // Configure frame viewer
+  pangolin::View& d_video = pangolin::Display("Frame").SetAspect(iw/(float)ih)
+      .SetBounds(pangolin::Attach::Pix(ib), pangolin::Attach::Pix(ib+ih*menuImageScale),
+                 pangolin::Attach::Pix(mw+ib), pangolin::Attach::Pix(mw+ib+iw*menuImageScale));
+  pangolin::GlTexture textVideo(iw,ih,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
 
   bool bFollow = true;
 
-  while (1) {
+  while (!pangolin::ShouldQuit()) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     mpMapDrawer->GetCurrentOpenGLCameraMatrix(Twc);
@@ -104,11 +113,19 @@ void Viewer::Run() {
     if (menuShowPoints)
       mpMapDrawer->DrawMapPoints();
 
-    pangolin::FinishFrame();
+    // Get frame and show
+    if (menuShowFrames) {
+      cv::Mat im = mpFrameDrawer->DrawFrame();
+      textVideo.Upload(im.data,GL_RGB,GL_UNSIGNED_BYTE);
 
-    cv::Mat im = mpFrameDrawer->DrawFrame();
-    cv::imshow("SD-SLAM: Current Frame",im);
-    cv::waitKey(mT);
+      d_video.SetBounds(pangolin::Attach::Pix(ib), pangolin::Attach::Pix(ib+ih*menuImageScale),
+                        pangolin::Attach::Pix(mw+ib), pangolin::Attach::Pix(mw+ib+iw*menuImageScale));
+      d_video.Activate();
+      glColor4f(1.0f,1.0f,1.0f,1.0f);
+      textVideo.RenderToViewportFlipY();
+    }
+
+    pangolin::FinishFrame();
 
     if (menuReset) {
       menuShowGraph = true;
@@ -131,6 +148,9 @@ void Viewer::Run() {
   }
 
   SetFinish();
+
+	std::cout << "UI thread finished, exiting..." << std::endl;
+	exit(1);
 }
 
 void Viewer::RequestFinish() {

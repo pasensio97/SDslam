@@ -69,42 +69,45 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
     mvImagePyramid[i] = F.mvImagePyramid[i].clone();
 }
 
-void KeyFrame::SetPose(const cv::Mat &Tcw_) {
+void KeyFrame::SetPose(const Eigen::Matrix4d &Tcw_) {
   unique_lock<mutex> lock(mMutexPose);
-  Tcw_.copyTo(Tcw);
-  cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
-  cv::Mat tcw = Tcw.rowRange(0,3).col(3);
-  cv::Mat Rwc = Rcw.t();
+
+  Eigen::Matrix4d m = Tcw_; // Somehow it fixes problems with Eigen
+  Tcw = m;
+
+  Eigen::Matrix3d Rcw = Tcw.block<3,3>(0,0);
+  Eigen::Matrix3d Rwc = Rcw.transpose();
+  Eigen::Vector3d tcw = Tcw.block<3,1>(0,3);
   Ow = -Rwc*tcw;
 
-  Twc = cv::Mat::eye(4,4,Tcw.type());
-  Rwc.copyTo(Twc.rowRange(0,3).colRange(0,3));
-  Ow.copyTo(Twc.rowRange(0,3).col(3));
+  Twc.setIdentity();
+  Twc.block<3,3>(0,0) = Rwc;
+  Twc.block<3,1>(0,3) = Ow;
 }
 
-cv::Mat KeyFrame::GetPose() {
+Eigen::Matrix4d KeyFrame::GetPose() {
   unique_lock<mutex> lock(mMutexPose);
-  return Tcw.clone();
+  return Tcw;
 }
 
-cv::Mat KeyFrame::GetPoseInverse() {
+Eigen::Matrix4d KeyFrame::GetPoseInverse() {
   unique_lock<mutex> lock(mMutexPose);
-  return Twc.clone();
+  return Twc;
 }
 
-cv::Mat KeyFrame::GetCameraCenter() {
+Eigen::Vector3d KeyFrame::GetCameraCenter() {
   unique_lock<mutex> lock(mMutexPose);
-  return Ow.clone();
+  return Ow;
 }
 
-cv::Mat KeyFrame::GetRotation() {
+Eigen::Matrix3d KeyFrame::GetRotation() {
   unique_lock<mutex> lock(mMutexPose);
-  return Tcw.rowRange(0,3).colRange(0,3).clone();
+  return Tcw.block<3,3>(0,0);
 }
 
-cv::Mat KeyFrame::GetTranslation() {
+Eigen::Vector3d KeyFrame::GetTranslation() {
   unique_lock<mutex> lock(mMutexPose);
-  return Tcw.rowRange(0,3).col(3).clone();
+  return Tcw.block<3,1>(0,3);
 }
 
 void KeyFrame::AddConnection(KeyFrame *pKF, const int &weight) {
@@ -467,10 +470,8 @@ void KeyFrame::SetBadFlag() {
       }
 
     mpParent->EraseChild(this);
-    mTcp = Tcw*mpParent->GetPoseInverse();
     mbBad = true;
   }
-
 
   mpMap->EraseKeyFrame(this);
 }
@@ -537,19 +538,19 @@ bool KeyFrame::IsInImage(const float &x, const float &y) const
   return (x>=mnMinX && x<mnMaxX && y>=mnMinY && y<mnMaxY);
 }
 
-cv::Mat KeyFrame::UnprojectStereo(int i) {
+Eigen::Vector3d KeyFrame::UnprojectStereo(int i) {
   const float z = mvDepth[i];
   if (z>0) {
     const float u = mvKeys[i].pt.x;
     const float v = mvKeys[i].pt.y;
     const float x = (u-cx)*z*invfx;
     const float y = (v-cy)*z*invfy;
-    cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x, y, z);
+    Eigen::Vector3d x3Dc(x, y, z);
 
     unique_lock<mutex> lock(mMutexPose);
-    return Twc.rowRange(0,3).colRange(0,3)*x3Dc+Twc.rowRange(0,3).col(3);
+    return Twc.block<3,3>(0,0)*x3Dc+Twc.block<3,1>(0,3);
   } else
-    return cv::Mat();
+    return Eigen::Vector3d();
 }
 
 float KeyFrame::ComputeSceneMedianDepth(const int q) {
@@ -559,7 +560,7 @@ float KeyFrame::ComputeSceneMedianDepth(const int q) {
     unique_lock<mutex> lock(mMutexFeatures);
     unique_lock<mutex> lock2(mMutexPose);
     vpMapPoints = mvpMapPoints;
-    Tcw_ = Tcw.clone();
+    Tcw_ = Converter::toCvMat(Tcw);
   }
 
   vector<float> vDepths;

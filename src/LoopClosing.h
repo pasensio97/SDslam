@@ -40,6 +40,7 @@ class LocalMapping;
 
 class LoopClosing {
  public:
+
   typedef std::pair<std::set<KeyFrame*>,int> ConsistentGroup;
   typedef std::map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
     Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
@@ -73,8 +74,6 @@ class LoopClosing {
   void RequestFinish();
 
   bool isFinished();
-
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  protected:
   bool CheckNewKeyFrames();
@@ -133,6 +132,9 @@ class LoopClosing {
   bool mbFixScale;
 
   bool mnFullBAIdx;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

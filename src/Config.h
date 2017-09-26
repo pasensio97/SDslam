@@ -72,8 +72,7 @@ class Config {
   static int NumFeatures() { return GetInstance().kNumFeatures_; }
   static double ScaleFactor() { return GetInstance().kScaleFactor_; }
   static int NumLevels() { return GetInstance().kNumLevels_; }
-  static int IniThFAST() { return GetInstance().kIniThFAST_; }
-  static int MinThFAST() { return GetInstance().kMinThFAST_; }
+  static int ThresholdFAST() { return GetInstance().kThresholdFAST_; }
 
   static double KeyFrameSize() { return GetInstance().kKeyFrameSize_; }
   static double KeyFrameLineWidth() { return GetInstance().kKeyFrameLineWidth_; }
@@ -99,8 +98,7 @@ class Config {
   int kNumFeatures_;
   double kScaleFactor_;
   int kNumLevels_;
-  int kIniThFAST_;
-  int kMinThFAST_;
+  int kThresholdFAST_;
 
   // UI
   double kKeyFrameSize_;

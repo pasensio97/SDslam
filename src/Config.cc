@@ -47,8 +47,7 @@ Config::Config() {
   kNumFeatures_ = 1000;
   kScaleFactor_ = 2.0;
   kNumLevels_ = 5;
-  kIniThFAST_ = 20;
-  kMinThFAST_ = 7;
+  kThresholdFAST_ = 20;
 
   kKeyFrameSize_ = 0.05;
   kKeyFrameLineWidth_ = 1.0;
@@ -99,8 +98,7 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["ORBextractor.nFeatures"].isNamed()) fs["ORBextractor.nFeatures"] >> kNumFeatures_;
   if (fs["ORBextractor.scaleFactor"].isNamed()) fs["ORBextractor.scaleFactor"] >> kScaleFactor_;
   if (fs["ORBextractor.nLevels"].isNamed()) fs["ORBextractor.nLevels"] >> kNumLevels_;
-  if (fs["ORBextractor.iniThFAST"].isNamed()) fs["ORBextractor.iniThFAST"] >> kIniThFAST_;
-  if (fs["ORBextractor.minThFAST"].isNamed()) fs["ORBextractor.minThFAST"] >> kMinThFAST_;
+  if (fs["ORBextractor.thresholdFAST"].isNamed()) fs["ORBextractor.thresholdFAST"] >> kThresholdFAST_;
 
   // UI
   if (fs["Viewer.KeyFrameSize"].isNamed()) fs["Viewer.KeyFrameSize"] >> kKeyFrameSize_;

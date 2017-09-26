@@ -101,7 +101,7 @@ System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mb
   mpLoopCloser->SetLocalMapper(mpLocalMapper);
 }
 
-cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp) {
+Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp) {
   if (mSensor!=RGBD) {
     cerr << "ERROR: you called TrackRGBD but input sensor was not set to RGBD." << endl;
     exit(-1);
@@ -116,7 +116,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     }
   }
 
-  cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,timestamp);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageRGBD(im,depthmap,timestamp);
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;
@@ -125,7 +125,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
   return Tcw;
 }
 
-cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
+Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   if (mSensor!=MONOCULAR) {
     cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." << endl;
     exit(-1);
@@ -140,7 +140,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
     }
   }
 
-  cv::Mat Tcw = mpTracker->GrabImageMonocular(im,timestamp);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im,timestamp);
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;

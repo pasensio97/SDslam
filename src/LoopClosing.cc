@@ -130,7 +130,7 @@ bool LoopClosing::DetectLoop() {
 
     // Try to align keyframes
     ImageAlign image_align;
-    cv::Mat pose = kf->GetPose();
+    cv::Mat pose = Converter::toCvMat(kf->GetPose());
     if (!image_align.ComputePose(mpCurrentKF, kf)) {
       i++; // Skip some keyframes
       continue;
@@ -309,7 +309,7 @@ bool LoopClosing::ComputeSim3() {
         if (nInliers>=20) {
           bMatch = true;
           mpMatchedKF = pKF;
-          g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()),Converter::toVector3d(pKF->GetTranslation()),1.0);
+          g2o::Sim3 gSmw(pKF->GetRotation(), pKF->GetTranslation(),1.0);
           mg2oScw = gScm*gSmw;
           mScw = Converter::toCvMat(mg2oScw);
 
@@ -402,8 +402,7 @@ void LoopClosing::CorrectLoop() {
 
   KeyFrameAndPose CorrectedSim3, NonCorrectedSim3;
   CorrectedSim3[mpCurrentKF]=mg2oScw;
-  cv::Mat Twc = mpCurrentKF->GetPoseInverse();
-
+  Eigen::Matrix4d Twc = mpCurrentKF->GetPoseInverse();
 
   {
     // Get Map Mutex
@@ -412,21 +411,21 @@ void LoopClosing::CorrectLoop() {
     for (vector<KeyFrame*>::iterator vit=mvpCurrentConnectedKFs.begin(), vend=mvpCurrentConnectedKFs.end(); vit!=vend; vit++) {
       KeyFrame* pKFi = *vit;
 
-      cv::Mat Tiw = pKFi->GetPose();
+      Eigen::Matrix4d Tiw = pKFi->GetPose();
 
-      if (pKFi!=mpCurrentKF) {
-        cv::Mat Tic = Tiw*Twc;
-        cv::Mat Ric = Tic.rowRange(0,3).colRange(0,3);
-        cv::Mat tic = Tic.rowRange(0,3).col(3);
-        g2o::Sim3 g2oSic(Converter::toMatrix3d(Ric),Converter::toVector3d(tic),1.0);
+      if (pKFi != mpCurrentKF) {
+        Eigen::Matrix4d Tic = Tiw*Twc;
+        Eigen::Matrix3d Ric = Tic.block<3,3>(0,0);
+        Eigen::Vector3d tic = Tic.block<3,1>(0,3);
+        g2o::Sim3 g2oSic(Ric, tic, 1.0);
         g2o::Sim3 g2oCorrectedSiw = g2oSic*mg2oScw;
         //Pose corrected with the Sim3 of the loop closure
         CorrectedSim3[pKFi]=g2oCorrectedSiw;
       }
 
-      cv::Mat Riw = Tiw.rowRange(0,3).colRange(0,3);
-      cv::Mat tiw = Tiw.rowRange(0,3).col(3);
-      g2o::Sim3 g2oSiw(Converter::toMatrix3d(Riw),Converter::toVector3d(tiw),1.0);
+      Eigen::Matrix3d Riw = Tiw.block<3,3>(0,0);
+      Eigen::Vector3d tiw = Tiw.block<3,1>(0,3);
+      g2o::Sim3 g2oSiw(Riw, tiw, 1.0);
       //Pose without correction
       NonCorrectedSim3[pKFi]=g2oSiw;
     }
@@ -468,9 +467,7 @@ void LoopClosing::CorrectLoop() {
 
       eigt *=(1./s); //[R t/s;0 1]
 
-      cv::Mat correctedTiw = Converter::toCvSE3(eigR,eigt);
-
-      pKFi->SetPose(correctedTiw);
+      pKFi->SetPose(Converter::toSE3(eigR,eigt));
 
       // Make sure connections are updated
       pKFi->UpdateConnections();
@@ -623,14 +620,13 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
       while (!lpKFtoCheck.empty()) {
         KeyFrame* pKF = lpKFtoCheck.front();
         const set<KeyFrame*> sChilds = pKF->GetChilds();
-        cv::Mat Twc = pKF->GetPoseInverse();
+        Eigen::Matrix4d Twc = pKF->GetPoseInverse();
         for (set<KeyFrame*>::const_iterator sit=sChilds.begin();sit!=sChilds.end();sit++) {
           KeyFrame* pChild = *sit;
           if (pChild->mnBAGlobalForKF!=nLoopKF) {
-            cv::Mat Tchildc = pChild->GetPose()*Twc;
-            pChild->mTcwGBA = Tchildc*pKF->mTcwGBA;//*Tcorc*pKF->mTcwGBA;
+            Eigen::Matrix4d Tchildc = pChild->GetPose()*Twc;
+            pChild->mTcwGBA = Tchildc*pKF->mTcwGBA;
             pChild->mnBAGlobalForKF=nLoopKF;
-
           }
           lpKFtoCheck.push_back(pChild);
         }
@@ -660,12 +656,12 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
             continue;
 
           // Map to non-corrected camera
-          cv::Mat Rcw = pRefKF->mTcwBefGBA.rowRange(0,3).colRange(0,3);
-          cv::Mat tcw = pRefKF->mTcwBefGBA.rowRange(0,3).col(3);
+          cv::Mat Rcw = Converter::toCvMat(pRefKF->mTcwBefGBA).rowRange(0,3).colRange(0,3);
+          cv::Mat tcw = Converter::toCvMat(pRefKF->mTcwBefGBA).rowRange(0,3).col(3);
           cv::Mat Xc = Rcw*pMP->GetWorldPos()+tcw;
 
           // Backproject using corrected camera
-          cv::Mat Twc = pRefKF->GetPoseInverse();
+          cv::Mat Twc = Converter::toCvMat(pRefKF->GetPoseInverse());
           cv::Mat Rwc = Twc.rowRange(0,3).colRange(0,3);
           cv::Mat twc = Twc.rowRange(0,3).col(3);
 

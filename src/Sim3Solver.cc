@@ -48,10 +48,10 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
   mvX3Dc1.reserve(mN1);
   mvX3Dc2.reserve(mN1);
 
-  cv::Mat Rcw1 = pKF1->GetRotation();
-  cv::Mat tcw1 = pKF1->GetTranslation();
-  cv::Mat Rcw2 = pKF2->GetRotation();
-  cv::Mat tcw2 = pKF2->GetTranslation();
+  cv::Mat Rcw1 = Converter::toCvMat(pKF1->GetRotation());
+  cv::Mat tcw1 = Converter::toCvMat(pKF1->GetTranslation());
+  cv::Mat Rcw2 = Converter::toCvMat(pKF2->GetRotation());
+  cv::Mat tcw2 = Converter::toCvMat(pKF2->GetTranslation());
 
   mvAllIndices.reserve(mN1);
 

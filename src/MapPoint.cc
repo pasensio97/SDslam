@@ -54,7 +54,7 @@ MapPoint::MapPoint(const cv::Mat &Pos, Map* pMap, Frame* pFrame, const int &idxF
   mnCorrectedReference(0), mnBAGlobalForKF(0), mpRefKF(static_cast<KeyFrame*>(NULL)), mnVisible(1),
   mnFound(1), mbBad(false), mpReplaced(NULL), mpMap(pMap) {
   Pos.copyTo(mWorldPos);
-  cv::Mat Ow = pFrame->GetCameraCenter();
+  cv::Mat Ow = Converter::toCvMat(pFrame->GetCameraCenter());
   mNormalVector = mWorldPos - Ow;
   mNormalVector = mNormalVector/cv::norm(mNormalVector);
 
@@ -322,13 +322,13 @@ void MapPoint::UpdateNormalAndDepth() {
   int n=0;
   for (map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++) {
     KeyFrame* pKF = mit->first;
-    cv::Mat Owi = pKF->GetCameraCenter();
+    cv::Mat Owi = Converter::toCvMat(pKF->GetCameraCenter());
     cv::Mat normali = mWorldPos - Owi;
     normal = normal + normali/cv::norm(normali);
     n++;
   }
 
-  cv::Mat PC = Pos - pRefKF->GetCameraCenter();
+  cv::Mat PC = Pos - Converter::toCvMat(pRefKF->GetCameraCenter());
   const float dist = cv::norm(PC);
   const int level = pRefKF->mvKeysUn[observations[pRefKF]].octave;
   const float levelScaleFactor =  pRefKF->mvScaleFactors[level];

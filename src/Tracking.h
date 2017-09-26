@@ -60,8 +60,8 @@ class Tracking {
   Tracking(System* pSys, Map* pMap, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
-  cv::Mat GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp);
-  cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp);
+  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp);
+  Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const double &timestamp);
 
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
     mpLocalMapper = pLocalMapper;
@@ -205,10 +205,13 @@ class Tracking {
   unsigned int mnLastRelocFrameId;
 
   // Motion Model
-  cv::Mat mVelocity;
+  Eigen::Matrix4d mVelocity;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

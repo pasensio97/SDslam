@@ -86,8 +86,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
   jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
 
   // Initial displacement between frames.
-  cv::Mat current_se3 = CurrentFrame.GetPose() * LastFrame.GetPoseInverse();
-  cv::Mat last_pose = LastFrame.GetPose();
+  cv::Mat current_se3 = Converter::toCvMat(CurrentFrame.GetPose()) * Converter::toCvMat(LastFrame.GetPoseInverse());
+  cv::Mat last_pose = Converter::toCvMat(LastFrame.GetPose());
 
   for (int level=max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
@@ -96,7 +96,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
     Optimize(CurrentFrame.mvImagePyramid[level], LastFrame.mvImagePyramid[level], last_pose, current_se3, scale);
   }
 
-  CurrentFrame.SetPose(current_se3 * last_pose);
+  cv::Mat pose = current_se3 * last_pose;
+  CurrentFrame.SetPose(Converter::toMatrix4d(pose));
 
   total.Stop();
   cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
@@ -149,8 +150,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
 
   // Initial displacement between frames.
-  cv::Mat current_se3 = CurrentFrame.GetPose() * LastKF->GetPoseInverse();
-  cv::Mat last_pose = LastKF->GetPose();
+  cv::Mat current_se3 = Converter::toCvMat(CurrentFrame.GetPose()) * Converter::toCvMat(LastKF->GetPoseInverse());
+  cv::Mat last_pose = Converter::toCvMat(LastKF->GetPose());
 
   for (int level=max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
@@ -165,7 +166,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
     }
   }
 
-  CurrentFrame.SetPose(current_se3 * last_pose);
+  cv::Mat pose = current_se3 * last_pose;
+  CurrentFrame.SetPose(Converter::toMatrix4d(pose));
 
   if (!fast) {
     total.Stop();
@@ -214,7 +216,7 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
 
   // Initial displacement between frames.
   cv::Mat current_se3 = cv::Mat::eye(4, 4, CV_32F);
-  cv::Mat last_pose = LastKF->GetPose();
+  cv::Mat last_pose = Converter::toCvMat(LastKF->GetPose());
 
   // Only last level
   int level = max_level_;

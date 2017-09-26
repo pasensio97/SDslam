@@ -31,6 +31,7 @@
 #include "Optimizer.h"
 #include "ImageAlign.h"
 #include "Config.h"
+#include "extra/timer.h"
 
 using namespace std;
 
@@ -91,20 +92,18 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   int nFeatures = Config::NumFeatures();
   float fScaleFactor = Config::ScaleFactor();
   int nLevels = Config::NumLevels();
-  int fIniThFAST = Config::IniThFAST();
-  int fMinThFAST = Config::MinThFAST();
+  int fThFAST = Config::ThresholdFAST();
 
-  mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+  mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fThFAST);
 
   if (sensor==System::MONOCULAR)
-    mpIniORBextractor = new ORBextractor(2*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
+    mpIniORBextractor = new ORBextractor(2*nFeatures,fScaleFactor,nLevels,fThFAST);
 
   cout << endl  << "ORB Extractor Parameters: " << endl;
   cout << "- Number of Features: " << nFeatures << endl;
   cout << "- Scale Levels: " << nLevels << endl;
   cout << "- Scale Factor: " << fScaleFactor << endl;
-  cout << "- Initial Fast Threshold: " << fIniThFAST << endl;
-  cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
+  cout << "- Fast Threshold: " << fThFAST << endl;
 
   if (sensor==System::RGBD) {
     mThDepth = mbf*(float)Config::ThDepth()/fx;
@@ -119,6 +118,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
 
   threshold_ = 8;
 
+  mVelocity.setZero();
+
 #ifdef PANGOLIN
   mpViewer = nullptr;
   mpFrameDrawer = nullptr;
@@ -126,13 +127,13 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
 #endif
 }
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp) {
+Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp) {
   mImGray = imRGB;
   cv::Mat imDepth = imD;
 
   if (mImGray.channels() != 1) {
     cout << "[ERROR] Image must be in gray scale" << endl;
-    return cv::Mat();
+    return Eigen::Matrix4d();
   }
 
   if ((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
@@ -142,16 +143,16 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
 
   Track();
 
-  return mCurrentFrame.mTcw.clone();
+  return mCurrentFrame.GetPose();
 }
 
 
-cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp) {
+Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp) {
   mImGray = im;
 
   if (mImGray.channels() != 1) {
     cout << "[ERROR] Image must be in gray scale" << endl;
-    return cv::Mat();
+    return Eigen::Matrix4d();
   }
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
@@ -160,8 +161,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
     mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mK,mDistCoef,mbf,mThDepth);
 
   Track();
-
-  return mCurrentFrame.mTcw.clone();
+  return mCurrentFrame.GetPose();
 }
 
 void Tracking::Track() {
@@ -195,7 +195,7 @@ void Tracking::Track() {
       // Local Mapping might have changed some MapPoints tracked in last frame
       CheckReplacedInLastFrame();
 
-      if (mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2) {
+      if (mVelocity.isZero() || mCurrentFrame.mnId<mnLastRelocFrameId+2) {
         bOK = TrackReferenceKeyFrame();
       } else {
         bOK = TrackWithMotionModel();
@@ -227,17 +227,18 @@ void Tracking::Track() {
     // If tracking were good, check if we insert a keyframe
     if (bOK) {
       // Update motion model
-      if (!mLastFrame.mTcw.empty()) {
-        cv::Mat LastTwc = cv::Mat::eye(4,4,CV_32F);
-        mLastFrame.GetRotationInverse().copyTo(LastTwc.rowRange(0,3).colRange(0,3));
-        mLastFrame.GetCameraCenter().copyTo(LastTwc.rowRange(0,3).col(3));
-        mVelocity = mCurrentFrame.mTcw*LastTwc;
+      if (!mLastFrame.GetPose().isZero()) {
+        Eigen::Matrix4d LastTwc;
+        LastTwc.setIdentity();
+        LastTwc.block<3,3>(0,0) = mLastFrame.GetRotationInverse();
+        LastTwc.block<3,1>(0,3) = mLastFrame.GetCameraCenter();
+        mVelocity = mCurrentFrame.GetPose()*LastTwc;
       } else
-        mVelocity = cv::Mat();
+        mVelocity.setZero();
 
 #ifdef PANGOLIN
       if (mpMapDrawer != nullptr)
-        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+        mpMapDrawer->SetCurrentCameraPose(Converter::toCvMat(mCurrentFrame.GetPose()));
 #endif
 
       // Clean VO matches
@@ -287,8 +288,8 @@ void Tracking::Track() {
   }
 
   // Store frame pose information to retrieve the complete camera trajectory afterwards.
-  if (!mCurrentFrame.mTcw.empty()) {
-    cv::Mat Tcr = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
+  if (!mCurrentFrame.GetPose().isZero()) {
+    cv::Mat Tcr = Converter::toCvMat(mCurrentFrame.GetPose())*Converter::toCvMat(mCurrentFrame.mpReferenceKF->GetPoseInverse());
     mlRelativeFramePoses.push_back(Tcr);
     mlpReferences.push_back(mpReferenceKF);
     mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
@@ -307,7 +308,7 @@ void Tracking::Track() {
 void Tracking::StereoInitialization() {
   if (mCurrentFrame.N>500) {
     // Set Frame pose to the origin
-    mCurrentFrame.SetPose(cv::Mat::eye(4,4,CV_32F));
+    mCurrentFrame.SetPose(Eigen::Matrix4d::Identity());
 
     // Create KeyFrame
     KeyFrame* pKFini = new KeyFrame(mCurrentFrame,mpMap);
@@ -319,8 +320,9 @@ void Tracking::StereoInitialization() {
     for (int i=0; i<mCurrentFrame.N;i++) {
       float z = mCurrentFrame.mvDepth[i];
       if (z>0) {
-        cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
-        MapPoint* pNewMP = new MapPoint(x3D,pKFini,mpMap);
+        Eigen::Vector3d x3D = mCurrentFrame.UnprojectStereo(i);
+        cv::Mat x3D_cv = Converter::toCvMat(x3D);
+        MapPoint* pNewMP = new MapPoint(x3D_cv,pKFini,mpMap);
         pNewMP->AddObservation(pKFini,i);
         pKFini->AddMapPoint(pNewMP,i);
         pNewMP->ComputeDistinctiveDescriptors();
@@ -350,7 +352,7 @@ void Tracking::StereoInitialization() {
 
 #ifdef PANGOLIN
     if (mpMapDrawer != nullptr)
-      mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+      mpMapDrawer->SetCurrentCameraPose(Converter::toCvMat(mCurrentFrame.GetPose()));
 #endif
 
     mState=OK;
@@ -410,11 +412,11 @@ void Tracking::MonocularInitialization() {
       }
 
       // Set Frame Poses
-      mInitialFrame.SetPose(cv::Mat::eye(4,4,CV_32F));
+      mInitialFrame.SetPose(Eigen::Matrix4d::Identity());
       cv::Mat Tcw = cv::Mat::eye(4,4,CV_32F);
       Rcw.copyTo(Tcw.rowRange(0,3).colRange(0,3));
       tcw.copyTo(Tcw.rowRange(0,3).col(3));
-      mCurrentFrame.SetPose(Tcw);
+      mCurrentFrame.SetPose(Converter::toMatrix4d(Tcw));
 
       CreateInitialMapMonocular();
     }
@@ -477,8 +479,8 @@ void Tracking::CreateInitialMapMonocular() {
   }
 
   // Scale initial baseline
-  cv::Mat Tc2w = pKFcur->GetPose();
-  Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
+  Eigen::Matrix4d Tc2w = pKFcur->GetPose();
+  Tc2w.block<3,1>(0,3) = Tc2w.block<3,1>(0,3)*invMedianDepth;
   pKFcur->SetPose(Tc2w);
 
   // Scale points
@@ -509,7 +511,7 @@ void Tracking::CreateInitialMapMonocular() {
 
 #ifdef PANGOLIN
   if (mpMapDrawer != nullptr)
-    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
+    mpMapDrawer->SetCurrentCameraPose(Converter::toCvMat(pKFcur->GetPose()));
 #endif
 
   mpMap->mvpKeyFrameOrigins.push_back(pKFini);
@@ -535,7 +537,7 @@ bool Tracking::TrackReferenceKeyFrame() {
   ORBmatcher matcher(0.7,true);
 
   // Set same pose
-  mCurrentFrame.SetPose(mLastFrame.mTcw);
+  mCurrentFrame.SetPose(mLastFrame.GetPose());
 
   // Align current and last image
   ImageAlign image_align;
@@ -587,7 +589,7 @@ void Tracking::UpdateLastFrame() {
   KeyFrame* pRef = mLastFrame.mpReferenceKF;
   cv::Mat Tlr = mlRelativeFramePoses.back();
 
-  mLastFrame.SetPose(Tlr*pRef->GetPose());
+  mLastFrame.SetPose(Converter::toMatrix4d(Tlr)*pRef->GetPose());
 }
 
 bool Tracking::TrackWithMotionModel() {
@@ -596,10 +598,10 @@ bool Tracking::TrackWithMotionModel() {
   // Update last frame pose according to its reference keyframe
   UpdateLastFrame();
 
-  if (mVelocity.empty())
-    mCurrentFrame.SetPose(mLastFrame.mTcw);
+  if (mVelocity.isZero())
+    mCurrentFrame.SetPose(mLastFrame.GetPose());
   else
-    mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
+    mCurrentFrame.SetPose(mVelocity*mLastFrame.GetPose());
 
   // Align current and last image
   ImageAlign image_align;
@@ -795,8 +797,9 @@ void Tracking::CreateNewKeyFrame() {
         }
 
         if (bCreateNew) {
-          cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
-          MapPoint* pNewMP = new MapPoint(x3D,pKF,mpMap);
+          Eigen::Vector3d x3D = mCurrentFrame.UnprojectStereo(i);
+          cv::Mat x3D_cv = Converter::toCvMat(x3D);
+          MapPoint* pNewMP = new MapPoint(x3D_cv,pKF,mpMap);
           pNewMP->AddObservation(pKF,i);
           pKF->AddMapPoint(pNewMP,i);
           pNewMP->ComputeDistinctiveDescriptors();

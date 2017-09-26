@@ -35,7 +35,7 @@ class ORBextractor {
  public:
   enum {HARRIS_SCORE=0, FAST_SCORE=1 };
 
-  ORBextractor(int nfeatures, float scaleFactor, int nlevels, int iniThFAST, int minThFAST);
+  ORBextractor(int nfeatures, float scaleFactor, int nlevels, int thFAST);
 
   ~ORBextractor(){}
 
@@ -77,8 +77,7 @@ class ORBextractor {
   int nfeatures;
   double scaleFactor;
   int nlevels;
-  int iniThFAST;
-  int minThFAST;
+  int thFAST;
 
   std::vector<int> mnFeaturesPerLevel;
 

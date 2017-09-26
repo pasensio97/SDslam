@@ -29,8 +29,6 @@ namespace SD_SLAM {
 
 class ImageAlign {
  public:
-  //EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
   ImageAlign();
   ~ImageAlign();
 
@@ -92,6 +90,9 @@ class ImageAlign {
   Eigen::Matrix<double, 6, 6>  H_;      // Hessian approximation
   Eigen::Matrix<double, 6, 1>  Jres_;   // Store Jacobian residual
   Eigen::Matrix<double, 6, Eigen::Dynamic, Eigen::ColMajor> jacobian_cache_;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

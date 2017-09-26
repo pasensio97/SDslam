@@ -189,10 +189,9 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
     g2o::VertexSE3Expmap* vSE3 = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(pKF->mnId));
     g2o::SE3Quat SE3quat = vSE3->estimate();
     if (nLoopKF==0) {
-      pKF->SetPose(Converter::toCvMat(SE3quat));
+      pKF->SetPose(Converter::toMatrix4d(SE3quat));
     } else {
-      pKF->mTcwGBA.create(4,4,CV_32F);
-      Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
+      pKF->mTcwGBA = Converter::toMatrix4d(SE3quat);
       pKF->mnBAGlobalForKF = nLoopKF;
     }
   }
@@ -235,7 +234,7 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
 
   // Set Frame vertex
   g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
-  vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+  vSE3->setEstimate(Converter::toSE3Quat(pFrame->GetPose()));
   vSE3->setId(0);
   vSE3->setFixed(false);
   optimizer.addVertex(vSE3);
@@ -352,7 +351,7 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
   int nBad=0;
   for (size_t it=0; it<4; it++) {
 
-    vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+    vSE3->setEstimate(Converter::toSE3Quat(pFrame->GetPose()));
     optimizer.initializeOptimization(0);
     optimizer.optimize(its[it]);
 
@@ -412,8 +411,7 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
   // Recover optimized pose and return number of inliers
   g2o::VertexSE3Expmap* vSE3_recov = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(0));
   g2o::SE3Quat SE3quat_recov = vSE3_recov->estimate();
-  cv::Mat pose = Converter::toCvMat(SE3quat_recov);
-  pFrame->SetPose(pose);
+  pFrame->SetPose(Converter::toMatrix4d(SE3quat_recov));
 
   return nInitialCorrespondences-nBad;
 }
@@ -705,7 +703,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
     KeyFrame* pKF = *lit;
     g2o::VertexSE3Expmap* vSE3 = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(pKF->mnId));
     g2o::SE3Quat SE3quat = vSE3->estimate();
-    pKF->SetPose(Converter::toCvMat(SE3quat));
+    pKF->SetPose(Converter::toMatrix4d(SE3quat));
   }
 
   //Points
@@ -759,9 +757,9 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
       vScw[nIDi] = it->second;
       VSim3->setEstimate(it->second);
     } else {
-      Eigen::Matrix<double,3,3> Rcw = Converter::toMatrix3d(pKF->GetRotation());
-      Eigen::Matrix<double,3,1> tcw = Converter::toVector3d(pKF->GetTranslation());
-      g2o::Sim3 Siw(Rcw,tcw,1.0);
+      Eigen::Matrix<double,3,3> Rcw = pKF->GetRotation();
+      Eigen::Matrix<double,3,1> tcw = pKF->GetTranslation();
+      g2o::Sim3 Siw(Rcw, tcw, 1.0);
       vScw[nIDi] = Siw;
       VSim3->setEstimate(Siw);
     }
@@ -929,9 +927,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
     eigt *=(1./s); //[R t/s;0 1]
 
-    cv::Mat Tiw = Converter::toCvSE3(eigR,eigt);
-
-    pKFi->SetPose(Tiw);
+    pKFi->SetPose(Converter::toSE3(eigR,eigt));
   }
 
   // Correct points. Transform to "non-optimized" reference keyframe pose and transform back with optimized pose
@@ -980,10 +976,10 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
   const cv::Mat &K2 = pKF2->mK;
 
   // Camera poses
-  const cv::Mat R1w = pKF1->GetRotation();
-  const cv::Mat t1w = pKF1->GetTranslation();
-  const cv::Mat R2w = pKF2->GetRotation();
-  const cv::Mat t2w = pKF2->GetTranslation();
+  const cv::Mat R1w = Converter::toCvMat(pKF1->GetRotation());
+  const cv::Mat t1w = Converter::toCvMat(pKF1->GetTranslation());
+  const cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
+  const cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
 
   // Set Sim3 vertex
   g2o::VertexSim3Expmap * vSim3 = new g2o::VertexSim3Expmap();  

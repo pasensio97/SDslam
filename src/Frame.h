@@ -27,9 +27,11 @@
 
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include <Eigen/Dense>
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include "ORBextractor.h"
+#include "Converter.h"
 
 namespace SD_SLAM {
 
@@ -56,29 +58,29 @@ class Frame {
   void ExtractORB(const cv::Mat &im);
 
   // Set the camera pose.
-  void SetPose(cv::Mat Tcw);
+  void SetPose(const Eigen::Matrix4d &Tcw);
 
   // Computes rotation, translation and camera center matrices from the camera pose.
   void UpdatePoseMatrices();
 
   // Returns frame pose
-  inline cv::Mat GetPose() const {
-    return mTcw.clone();
+  inline Eigen::Matrix4d GetPose() const {
+    return mTcw;
   }
 
   // Returns frame pose inverse
-  inline cv::Mat GetPoseInverse() const {
-    return mTwc.clone();
+  inline Eigen::Matrix4d GetPoseInverse() const {
+    return mTwc;
   }
 
   // Returns the camera center.
-  inline cv::Mat GetCameraCenter() {
-    return mOw.clone();
+  inline Eigen::Vector3d GetCameraCenter() {
+    return mOw;
   }
 
   // Returns inverse of rotation
-  inline cv::Mat GetRotationInverse() {
-    return mRwc.clone();
+  inline Eigen::Matrix3d GetRotationInverse() {
+    return mRwc;
   }
 
   // Check if a MapPoint is in the frustum of the camera
@@ -94,7 +96,7 @@ class Frame {
   void ComputeStereoFromRGBD(const cv::Mat &imDepth);
 
   // Backprojects a keypoint (if stereo/depth info available) into 3D world coordinates.
-  cv::Mat UnprojectStereo(const int &i);
+  Eigen::Vector3d UnprojectStereo(const int &i);
 
  public:
   // Feature extractor.
@@ -151,8 +153,8 @@ class Frame {
   std::vector<std::size_t> mGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
 
   // Camera pose.
-  cv::Mat mTcw;
-  cv::Mat mTwc;
+  Eigen::Matrix4d mTcw;
+  Eigen::Matrix4d mTwc;
 
   // Current and Next Frame id.
   static long unsigned int nNextId;
@@ -193,10 +195,13 @@ class Frame {
   void AssignFeaturesToGrid();
 
   // Rotation, translation and camera center
-  cv::Mat mRcw;
-  cv::Mat mtcw;
-  cv::Mat mRwc;
-  cv::Mat mOw; //==mtwc
+  Eigen::Matrix3d mRcw;
+  Eigen::Vector3d mtcw;
+  Eigen::Matrix3d mRwc;
+  Eigen::Vector3d mOw;  //==mtwc
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

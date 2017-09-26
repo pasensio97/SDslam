@@ -39,11 +39,11 @@ float Frame::mnMinX, Frame::mnMinY, Frame::mnMaxX, Frame::mnMaxY;
 float Frame::mfGridElementWidthInv, Frame::mfGridElementHeightInv;
 
 Frame::Frame() {
+  mTcw.setZero();
 }
 
 //Copy Constructor
-Frame::Frame(const Frame &frame)
-  :mpORBextractorLeft(frame.mpORBextractorLeft),
+Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
    mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()),
    mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
    mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight),
@@ -57,8 +57,7 @@ Frame::Frame(const Frame &frame)
     for (int j=0; j<FRAME_GRID_ROWS; j++)
       mGrid[i][j]=frame.mGrid[i][j];
 
-  if (!frame.mTcw.empty())
-    SetPose(frame.mTcw);
+  SetPose(frame.mTcw);
 
   // Copy pyramid
   int size = frame.mvImagePyramid.size();
@@ -68,11 +67,12 @@ Frame::Frame(const Frame &frame)
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-  :mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),
+Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth) : mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),
   mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
+
+  mTcw.setZero();
 
   // Scale Level Info
   mnScaleLevels = mpORBextractorLeft->GetLevels();
@@ -193,36 +193,38 @@ void Frame::ExtractORB(const cv::Mat &im) {
   (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors, mvImagePyramid);
 }
 
-void Frame::SetPose(cv::Mat Tcw) {
-  mTcw = Tcw.clone();
+void Frame::SetPose(const Eigen::Matrix4d &Tcw) {
+  Eigen::Matrix4d m = Tcw; // Somehow it fixes problems with Eigen
+  mTcw = m;
   UpdatePoseMatrices();
 }
 
 void Frame::UpdatePoseMatrices() {
-  mRcw = mTcw.rowRange(0,3).colRange(0,3);
-  mRwc = mRcw.t();
-  mtcw = mTcw.rowRange(0,3).col(3);
-  mOw = -mRcw.t()*mtcw;
+  mRcw = mTcw.block<3,3>(0,0);
+  mRwc = mRcw.transpose();
+  mtcw = mTcw.block<3,1>(0,3);
+  mOw = -mRwc*mtcw;
 
-  mTwc = cv::Mat::eye(4,4,mTcw.type());
-  mRwc.copyTo(mTwc.rowRange(0,3).colRange(0,3));
-  mOw.copyTo(mTwc.rowRange(0,3).col(3));
+  mTwc.setIdentity();
+  mTwc.block<3,3>(0,0) = mRwc;
+  mTwc.block<3,1>(0,3) = mOw;
 }
 
 bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
   pMP->mbTrackInView = false;
 
   // 3D in absolute coordinates
-  cv::Mat P = pMP->GetWorldPos(); 
+  cv::Mat P_cv = pMP->GetWorldPos();
+  Eigen::Vector3d P = Converter::toVector3d(P_cv);
 
   // 3D in camera coordinates
-  const cv::Mat Pc = mRcw*P+mtcw;
-  const float &PcX = Pc.at<float>(0);
-  const float &PcY= Pc.at<float>(1);
-  const float &PcZ = Pc.at<float>(2);
+  Eigen::Vector3d Pc = mRcw*P+mtcw;
+  const double PcX = Pc(0);
+  const double PcY = Pc(1);
+  const double PcZ = Pc(2);
 
   // Check positive depth
-  if (PcZ<0.0f)
+  if (PcZ<0.0)
     return false;
 
   // Project in image and check it is not outside
@@ -238,16 +240,17 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
   // Check distance is in the scale invariance region of the MapPoint
   const float maxDistance = pMP->GetMaxDistanceInvariance();
   const float minDistance = pMP->GetMinDistanceInvariance();
-  const cv::Mat PO = P-mOw;
-  const float dist = cv::norm(PO);
+  Eigen::Vector3d PO = P-mOw;
+  const float dist = PO.norm();
 
   if (dist<minDistance || dist>maxDistance)
     return false;
 
    // Check viewing angle
   cv::Mat Pn = pMP->GetNormal();
+  Eigen::Vector3d Pn_e = Converter::toVector3d(Pn);
 
-  const float viewCos = PO.dot(Pn)/dist;
+  const float viewCos = PO.dot(Pn_e)/dist;
 
   if (viewCos<viewingCosLimit)
     return false;
@@ -403,17 +406,17 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth) {
   }
 }
 
-cv::Mat Frame::UnprojectStereo(const int &i) {
+Eigen::Vector3d Frame::UnprojectStereo(const int &i) {
   const float z = mvDepth[i];
   if (z>0) {
     const float u = mvKeysUn[i].pt.x;
     const float v = mvKeysUn[i].pt.y;
     const float x = (u-cx)*z*invfx;
     const float y = (v-cy)*z*invfy;
-    cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x, y, z);
+    Eigen::Vector3d x3Dc(x, y, z);
     return mRwc*x3Dc+mOw;
   } else
-    return cv::Mat();
+    return Eigen::Vector3d();
 }
 
 }  // namespace SD_SLAM

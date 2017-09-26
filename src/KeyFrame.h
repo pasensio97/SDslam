@@ -42,12 +42,12 @@ class KeyFrame {
   KeyFrame(Frame &F, Map* pMap);
 
   // Pose functions
-  void SetPose(const cv::Mat &Tcw);
-  cv::Mat GetPose();
-  cv::Mat GetPoseInverse();
-  cv::Mat GetCameraCenter();
-  cv::Mat GetRotation();
-  cv::Mat GetTranslation();
+  void SetPose(const Eigen::Matrix4d &Tcw);
+  Eigen::Matrix4d GetPose();
+  Eigen::Matrix4d GetPoseInverse();
+  Eigen::Vector3d GetCameraCenter();
+  Eigen::Matrix3d GetRotation();
+  Eigen::Vector3d GetTranslation();
 
   // Covisibility graph functions
   void AddConnection(KeyFrame* pKF, const int &weight);
@@ -84,7 +84,7 @@ class KeyFrame {
 
   // KeyPoint functions
   std::vector<size_t> GetFeaturesInArea(const float &x, const float  &y, const float  &r) const;
-  cv::Mat UnprojectStereo(int i);
+  Eigen::Vector3d UnprojectStereo(int i);
 
   // Image
   bool IsInImage(const float &x, const float &y) const;
@@ -107,7 +107,6 @@ class KeyFrame {
   static bool lId(KeyFrame* pKF1, KeyFrame* pKF2){
     return pKF1->mnId<pKF2->mnId;
   }
-
 
   // The following variables are accesed from only 1 thread or never change (no mutex needed).
  public:
@@ -140,8 +139,8 @@ class KeyFrame {
   float mRelocScore;
 
   // Variables used by loop closing
-  cv::Mat mTcwGBA;
-  cv::Mat mTcwBefGBA;
+  Eigen::Matrix4d mTcwGBA;
+  Eigen::Matrix4d mTcwBefGBA;
   long unsigned int mnBAGlobalForKF;
 
   // Calibration parameters
@@ -156,9 +155,6 @@ class KeyFrame {
   const std::vector<float> mvuRight; // negative value for monocular points
   const std::vector<float> mvDepth; // negative value for monocular points
   const cv::Mat mDescriptors;
-
-  // Pose relative to parent (this is computed when bad flag is activated)
-  cv::Mat mTcp;
 
   // Scale
   const int mnScaleLevels;
@@ -180,9 +176,9 @@ class KeyFrame {
   // The following variables need to be accessed trough a mutex to be thread safe.
  protected:
   // SE3 Pose and camera center
-  cv::Mat Tcw;
-  cv::Mat Twc;
-  cv::Mat Ow;
+  Eigen::Matrix4d Tcw;
+  Eigen::Matrix4d Twc;
+  Eigen::Vector3d Ow;
 
   // MapPoints associated to keypoints
   std::vector<MapPoint*> mvpMapPoints;
@@ -212,6 +208,9 @@ class KeyFrame {
   std::mutex mMutexPose;
   std::mutex mMutexConnections;
   std::mutex mMutexFeatures;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

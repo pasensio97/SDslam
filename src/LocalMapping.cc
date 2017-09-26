@@ -192,13 +192,13 @@ void LocalMapping::CreateNewMapPoints() {
 
   ORBmatcher matcher(0.6,false);
 
-  cv::Mat Rcw1 = mpCurrentKeyFrame->GetRotation();
+  cv::Mat Rcw1 = Converter::toCvMat(mpCurrentKeyFrame->GetRotation());
   cv::Mat Rwc1 = Rcw1.t();
-  cv::Mat tcw1 = mpCurrentKeyFrame->GetTranslation();
+  cv::Mat tcw1 = Converter::toCvMat(mpCurrentKeyFrame->GetTranslation());
   cv::Mat Tcw1(3,4,CV_32F);
   Rcw1.copyTo(Tcw1.colRange(0,3));
   tcw1.copyTo(Tcw1.col(3));
-  cv::Mat Ow1 = mpCurrentKeyFrame->GetCameraCenter();
+  cv::Mat Ow1 = Converter::toCvMat(mpCurrentKeyFrame->GetCameraCenter());
 
   const float &fx1 = mpCurrentKeyFrame->fx;
   const float &fy1 = mpCurrentKeyFrame->fy;
@@ -219,7 +219,7 @@ void LocalMapping::CreateNewMapPoints() {
     KeyFrame* pKF2 = vpNeighKFs[i];
 
     // Check first that baseline is not too short
-    cv::Mat Ow2 = pKF2->GetCameraCenter();
+    cv::Mat Ow2 = Converter::toCvMat(pKF2->GetCameraCenter());
     cv::Mat vBaseline = Ow2-Ow1;
     const float baseline = cv::norm(vBaseline);
 
@@ -241,9 +241,9 @@ void LocalMapping::CreateNewMapPoints() {
     vector<std::pair<size_t,size_t> > vMatchedIndices;
     matcher.SearchForTriangulation(mpCurrentKeyFrame,pKF2,F12,vMatchedIndices,false);
 
-    cv::Mat Rcw2 = pKF2->GetRotation();
+    cv::Mat Rcw2 = Converter::toCvMat(pKF2->GetRotation());
     cv::Mat Rwc2 = Rcw2.t();
-    cv::Mat tcw2 = pKF2->GetTranslation();
+    cv::Mat tcw2 = Converter::toCvMat(pKF2->GetTranslation());
     cv::Mat Tcw2(3,4,CV_32F);
     Rcw2.copyTo(Tcw2.colRange(0,3));
     tcw2.copyTo(Tcw2.col(3));
@@ -309,9 +309,9 @@ void LocalMapping::CreateNewMapPoints() {
         x3D = x3D.rowRange(0,3)/x3D.at<float>(3);
 
       } else if (bStereo1 && cosParallaxStereo1<cosParallaxStereo2) {
-        x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);        
+        x3D = Converter::toCvMat(mpCurrentKeyFrame->UnprojectStereo(idx1));
       } else if (bStereo2 && cosParallaxStereo2<cosParallaxStereo1) {
-        x3D = pKF2->UnprojectStereo(idx2);
+        x3D = Converter::toCvMat(pKF2->UnprojectStereo(idx2));
       } else
         continue; //No stereo and very low parallax
 
@@ -486,10 +486,10 @@ void LocalMapping::SearchInNeighbors() {
 }
 
 cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2) {
-  cv::Mat R1w = pKF1->GetRotation();
-  cv::Mat t1w = pKF1->GetTranslation();
-  cv::Mat R2w = pKF2->GetRotation();
-  cv::Mat t2w = pKF2->GetTranslation();
+  cv::Mat R1w = Converter::toCvMat(pKF1->GetRotation());
+  cv::Mat t1w = Converter::toCvMat(pKF1->GetTranslation());
+  cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
+  cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
 
   cv::Mat R12 = R1w*R2w.t();
   cv::Mat t12 = -R1w*R2w.t()*t2w+t1w;

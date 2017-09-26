@@ -360,9 +360,9 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
 int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,
                      vector<pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo) {
   //Compute epipole in second image
-  cv::Mat Cw = pKF1->GetCameraCenter();
-  cv::Mat R2w = pKF2->GetRotation();
-  cv::Mat t2w = pKF2->GetTranslation();
+  cv::Mat Cw = Converter::toCvMat(pKF1->GetCameraCenter());
+  cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
+  cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
   cv::Mat C2 = R2w*Cw+t2w;
   const float invz = 1.0f/C2.at<float>(2);
   const float ex =pKF2->fx*C2.at<float>(0)*invz+pKF2->cx;
@@ -486,8 +486,8 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
 }
 
 int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const float th) {
-  cv::Mat Rcw = pKF->GetRotation();
-  cv::Mat tcw = pKF->GetTranslation();
+  cv::Mat Rcw = Converter::toCvMat(pKF->GetRotation());
+  cv::Mat tcw = Converter::toCvMat(pKF->GetTranslation());
 
   const float &fx = pKF->fx;
   const float &fy = pKF->fy;
@@ -495,7 +495,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
   const float &cy = pKF->cy;
   const float &bf = pKF->mbf;
 
-  cv::Mat Ow = pKF->GetCameraCenter();
+  cv::Mat Ow = Converter::toCvMat(pKF->GetCameraCenter());
 
   int nFused=0;
 
@@ -750,12 +750,12 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
   const float &cy = pKF1->cy;
 
   // Camera 1 from world
-  cv::Mat R1w = pKF1->GetRotation();
-  cv::Mat t1w = pKF1->GetTranslation();
+  cv::Mat R1w = Converter::toCvMat(pKF1->GetRotation());
+  cv::Mat t1w = Converter::toCvMat(pKF1->GetTranslation());
 
   //Camera 2 from world
-  cv::Mat R2w = pKF2->GetRotation();
-  cv::Mat t2w = pKF2->GetTranslation();
+  cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
+  cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
 
   //Transformation between cameras
   cv::Mat sR12 = s12*R12;
@@ -963,18 +963,18 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
     rotHist[i].reserve(500);
   const float factor = 1.0f/HISTO_LENGTH;
 
-  const cv::Mat Rcw = CurrentFrame.mTcw.rowRange(0,3).colRange(0,3);
-  const cv::Mat tcw = CurrentFrame.mTcw.rowRange(0,3).col(3);
+  const cv::Mat Rcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).colRange(0,3);
+  const cv::Mat tcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).col(3);
 
   const cv::Mat twc = -Rcw.t()*tcw;
 
-  const cv::Mat Rlw = LastFrame.mTcw.rowRange(0,3).colRange(0,3);
-  const cv::Mat tlw = LastFrame.mTcw.rowRange(0,3).col(3);
+  const cv::Mat Rlw = Converter::toCvMat(LastFrame.GetPose()).rowRange(0,3).colRange(0,3);
+  const cv::Mat tlw = Converter::toCvMat(LastFrame.GetPose()).rowRange(0,3).col(3);
 
   const cv::Mat tlc = Rlw*twc+tlw;
 
-  const bool bForward = tlc.at<float>(2)>CurrentFrame.mb && !bMono;
-  const bool bBackward = -tlc.at<float>(2)>CurrentFrame.mb && !bMono;
+  const bool bForward = tlc.at<float>(2) > CurrentFrame.mb && !bMono;
+  const bool bBackward = -tlc.at<float>(2) > CurrentFrame.mb && !bMono;
 
   for (int i=0; i<LastFrame.N; i++) {
     MapPoint* pMP = LastFrame.mvpMapPoints[i];
@@ -1094,12 +1094,12 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame* pKF, const flo
     rotHist[i].reserve(500);
   const float factor = 1.0f/HISTO_LENGTH;
 
-  const cv::Mat Rcw = CurrentFrame.mTcw.rowRange(0,3).colRange(0,3);
-  const cv::Mat tcw = CurrentFrame.mTcw.rowRange(0,3).col(3);
+  const cv::Mat Rcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).colRange(0,3);
+  const cv::Mat tcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).col(3);
 
   const cv::Mat twc = -Rcw.t()*tcw;
 
-  const cv::Mat pose = pKF->GetPose();
+  const cv::Mat pose = Converter::toCvMat(pKF->GetPose());
   const cv::Mat Rlw = pose.rowRange(0,3).colRange(0,3);
   const cv::Mat tlw = pose.rowRange(0,3).col(3);
 
@@ -1317,8 +1317,8 @@ int ORBmatcher::SearchByPoints(KeyFrame* currentKF, KeyFrame* pKF, vector<MapPoi
 int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set<MapPoint*> &sAlreadyFound, const float th , const int ORBdist) {
   int nmatches = 0;
 
-  const cv::Mat Rcw = CurrentFrame.mTcw.rowRange(0,3).colRange(0,3);
-  const cv::Mat tcw = CurrentFrame.mTcw.rowRange(0,3).col(3);
+  const cv::Mat Rcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).colRange(0,3);
+  const cv::Mat tcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).col(3);
   const cv::Mat Ow = -Rcw.t()*tcw;
 
   // Rotation Histogram (to check rotation consistency)

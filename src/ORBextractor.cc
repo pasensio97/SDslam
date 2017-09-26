@@ -63,6 +63,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include "extra/timer.h"
 
 using namespace cv;
 using namespace std;
@@ -402,9 +403,8 @@ static int bit_pattern_31_[256*4] =
   -1,-6, 0,-11/*mean (0.127148), correlation (0.547401)*/
 };
 
-ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int _iniThFAST, int _minThFAST):
-  nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
-  iniThFAST(_iniThFAST), minThFAST(_minThFAST) {
+ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int _thFAST):
+  nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels), thFAST(_thFAST) {
   mvScaleFactor.resize(nlevels);
   mvLevelSigma2.resize(nlevels);
   mvScaleFactor[0]=1.0f;
@@ -534,14 +534,7 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
 
         cellKeyPoints[i][j].reserve(nfeaturesCell*5);
 
-        FAST(cellImage,cellKeyPoints[i][j],iniThFAST,true);
-
-        if (cellKeyPoints[i][j].size()<=3) {
-          cellKeyPoints[i][j].clear();
-
-          FAST(cellImage,cellKeyPoints[i][j],minThFAST,true);
-        }
-
+        FAST(cellImage,cellKeyPoints[i][j],thFAST,true);
 
         const int nKeys = cellKeyPoints[i][j].size();
         nTotal[i][j] = nKeys;
@@ -558,7 +551,6 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
 
       }
     }
-
 
     // Retain by score
 

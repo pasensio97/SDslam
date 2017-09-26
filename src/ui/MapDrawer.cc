@@ -81,7 +81,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
     double lwidth = Config::KeyFrameLineWidth();
     for (size_t i=0; i<vpKFs.size(); i++) {
       KeyFrame* pKF = vpKFs[i];
-      cv::Mat Twc = pKF->GetPoseInverse().t();
+      cv::Mat Twc = Converter::toCvMat(pKF->GetPoseInverse()).t();
 
       glPushMatrix();
 
@@ -124,23 +124,23 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
     for (size_t i=0; i<vpKFs.size(); i++) {
       // Covisibility Graph
       const vector<KeyFrame*> vCovKFs = vpKFs[i]->GetCovisiblesByWeight(100);
-      cv::Mat Ow = vpKFs[i]->GetCameraCenter();
+      Eigen::Vector3d Ow = vpKFs[i]->GetCameraCenter();
       if (!vCovKFs.empty()) {
         for (vector<KeyFrame*>::const_iterator vit=vCovKFs.begin(), vend=vCovKFs.end(); vit!=vend; vit++) {
           if ((*vit)->mnId<vpKFs[i]->mnId)
             continue;
-          cv::Mat Ow2 = (*vit)->GetCameraCenter();
-          glVertex3f(Ow.at<float>(0),Ow.at<float>(1),Ow.at<float>(2));
-          glVertex3f(Ow2.at<float>(0),Ow2.at<float>(1),Ow2.at<float>(2));
+          Eigen::Vector3d Ow2 = (*vit)->GetCameraCenter();
+          glVertex3f(Ow(0),Ow(1),Ow(2));
+          glVertex3f(Ow2(0),Ow2(1),Ow2(2));
         }
       }
 
       // Spanning tree
       KeyFrame* pParent = vpKFs[i]->GetParent();
       if (pParent) {
-        cv::Mat Owp = pParent->GetCameraCenter();
-        glVertex3f(Ow.at<float>(0),Ow.at<float>(1),Ow.at<float>(2));
-        glVertex3f(Owp.at<float>(0),Owp.at<float>(1),Owp.at<float>(2));
+        Eigen::Vector3d Owp = pParent->GetCameraCenter();
+        glVertex3f(Ow(0),Ow(1),Ow(2));
+        glVertex3f(Owp(0),Owp(1),Owp(2));
       }
 
       // Loops
@@ -148,9 +148,9 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
       for (set<KeyFrame*>::iterator sit=sLoopKFs.begin(), send=sLoopKFs.end(); sit!=send; sit++) {
         if ((*sit)->mnId<vpKFs[i]->mnId)
           continue;
-        cv::Mat Owl = (*sit)->GetCameraCenter();
-        glVertex3f(Ow.at<float>(0),Ow.at<float>(1),Ow.at<float>(2));
-        glVertex3f(Owl.at<float>(0),Owl.at<float>(1),Owl.at<float>(2));
+        Eigen::Vector3d Owl = (*sit)->GetCameraCenter();
+        glVertex3f(Ow(0),Ow(1),Ow(2));
+        glVertex3f(Owl(0),Owl(1),Owl(2));
       }
     }
 

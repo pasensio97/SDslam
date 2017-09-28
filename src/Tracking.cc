@@ -46,12 +46,11 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   float cx = Config::cx();
   float cy = Config::cy();
 
-  cv::Mat K = cv::Mat::eye(3,3,CV_32F);
-  K.at<float>(0,0) = fx;
-  K.at<float>(1,1) = fy;
-  K.at<float>(0,2) = cx;
-  K.at<float>(1,2) = cy;
-  K.copyTo(mK);
+  mK.setIdentity();
+  mK(0,0) = fx;
+  mK(1,1) = fy;
+  mK(0,2) = cx;
+  mK(1,2) = cy;
 
   cv::Mat DistCoef(4,1,CV_32F);
   DistCoef.at<float>(0) = Config::k1();
@@ -133,7 +132,7 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD,
 
   if (mImGray.channels() != 1) {
     cout << "[ERROR] Image must be in gray scale" << endl;
-    return Eigen::Matrix4d();
+    return Eigen::Matrix4d::Zero();
   }
 
   if ((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
@@ -152,7 +151,7 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const double &ti
 
   if (mImGray.channels() != 1) {
     cout << "[ERROR] Image must be in gray scale" << endl;
-    return Eigen::Matrix4d();
+    return Eigen::Matrix4d::Zero();
   }
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
@@ -238,7 +237,7 @@ void Tracking::Track() {
 
 #ifdef PANGOLIN
       if (mpMapDrawer != nullptr)
-        mpMapDrawer->SetCurrentCameraPose(Converter::toCvMat(mCurrentFrame.GetPose()));
+        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
 #endif
 
       // Clean VO matches
@@ -289,7 +288,7 @@ void Tracking::Track() {
 
   // Store frame pose information to retrieve the complete camera trajectory afterwards.
   if (!mCurrentFrame.GetPose().isZero()) {
-    cv::Mat Tcr = Converter::toCvMat(mCurrentFrame.GetPose())*Converter::toCvMat(mCurrentFrame.mpReferenceKF->GetPoseInverse());
+    Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
     mlRelativeFramePoses.push_back(Tcr);
     mlpReferences.push_back(mpReferenceKF);
     mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
@@ -321,8 +320,7 @@ void Tracking::StereoInitialization() {
       float z = mCurrentFrame.mvDepth[i];
       if (z>0) {
         Eigen::Vector3d x3D = mCurrentFrame.UnprojectStereo(i);
-        cv::Mat x3D_cv = Converter::toCvMat(x3D);
-        MapPoint* pNewMP = new MapPoint(x3D_cv,pKFini,mpMap);
+        MapPoint* pNewMP = new MapPoint(x3D, pKFini, mpMap);
         pNewMP->AddObservation(pKFini,i);
         pKFini->AddMapPoint(pNewMP,i);
         pNewMP->ComputeDistinctiveDescriptors();
@@ -352,7 +350,7 @@ void Tracking::StereoInitialization() {
 
 #ifdef PANGOLIN
     if (mpMapDrawer != nullptr)
-      mpMapDrawer->SetCurrentCameraPose(Converter::toCvMat(mCurrentFrame.GetPose()));
+      mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
 #endif
 
     mState=OK;
@@ -399,8 +397,8 @@ void Tracking::MonocularInitialization() {
       return;
     }
 
-    cv::Mat Rcw; // Current Camera Rotation
-    cv::Mat tcw; // Current Camera Translation
+    Eigen::Matrix3d Rcw; // Current Camera Rotation
+    Eigen::Vector3d tcw; // Current Camera Translation
     vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
 
     if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated)) {
@@ -413,10 +411,11 @@ void Tracking::MonocularInitialization() {
 
       // Set Frame Poses
       mInitialFrame.SetPose(Eigen::Matrix4d::Identity());
-      cv::Mat Tcw = cv::Mat::eye(4,4,CV_32F);
-      Rcw.copyTo(Tcw.rowRange(0,3).colRange(0,3));
-      tcw.copyTo(Tcw.rowRange(0,3).col(3));
-      mCurrentFrame.SetPose(Converter::toMatrix4d(Tcw));
+      Eigen::Matrix4d Tcw;
+      Tcw.setIdentity();
+      Tcw.block<3,3>(0,0) = Rcw;
+      Tcw.block<3,1>(0,3) = tcw;
+      mCurrentFrame.SetPose(Tcw);
 
       CreateInitialMapMonocular();
     }
@@ -438,9 +437,9 @@ void Tracking::CreateInitialMapMonocular() {
       continue;
 
     //Create MapPoint.
-    cv::Mat worldPos(mvIniP3D[i]);
+    Eigen::Vector3d worldPos(Converter::toVector3d(mvIniP3D[i]));
 
-    MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
+    MapPoint* pMP = new MapPoint(worldPos, pKFcur, mpMap);
 
     pKFini->AddMapPoint(pMP,i);
     pKFcur->AddMapPoint(pMP,mvIniMatches[i]);
@@ -511,7 +510,7 @@ void Tracking::CreateInitialMapMonocular() {
 
 #ifdef PANGOLIN
   if (mpMapDrawer != nullptr)
-    mpMapDrawer->SetCurrentCameraPose(Converter::toCvMat(pKFcur->GetPose()));
+    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
 #endif
 
   mpMap->mvpKeyFrameOrigins.push_back(pKFini);
@@ -549,7 +548,7 @@ bool Tracking::TrackReferenceKeyFrame() {
   fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
   // Project points seen in reference keyframe
-  int nmatches = matcher.SearchByProjection(mCurrentFrame,mpReferenceKF,threshold_,mSensor==System::MONOCULAR);
+  int nmatches = matcher.SearchByProjection(mCurrentFrame, mpReferenceKF, threshold_, mSensor==System::MONOCULAR);
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
@@ -587,9 +586,9 @@ bool Tracking::TrackReferenceKeyFrame() {
 void Tracking::UpdateLastFrame() {
   // Update pose according to reference keyframe
   KeyFrame* pRef = mLastFrame.mpReferenceKF;
-  cv::Mat Tlr = mlRelativeFramePoses.back();
+  Eigen::Matrix4d Tlr = mlRelativeFramePoses.back();
 
-  mLastFrame.SetPose(Converter::toMatrix4d(Tlr)*pRef->GetPose());
+  mLastFrame.SetPose(Tlr*pRef->GetPose());
 }
 
 bool Tracking::TrackWithMotionModel() {
@@ -613,13 +612,13 @@ bool Tracking::TrackWithMotionModel() {
   fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
   // Project points seen in previous frame
-  int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,threshold_,mSensor==System::MONOCULAR);
+  int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, threshold_, mSensor==System::MONOCULAR);
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
     std::cout << "[DEBUG] Not enough matches, double threshold" << std::endl;
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-    nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*threshold_,mSensor==System::MONOCULAR);
+    nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor==System::MONOCULAR);
   }
 
   if (nmatches<20)
@@ -798,8 +797,7 @@ void Tracking::CreateNewKeyFrame() {
 
         if (bCreateNew) {
           Eigen::Vector3d x3D = mCurrentFrame.UnprojectStereo(i);
-          cv::Mat x3D_cv = Converter::toCvMat(x3D);
-          MapPoint* pNewMP = new MapPoint(x3D_cv,pKF,mpMap);
+          MapPoint* pNewMP = new MapPoint(x3D, pKF, mpMap);
           pNewMP->AddObservation(pKF,i);
           pKF->AddMapPoint(pNewMP,i);
           pNewMP->ComputeDistinctiveDescriptors();
@@ -865,7 +863,7 @@ void Tracking::SearchLocalPoints() {
     // If the camera has been relocalised recently, perform a coarser search
     if (mCurrentFrame.mnId<mnLastRelocFrameId+2)
       th=5;
-    matcher.SearchByProjection(mCurrentFrame,mvpLocalMapPoints,th);
+    matcher.SearchByProjection(mCurrentFrame, mvpLocalMapPoints, th);
   }
 }
 

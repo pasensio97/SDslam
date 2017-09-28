@@ -169,7 +169,7 @@ class KeyFrame {
   const int mnMinY;
   const int mnMaxX;
   const int mnMaxY;
-  const cv::Mat mK;
+  Eigen::Matrix3d mK;
 
   std::vector<cv::Mat> mvImagePyramid;
 

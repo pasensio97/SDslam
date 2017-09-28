@@ -31,7 +31,6 @@
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include "ORBextractor.h"
-#include "Converter.h"
 
 namespace SD_SLAM {
 
@@ -49,10 +48,10 @@ class Frame {
   Frame(const Frame &frame);
 
   // Constructor for RGB-D cameras.
-  Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+  Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
   // Constructor for Monocular cameras.
-  Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+  Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
   // Extract ORB on the image
   void ExtractORB(const cv::Mat &im);
@@ -106,7 +105,7 @@ class Frame {
   double mTimeStamp;
 
   // Calibration matrix and OpenCV distortion parameters.
-  cv::Mat mK;
+  Eigen::Matrix3d mK;
   static float fx;
   static float fy;
   static float cx;

@@ -45,14 +45,14 @@ class ImageAlign {
 
  private:
   // Optimize using Gauss Newton strategy
-  void Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose, cv::Mat &se3, float scale);
+  void Optimize(const cv::Mat &src, const cv::Mat &last_img, const Eigen::Matrix4d &last_pose, Eigen::Matrix4d &se3, float scale);
 
   // Compute residual and jacobians
-  double ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose,
-                          const cv::Mat &se3, float scale, bool patches);
+  double ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img, const Eigen::Matrix4d &last_pose,
+                          const Eigen::Matrix4d &se3, float scale, bool patches);
 
   // Compute patches within a pyramid level
-  void PrecomputePatches(const cv::Mat &src, const cv::Mat &pose, float scale);
+  void PrecomputePatches(const cv::Mat &src, const Eigen::Matrix4d &pose, float scale);
 
   // Project point in image
   bool Project(const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
@@ -65,7 +65,7 @@ class ImageAlign {
   double AbsMax(const Eigen::VectorXd &v);
 
   // Exponential vector
-  cv::Mat Exp(const Eigen::Matrix<double, 6, 1> &update);
+  Eigen::Matrix4d Exp(const Eigen::Matrix<double, 6, 1> &update);
   Eigen::Quaterniond RotationExp(const Eigen::Vector3d &omega, double *theta);
   Eigen::Matrix3d RotationHat(const Eigen::Vector3d &v);
 

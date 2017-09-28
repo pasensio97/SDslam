@@ -26,6 +26,7 @@
 #define SD_SLAM_INITIALIZER_H
 
 #include <opencv2/opencv.hpp>
+#include <Eigen/Dense>
 #include "Frame.h"
 
 namespace SD_SLAM {
@@ -41,7 +42,7 @@ class Initializer {
   // Computes in parallel a fundamental matrix and a homography
   // Selects a model and tries to recover the motion and the structure from motion
   bool Initialize(const Frame &CurrentFrame, const std::vector<int> &vMatches12,
-          cv::Mat &R21, cv::Mat &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated);
+          Eigen::Matrix3d &R21, Eigen::Vector3d &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated);
 
  private:
   void FindHomography(std::vector<bool> &vbMatchesInliers, float &score, cv::Mat &H21);
@@ -54,21 +55,21 @@ class Initializer {
 
   float CheckFundamental(const cv::Mat &F21, std::vector<bool> &vbMatchesInliers, float sigma);
 
-  bool ReconstructF(std::vector<bool> &vbMatchesInliers, cv::Mat &F21, cv::Mat &K,
-            cv::Mat &R21, cv::Mat &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated, float minParallax, int minTriangulated);
+  bool ReconstructF(std::vector<bool> &vbMatchesInliers, cv::Mat &F21, const Eigen::Matrix3d &K,
+            Eigen::Matrix3d &R21, Eigen::Vector3d &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated, float minParallax, int minTriangulated);
 
-  bool ReconstructH(std::vector<bool> &vbMatchesInliers, cv::Mat &H21, cv::Mat &K,
-            cv::Mat &R21, cv::Mat &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated, float minParallax, int minTriangulated);
+  bool ReconstructH(std::vector<bool> &vbMatchesInliers, cv::Mat &H21, const Eigen::Matrix3d &K,
+            Eigen::Matrix3d &R21, Eigen::Vector3d &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated, float minParallax, int minTriangulated);
 
-  void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D);
+  void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix<double,3,4> &P1, const Eigen::Matrix<double,3,4> &P2, Eigen::Vector3d &x3D);
 
   void Normalize(const std::vector<cv::KeyPoint> &vKeys, std::vector<cv::Point2f> &vNormalizedPoints, cv::Mat &T);
 
-  int CheckRT(const cv::Mat &R, const cv::Mat &t, const std::vector<cv::KeyPoint> &vKeys1,
+  int CheckRT(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, const std::vector<cv::KeyPoint> &vKeys1,
               const std::vector<cv::KeyPoint> &vKeys2, const std::vector<Match> &vMatches12, std::vector<bool> &vbInliers,
-              const cv::Mat &K, std::vector<cv::Point3f> &vP3D, float th2, std::vector<bool> &vbGood, float &parallax);
+              const Eigen::Matrix3d &K, std::vector<cv::Point3f> &vP3D, float th2, std::vector<bool> &vbGood, float &parallax);
 
-  void DecomposeE(const cv::Mat &E, cv::Mat &R1, cv::Mat &R2, cv::Mat &t);
+  void DecomposeE(const cv::Mat &E, Eigen::Matrix3d &R1, Eigen::Matrix3d &R2, Eigen::Vector3d &t);
 
 
   // Keypoints from Reference Frame (Frame 1)
@@ -82,7 +83,7 @@ class Initializer {
   std::vector<bool> mvbMatched1;
 
   // Calibration
-  cv::Mat mK;
+  Eigen::Matrix3d mK;
 
   // Standard Deviation and Variance
   float mSigma, mSigma2;
@@ -93,6 +94,8 @@ class Initializer {
   // Ransac sets
   std::vector<std::vector<size_t> > mvSets;
 
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

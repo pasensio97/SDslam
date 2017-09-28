@@ -24,6 +24,7 @@
 
 #include "MapDrawer.h"
 #include "Config.h"
+#include "Converter.h"
 
 using std::vector;
 using std::set;
@@ -33,6 +34,7 @@ using std::unique_lock;
 namespace SD_SLAM {
 
 MapDrawer::MapDrawer(Map* pMap): mpMap(pMap) {
+  mCameraPose.setZero();
 }
 
 void MapDrawer::DrawMapPoints() {
@@ -51,8 +53,8 @@ void MapDrawer::DrawMapPoints() {
   for (size_t i=0, iend=vpMPs.size(); i<iend;i++) {
     if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i]))
       continue;
-    cv::Mat pos = vpMPs[i]->GetWorldPos();
-    glVertex3f(pos.at<float>(0),pos.at<float>(1),pos.at<float>(2));
+    Eigen::Vector3d pos = vpMPs[i]->GetWorldPos();
+    glVertex3f(pos(0), pos(1), pos(2));
   }
   glEnd();
 
@@ -63,14 +65,15 @@ void MapDrawer::DrawMapPoints() {
   for (set<MapPoint*>::iterator sit=spRefMPs.begin(), send=spRefMPs.end(); sit!=send; sit++) {
     if ((*sit)->isBad())
       continue;
-    cv::Mat pos = (*sit)->GetWorldPos();
-    glVertex3f(pos.at<float>(0),pos.at<float>(1),pos.at<float>(2));
+    Eigen::Vector3d pos = (*sit)->GetWorldPos();
+    glVertex3f(pos(0), pos(1), pos(2));
   }
 
   glEnd();
 }
 
 void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
+  pangolin::OpenGlMatrix glmatrix;
   const float &w = Config::KeyFrameSize();
   const float h = w*0.75;
   const float z = w*0.6;
@@ -81,11 +84,12 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
     double lwidth = Config::KeyFrameLineWidth();
     for (size_t i=0; i<vpKFs.size(); i++) {
       KeyFrame* pKF = vpKFs[i];
-      cv::Mat Twc = Converter::toCvMat(pKF->GetPoseInverse()).t();
+      Eigen::Matrix4d Twc = pKF->GetPoseInverse().transpose();
 
       glPushMatrix();
 
-      glMultMatrixf(Twc.ptr<GLfloat>(0));
+      cv::Mat Twc_cv = Converter::toCvMat(Twc);
+      glMultMatrixf(Twc_cv.ptr<GLfloat>(0));
 
       glLineWidth(lwidth);
       glColor3f(0.0f,0.0f,0.9f);
@@ -200,39 +204,39 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
 }
 
 
-void MapDrawer::SetCurrentCameraPose(const cv::Mat &Tcw) {
+void MapDrawer::SetCurrentCameraPose(const Eigen::Matrix4d &Tcw) {
   unique_lock<mutex> lock(mMutexCamera);
-  mCameraPose = Tcw.clone();
+  mCameraPose = Tcw;
 }
 
 void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M) {
-  if (!mCameraPose.empty()) {
-    cv::Mat Rwc(3,3,CV_32F);
-    cv::Mat twc(3,1,CV_32F);
+  if (!mCameraPose.isZero()) {
+    Eigen::Matrix3d Rwc;
+    Eigen::Vector3d twc;
     {
       unique_lock<mutex> lock(mMutexCamera);
-      Rwc = mCameraPose.rowRange(0,3).colRange(0,3).t();
-      twc = -Rwc*mCameraPose.rowRange(0,3).col(3);
+      Rwc = mCameraPose.block<3,3>(0,0).transpose();
+      twc = -Rwc*mCameraPose.block<3,1>(0,3);
     }
 
-    M.m[0] = Rwc.at<float>(0,0);
-    M.m[1] = Rwc.at<float>(1,0);
-    M.m[2] = Rwc.at<float>(2,0);
+    M.m[0] = Rwc(0,0);
+    M.m[1] = Rwc(1,0);
+    M.m[2] = Rwc(2,0);
     M.m[3]  = 0.0;
 
-    M.m[4] = Rwc.at<float>(0,1);
-    M.m[5] = Rwc.at<float>(1,1);
-    M.m[6] = Rwc.at<float>(2,1);
+    M.m[4] = Rwc(0,1);
+    M.m[5] = Rwc(1,1);
+    M.m[6] = Rwc(2,1);
     M.m[7]  = 0.0;
 
-    M.m[8] = Rwc.at<float>(0,2);
-    M.m[9] = Rwc.at<float>(1,2);
-    M.m[10] = Rwc.at<float>(2,2);
+    M.m[8] = Rwc(0,2);
+    M.m[9] = Rwc(1,2);
+    M.m[10] = Rwc(2,2);
     M.m[11]  = 0.0;
 
-    M.m[12] = twc.at<float>(0);
-    M.m[13] = twc.at<float>(1);
-    M.m[14] = twc.at<float>(2);
+    M.m[12] = twc(0);
+    M.m[13] = twc(1);
+    M.m[14] = twc(2);
     M.m[15]  = 1.0;
   } else
     M.SetIdentity();

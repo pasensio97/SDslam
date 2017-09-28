@@ -130,7 +130,6 @@ bool LoopClosing::DetectLoop() {
 
     // Try to align keyframes
     ImageAlign image_align;
-    cv::Mat pose = Converter::toCvMat(kf->GetPose());
     if (!image_align.ComputePose(mpCurrentKF, kf)) {
       i++; // Skip some keyframes
       continue;
@@ -281,7 +280,7 @@ bool LoopClosing::ComputeSim3() {
       bool bNoMore;
 
       Sim3Solver* pSolver = vpSim3Solvers[i];
-      cv::Mat Scm  = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
+      Eigen::Matrix4d Scm  = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
 
       // If Ransac reachs max. iterations discard keyframe
       if (bNoMore) {
@@ -290,19 +289,19 @@ bool LoopClosing::ComputeSim3() {
       }
 
       // If RANSAC returns a Sim3, perform a guided matching and optimize with all correspondences
-      if (!Scm.empty()) {
+      if (!Scm.isZero()) {
         vector<MapPoint*> vpMapPointMatches(vvpMapPointMatches[i].size(), static_cast<MapPoint*>(NULL));
         for (size_t j=0, jend=vbInliers.size(); j<jend; j++) {
           if (vbInliers[j])
              vpMapPointMatches[j]=vvpMapPointMatches[i][j];
         }
 
-        cv::Mat R = pSolver->GetEstimatedRotation();
-        cv::Mat t = pSolver->GetEstimatedTranslation();
+        Eigen::Matrix3d R = pSolver->GetEstimatedRotation();
+        Eigen::Vector3d t = pSolver->GetEstimatedTranslation();
         const float s = pSolver->GetEstimatedScale();
-        matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
+        matcher.SearchBySim3(mpCurrentKF, pKF, vpMapPointMatches, s, R, t, 7.5);
 
-        g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
+        g2o::Sim3 gScm(R, t, s);
         const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
 
         // If optimization is succesful stop ransacs and continue
@@ -311,7 +310,7 @@ bool LoopClosing::ComputeSim3() {
           mpMatchedKF = pKF;
           g2o::Sim3 gSmw(pKF->GetRotation(), pKF->GetTranslation(),1.0);
           mg2oScw = gScm*gSmw;
-          mScw = Converter::toCvMat(mg2oScw);
+          mScw = Converter::toMatrix4d(mg2oScw);
 
           mvpCurrentMatchedPoints = vpMapPointMatches;
           break;
@@ -346,7 +345,7 @@ bool LoopClosing::ComputeSim3() {
   }
 
   // Find more matches projecting with the computed Sim3
-  matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints,10);
+  matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints, 10);
 
   // If enough matches accept Loop
   int nTotalMatches = 0;
@@ -449,12 +448,10 @@ void LoopClosing::CorrectLoop() {
           continue;
 
         // Project with non-corrected pose and project back with corrected pose
-        cv::Mat P3Dw = pMPi->GetWorldPos();
-        Eigen::Matrix<double,3,1> eigP3Dw = Converter::toVector3d(P3Dw);
-        Eigen::Matrix<double,3,1> eigCorrectedP3Dw = g2oCorrectedSwi.map(g2oSiw.map(eigP3Dw));
+        Eigen::Vector3d P3Dw = pMPi->GetWorldPos();
+        Eigen::Vector3d CorrectedP3Dw = g2oCorrectedSwi.map(g2oSiw.map(P3Dw));
 
-        cv::Mat cvCorrectedP3Dw = Converter::toCvMat(eigCorrectedP3Dw);
-        pMPi->SetWorldPos(cvCorrectedP3Dw);
+        pMPi->SetWorldPos(CorrectedP3Dw);
         pMPi->mnCorrectedByKF = mpCurrentKF->mnId;
         pMPi->mnCorrectedReference = pKFi->mnId;
         pMPi->UpdateNormalAndDepth();
@@ -543,10 +540,10 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap) {
     KeyFrame* pKF = mit->first;
 
     g2o::Sim3 g2oScw = mit->second;
-    cv::Mat cvScw = Converter::toCvMat(g2oScw);
+    Eigen::Matrix4d cvScw = Converter::toMatrix4d(g2oScw);
 
     vector<MapPoint*> vpReplacePoints(mvpLoopMapPoints.size(),static_cast<MapPoint*>(NULL));
-    matcher.Fuse(pKF,cvScw,mvpLoopMapPoints,4,vpReplacePoints);
+    matcher.Fuse(pKF, cvScw, mvpLoopMapPoints, 4, vpReplacePoints);
 
     // Get Map Mutex
     unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
@@ -656,14 +653,14 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
             continue;
 
           // Map to non-corrected camera
-          cv::Mat Rcw = Converter::toCvMat(pRefKF->mTcwBefGBA).rowRange(0,3).colRange(0,3);
-          cv::Mat tcw = Converter::toCvMat(pRefKF->mTcwBefGBA).rowRange(0,3).col(3);
-          cv::Mat Xc = Rcw*pMP->GetWorldPos()+tcw;
+          Eigen::Matrix3d Rcw = pRefKF->mTcwBefGBA.block<3,3>(0,0);
+          Eigen::Vector3d tcw = pRefKF->mTcwBefGBA.block<3,1>(0,3);
+          Eigen::Vector3d Xc = Rcw*pMP->GetWorldPos()+tcw;
 
           // Backproject using corrected camera
-          cv::Mat Twc = Converter::toCvMat(pRefKF->GetPoseInverse());
-          cv::Mat Rwc = Twc.rowRange(0,3).colRange(0,3);
-          cv::Mat twc = Twc.rowRange(0,3).col(3);
+          Eigen::Matrix4d Twc = pRefKF->GetPoseInverse();
+          Eigen::Matrix3d Rwc = Twc.block<3,3>(0,0);
+          Eigen::Vector3d twc = Twc.block<3,1>(0,3);
 
           pMP->SetWorldPos(Rwc*Xc+twc);
         }

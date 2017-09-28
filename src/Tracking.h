@@ -114,7 +114,7 @@ class Tracking {
 
   // Lists used to recover the full camera trajectory at the end of the execution.
   // Basically we store the reference keyframe for each frame and its relative transformation
-  std::list<cv::Mat> mlRelativeFramePoses;
+  std::list<Eigen::Matrix4d> mlRelativeFramePoses;
   std::list<KeyFrame*> mlpReferences;
   std::list<double> mlFrameTimes;
   std::list<bool> mlbLost;
@@ -179,7 +179,7 @@ class Tracking {
   Map* mpMap;
 
   // Calibration matrix
-  cv::Mat mK;
+  Eigen::Matrix3d mK;
   cv::Mat mDistCoef;
   float mbf;
 

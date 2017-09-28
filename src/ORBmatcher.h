@@ -22,13 +22,13 @@
  *
  */
 
-
 #ifndef SD_SLAM_ORBMATCHER_H
 #define SD_SLAM_ORBMATCHER_H
 
 #include <vector>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <Eigen/Dense>
 #include "MapPoint.h"
 #include "KeyFrame.h"
 #include "Frame.h"
@@ -61,24 +61,24 @@ class ORBmatcher {
 
   // Project MapPoints using a Similarity Transformation and search matches.
   // Used in loop detection (Loop Closing)
-   int SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const std::vector<MapPoint*> &vpPoints, std::vector<MapPoint*> &vpMatched, int th);
+   int SearchByProjection(KeyFrame* pKF, const Eigen::Matrix4d &Scw, const std::vector<MapPoint*> &vpPoints, std::vector<MapPoint*> &vpMatched, int th);
 
   // Matching for the Map Initialization (only used in the monocular case)
   int SearchForInitialization(Frame &F1, Frame &F2, std::vector<cv::Point2f> &vbPrevMatched, std::vector<int> &vnMatches12, int windowSize=10);
 
   // Matching to triangulate new MapPoints. Check Epipolar Constraint.
-  int SearchForTriangulation(KeyFrame *pKF1, KeyFrame* pKF2, cv::Mat F12,
-                 std::vector<std::pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo);
+  int SearchForTriangulation(KeyFrame *pKF1, KeyFrame* pKF2, const Eigen::Matrix3d &F12,
+                 std::vector<std::pair<size_t, size_t> > &vMatchedPairs);
 
   // Search matches between MapPoints seen in KF1 and KF2 transforming by a Sim3 [s12*R12|t12]
   // In the stereo and RGB-D case, s12=1
-  int SearchBySim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches12, const float &s12, const cv::Mat &R12, const cv::Mat &t12, const float th);
+  int SearchBySim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches12, const float &s12, const Eigen::Matrix3d &R12, const Eigen::Vector3d &t12, const float th);
 
   // Project MapPoints into KeyFrame and search for duplicated MapPoints.
   int Fuse(KeyFrame* pKF, const std::vector<MapPoint *> &vpMapPoints, const float th=3.0);
 
   // Project MapPoints into KeyFrame using a given Sim3 and search for duplicated MapPoints.
-  int Fuse(KeyFrame* pKF, cv::Mat Scw, const std::vector<MapPoint*> &vpPoints, float th, std::vector<MapPoint *> &vpReplacePoint);
+  int Fuse(KeyFrame* pKF, const Eigen::Matrix4d &Scw, const std::vector<MapPoint*> &vpPoints, float th, std::vector<MapPoint *> &vpReplacePoint);
 
  public:
   static const int TH_LOW;
@@ -86,7 +86,7 @@ class ORBmatcher {
   static const int HISTO_LENGTH;
 
  protected:
-  bool CheckDistEpipolarLine(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &F12, const KeyFrame *pKF);
+  bool CheckDistEpipolarLine(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix3d &F12, const KeyFrame *pKF);
 
   float RadiusByViewingCos(const float &viewCos);
 

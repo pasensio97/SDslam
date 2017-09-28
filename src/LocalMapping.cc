@@ -27,7 +27,7 @@
 #include "LoopClosing.h"
 #include "ORBmatcher.h"
 #include "Optimizer.h"
-
+#include "Converter.h"
 
 using std::vector;
 using std::list;
@@ -192,13 +192,13 @@ void LocalMapping::CreateNewMapPoints() {
 
   ORBmatcher matcher(0.6,false);
 
-  cv::Mat Rcw1 = Converter::toCvMat(mpCurrentKeyFrame->GetRotation());
-  cv::Mat Rwc1 = Rcw1.t();
-  cv::Mat tcw1 = Converter::toCvMat(mpCurrentKeyFrame->GetTranslation());
-  cv::Mat Tcw1(3,4,CV_32F);
-  Rcw1.copyTo(Tcw1.colRange(0,3));
-  tcw1.copyTo(Tcw1.col(3));
-  cv::Mat Ow1 = Converter::toCvMat(mpCurrentKeyFrame->GetCameraCenter());
+  Eigen::Matrix3d Rcw1 = mpCurrentKeyFrame->GetRotation();
+  Eigen::Matrix3d Rwc1 = Rcw1.transpose();
+  Eigen::Vector3d tcw1 = mpCurrentKeyFrame->GetTranslation();
+  Eigen::Matrix<double,3,4> Tcw1;
+  Tcw1.block<3,3>(0,0) = Rcw1;
+  Tcw1.block<3,1>(0,3) = tcw1;
+  Eigen::Vector3d Ow1 = mpCurrentKeyFrame->GetCameraCenter();
 
   const float &fx1 = mpCurrentKeyFrame->fx;
   const float &fy1 = mpCurrentKeyFrame->fy;
@@ -219,9 +219,9 @@ void LocalMapping::CreateNewMapPoints() {
     KeyFrame* pKF2 = vpNeighKFs[i];
 
     // Check first that baseline is not too short
-    cv::Mat Ow2 = Converter::toCvMat(pKF2->GetCameraCenter());
-    cv::Mat vBaseline = Ow2-Ow1;
-    const float baseline = cv::norm(vBaseline);
+    Eigen::Vector3d Ow2 = pKF2->GetCameraCenter();
+    Eigen::Vector3d vBaseline = Ow2-Ow1;
+    const float baseline = vBaseline.norm();
 
     if (!mbMonocular) {
       if (baseline<pKF2->mb)
@@ -235,18 +235,18 @@ void LocalMapping::CreateNewMapPoints() {
     }
 
     // Compute Fundamental Matrix
-    cv::Mat F12 = ComputeF12(mpCurrentKeyFrame,pKF2);
+    Eigen::Matrix3d F12 = ComputeF12(mpCurrentKeyFrame, pKF2);
 
     // Search matches that fullfil epipolar constraint
     vector<std::pair<size_t,size_t> > vMatchedIndices;
-    matcher.SearchForTriangulation(mpCurrentKeyFrame,pKF2,F12,vMatchedIndices,false);
+    matcher.SearchForTriangulation(mpCurrentKeyFrame, pKF2, F12,vMatchedIndices);
 
-    cv::Mat Rcw2 = Converter::toCvMat(pKF2->GetRotation());
-    cv::Mat Rwc2 = Rcw2.t();
-    cv::Mat tcw2 = Converter::toCvMat(pKF2->GetTranslation());
-    cv::Mat Tcw2(3,4,CV_32F);
-    Rcw2.copyTo(Tcw2.colRange(0,3));
-    tcw2.copyTo(Tcw2.col(3));
+    Eigen::Matrix3d Rcw2 = pKF2->GetRotation();
+    Eigen::Matrix3d Rwc2 = Rcw2.transpose();
+    Eigen::Vector3d tcw2 = pKF2->GetTranslation();
+    Eigen::Matrix<double,3,4> Tcw2;
+    Tcw2.block<3,3>(0,0) = Rcw2;
+    Tcw2.block<3,1>(0,3) = tcw2;
 
     const float &fx2 = pKF2->fx;
     const float &fy2 = pKF2->fy;
@@ -270,12 +270,12 @@ void LocalMapping::CreateNewMapPoints() {
       bool bStereo2 = kp2_ur>=0;
 
       // Check parallax between rays
-      cv::Mat xn1 = (cv::Mat_<float>(3,1) << (kp1.pt.x-cx1)*invfx1, (kp1.pt.y-cy1)*invfy1, 1.0);
-      cv::Mat xn2 = (cv::Mat_<float>(3,1) << (kp2.pt.x-cx2)*invfx2, (kp2.pt.y-cy2)*invfy2, 1.0);
+      Eigen::Vector3d xn1((kp1.pt.x-cx1)*invfx1, (kp1.pt.y-cy1)*invfy1, 1.0);
+      Eigen::Vector3d xn2((kp2.pt.x-cx2)*invfx2, (kp2.pt.y-cy2)*invfy2, 1.0);
 
-      cv::Mat ray1 = Rwc1*xn1;
-      cv::Mat ray2 = Rwc2*xn2;
-      const float cosParallaxRays = ray1.dot(ray2)/(cv::norm(ray1)*cv::norm(ray2));
+      Eigen::Vector3d ray1 = Rwc1*xn1;
+      Eigen::Vector3d ray2 = Rwc2*xn2;
+      const float cosParallaxRays = ray1.dot(ray2)/(ray1.norm()*ray2.norm());
 
       float cosParallaxStereo = cosParallaxRays+1;
       float cosParallaxStereo1 = cosParallaxStereo;
@@ -288,48 +288,51 @@ void LocalMapping::CreateNewMapPoints() {
 
       cosParallaxStereo = std::min(cosParallaxStereo1,cosParallaxStereo2);
 
-      cv::Mat x3D;
+      Eigen::Vector3d x3D;
       if (cosParallaxRays<cosParallaxStereo && cosParallaxRays>0 && (bStereo1 || bStereo2 || cosParallaxRays<0.9998)) {
         // Linear Triangulation Method
-        cv::Mat A(4,4,CV_32F);
-        A.row(0) = xn1.at<float>(0)*Tcw1.row(2)-Tcw1.row(0);
-        A.row(1) = xn1.at<float>(1)*Tcw1.row(2)-Tcw1.row(1);
-        A.row(2) = xn2.at<float>(0)*Tcw2.row(2)-Tcw2.row(0);
-        A.row(3) = xn2.at<float>(1)*Tcw2.row(2)-Tcw2.row(1);
+        Eigen::Matrix4d A;
+        A.row(0) = xn1(0)*Tcw1.row(2)-Tcw1.row(0);
+        A.row(1) = xn1(1)*Tcw1.row(2)-Tcw1.row(1);
+        A.row(2) = xn2(0)*Tcw2.row(2)-Tcw2.row(0);
+        A.row(3) = xn2(1)*Tcw2.row(2)-Tcw2.row(1);
 
+        cv::Mat A_cv(4,4,CV_32F);
         cv::Mat w,u,vt;
-        cv::SVD::compute(A,w,u,vt,cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
+        A_cv = Converter::toCvMat(A);
+        cv::SVD::compute(A_cv,w,u,vt,cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
 
-        x3D = vt.row(3).t();
+        cv::Mat x3D_cv = vt.row(3).t();
 
-        if (x3D.at<float>(3)==0)
+        if (x3D_cv.at<float>(3)==0)
           continue;
 
         // Euclidean coordinates
-        x3D = x3D.rowRange(0,3)/x3D.at<float>(3);
+        x3D_cv = x3D_cv.rowRange(0,3)/x3D_cv.at<float>(3);
+        x3D = Converter::toVector3d(x3D_cv);
 
       } else if (bStereo1 && cosParallaxStereo1<cosParallaxStereo2) {
-        x3D = Converter::toCvMat(mpCurrentKeyFrame->UnprojectStereo(idx1));
+        x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);
       } else if (bStereo2 && cosParallaxStereo2<cosParallaxStereo1) {
-        x3D = Converter::toCvMat(pKF2->UnprojectStereo(idx2));
+        x3D = pKF2->UnprojectStereo(idx2);
       } else
         continue; //No stereo and very low parallax
 
-      cv::Mat x3Dt = x3D.t();
+      Eigen::Vector3d x3Dt = x3D.transpose();
 
       //Check triangulation in front of cameras
-      float z1 = Rcw1.row(2).dot(x3Dt)+tcw1.at<float>(2);
+      float z1 = Rcw1.row(2).dot(x3Dt)+tcw1(2);
       if (z1<=0)
         continue;
 
-      float z2 = Rcw2.row(2).dot(x3Dt)+tcw2.at<float>(2);
+      float z2 = Rcw2.row(2).dot(x3Dt)+tcw2(2);
       if (z2<=0)
         continue;
 
       //Check reprojection error in first keyframe
       const float &sigmaSquare1 = mpCurrentKeyFrame->mvLevelSigma2[kp1.octave];
-      const float x1 = Rcw1.row(0).dot(x3Dt)+tcw1.at<float>(0);
-      const float y1 = Rcw1.row(1).dot(x3Dt)+tcw1.at<float>(1);
+      const float x1 = Rcw1.row(0).dot(x3Dt)+tcw1(0);
+      const float y1 = Rcw1.row(1).dot(x3Dt)+tcw1(1);
       const float invz1 = 1.0/z1;
 
       if (!bStereo1) {
@@ -352,8 +355,8 @@ void LocalMapping::CreateNewMapPoints() {
 
       //Check reprojection error in second keyframe
       const float sigmaSquare2 = pKF2->mvLevelSigma2[kp2.octave];
-      const float x2 = Rcw2.row(0).dot(x3Dt)+tcw2.at<float>(0);
-      const float y2 = Rcw2.row(1).dot(x3Dt)+tcw2.at<float>(1);
+      const float x2 = Rcw2.row(0).dot(x3Dt)+tcw2(0);
+      const float y2 = Rcw2.row(1).dot(x3Dt)+tcw2(1);
       const float invz2 = 1.0/z2;
       if (!bStereo2) {
         float u2 = fx2*x2*invz2+cx2;
@@ -374,11 +377,11 @@ void LocalMapping::CreateNewMapPoints() {
       }
 
       //Check scale consistency
-      cv::Mat normal1 = x3D-Ow1;
-      float dist1 = cv::norm(normal1);
+      Eigen::Vector3d normal1 = x3D-Ow1;
+      float dist1 = normal1.norm();
 
-      cv::Mat normal2 = x3D-Ow2;
-      float dist2 = cv::norm(normal2);
+      Eigen::Vector3d normal2 = x3D-Ow2;
+      float dist2 = normal2.norm();
 
       if (dist1==0 || dist2==0)
         continue;
@@ -392,7 +395,7 @@ void LocalMapping::CreateNewMapPoints() {
         continue;
 
       // Triangulation is succesfull
-      MapPoint* pMP = new MapPoint(x3D,mpCurrentKeyFrame,mpMap);
+      MapPoint* pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap);
 
       pMP->AddObservation(mpCurrentKeyFrame,idx1);      
       pMP->AddObservation(pKF2,idx2);
@@ -443,7 +446,7 @@ void LocalMapping::SearchInNeighbors() {
   for (vector<KeyFrame*>::iterator vit=vpTargetKFs.begin(), vend=vpTargetKFs.end(); vit!=vend; vit++) {
     KeyFrame* pKFi = *vit;
 
-    matcher.Fuse(pKFi,vpMapPointMatches);
+    matcher.Fuse(pKFi, vpMapPointMatches);
   }
 
   // Search matches by projection from target KFs in current KF
@@ -466,8 +469,7 @@ void LocalMapping::SearchInNeighbors() {
     }
   }
 
-  matcher.Fuse(mpCurrentKeyFrame,vpFuseCandidates);
-
+  matcher.Fuse(mpCurrentKeyFrame, vpFuseCandidates);
 
   // Update points
   vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
@@ -485,22 +487,23 @@ void LocalMapping::SearchInNeighbors() {
   mpCurrentKeyFrame->UpdateConnections();
 }
 
-cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2) {
-  cv::Mat R1w = Converter::toCvMat(pKF1->GetRotation());
-  cv::Mat t1w = Converter::toCvMat(pKF1->GetTranslation());
-  cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
-  cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
+Eigen::Matrix3d LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2) {
+  Eigen::Matrix3d R1w = pKF1->GetRotation();
+  Eigen::Vector3d t1w = pKF1->GetTranslation();
+  Eigen::Matrix3d R2w = pKF2->GetRotation();
+  Eigen::Vector3d t2w = pKF2->GetTranslation();
 
-  cv::Mat R12 = R1w*R2w.t();
-  cv::Mat t12 = -R1w*R2w.t()*t2w+t1w;
+  Eigen::Matrix3d R12 = R1w*R2w.transpose();
+  Eigen::Vector3d t12 = -R1w*R2w.transpose()*t2w+t1w;
 
-  cv::Mat t12x = SkewSymmetricMatrix(t12);
+  Eigen::Matrix3d t12x = SkewSymmetricMatrix(t12);
 
-  const cv::Mat &K1 = pKF1->mK;
-  const cv::Mat &K2 = pKF2->mK;
+  Eigen::Matrix3d K1 = pKF1->mK;
+  Eigen::Matrix3d K2 = pKF2->mK;
 
+  Eigen::Matrix3d res = K1.transpose().inverse()*t12x*R12*K2.inverse();
 
-  return K1.t().inv()*t12x*R12*K2.inv();
+  return res;
 }
 
 void LocalMapping::RequestStop() {
@@ -626,10 +629,10 @@ void LocalMapping::KeyFrameCulling() {
   }
 }
 
-cv::Mat LocalMapping::SkewSymmetricMatrix(const cv::Mat &v) {
-  return (cv::Mat_<float>(3,3) <<       0, -v.at<float>(2), v.at<float>(1),
-      v.at<float>(2),         0,-v.at<float>(0),
-      -v.at<float>(1),  v.at<float>(0),        0);
+Eigen::Matrix3d LocalMapping::SkewSymmetricMatrix(const Eigen::Vector3d &v) {
+  Eigen::Matrix3d m;
+  m << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
+  return m;
 }
 
 void LocalMapping::RequestReset() {

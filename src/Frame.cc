@@ -24,9 +24,8 @@
 
 #include "Frame.h"
 #include <thread>
-#include "Converter.h"
 #include "ORBmatcher.h"
-#include "extra/timer.h"
+#include "Converter.h"
 
 using std::vector;
 
@@ -44,7 +43,7 @@ Frame::Frame() {
 
 //Copy Constructor
 Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
-   mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()),
+   mTimeStamp(frame.mTimeStamp), mK(frame.mK), mDistCoef(frame.mDistCoef.clone()),
    mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
    mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight),
    mvDepth(frame.mvDepth), mDescriptors(frame.mDescriptors.clone()),
@@ -67,7 +66,7 @@ Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth) : mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),
+Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth) : mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K),
   mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
@@ -105,10 +104,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
     mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
 
-    fx = K.at<float>(0,0);
-    fy = K.at<float>(1,1);
-    cx = K.at<float>(0,2);
-    cy = K.at<float>(1,2);
+    fx = K(0,0);
+    fy = K(1,1);
+    cx = K(0,2);
+    cy = K(1,2);
     invfx = 1.0f/fx;
     invfy = 1.0f/fy;
 
@@ -121,8 +120,8 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-  :mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+  :mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
 
@@ -159,10 +158,10 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
     mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
 
-    fx = K.at<float>(0,0);
-    fy = K.at<float>(1,1);
-    cx = K.at<float>(0,2);
-    cy = K.at<float>(1,2);
+    fx = K(0,0);
+    fy = K(1,1);
+    cx = K(0,2);
+    cy = K(1,2);
     invfx = 1.0f/fx;
     invfy = 1.0f/fy;
 
@@ -214,8 +213,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
   pMP->mbTrackInView = false;
 
   // 3D in absolute coordinates
-  cv::Mat P_cv = pMP->GetWorldPos();
-  Eigen::Vector3d P = Converter::toVector3d(P_cv);
+  Eigen::Vector3d P = pMP->GetWorldPos();
 
   // 3D in camera coordinates
   Eigen::Vector3d Pc = mRcw*P+mtcw;
@@ -247,10 +245,8 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
     return false;
 
    // Check viewing angle
-  cv::Mat Pn = pMP->GetNormal();
-  Eigen::Vector3d Pn_e = Converter::toVector3d(Pn);
-
-  const float viewCos = PO.dot(Pn_e)/dist;
+  Eigen::Vector3d Pn = pMP->GetNormal();
+  const float viewCos = PO.dot(Pn)/dist;
 
   if (viewCos<viewingCosLimit)
     return false;
@@ -347,7 +343,8 @@ void Frame::UndistortKeyPoints() {
 
   // Undistort points
   mat=mat.reshape(2);
-  cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+  cv::Mat mK_cv = Converter::toCvMat(mK);
+  cv::undistortPoints(mat,mat,mK_cv,mDistCoef,cv::Mat(),mK_cv);
   mat=mat.reshape(1);
 
   // Fill undistorted keypoint vector
@@ -370,7 +367,8 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft) {
 
     // Undistort corners
     mat=mat.reshape(2);
-    cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+    cv::Mat mK_cv = Converter::toCvMat(mK);
+    cv::undistortPoints(mat,mat,mK_cv,mDistCoef,cv::Mat(),mK_cv);
     mat=mat.reshape(1);
 
     mnMinX = std::min(mat.at<float>(0,0),mat.at<float>(2,0));
@@ -416,7 +414,7 @@ Eigen::Vector3d Frame::UnprojectStereo(const int &i) {
     Eigen::Vector3d x3Dc(x, y, z);
     return mRwc*x3Dc+mOw;
   } else
-    return Eigen::Vector3d();
+    return Eigen::Vector3d::Zero();
 }
 
 }  // namespace SD_SLAM

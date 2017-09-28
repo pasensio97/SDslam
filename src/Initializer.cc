@@ -26,6 +26,7 @@
 #include <thread>
 #include "Optimizer.h"
 #include "ORBmatcher.h"
+#include "Converter.h"
 #include "extra/utils.h"
 
 using std::vector;
@@ -34,7 +35,7 @@ using std::list;
 namespace SD_SLAM {
 
 Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iterations) {
-  mK = ReferenceFrame.mK.clone();
+  mK = ReferenceFrame.mK;
 
   mvKeys1 = ReferenceFrame.mvKeysUn;
 
@@ -43,8 +44,8 @@ Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iteration
   mMaxIterations = iterations;
 }
 
-bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatches12, cv::Mat &R21, cv::Mat &t21,
-               vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated) {
+bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatches12, Eigen::Matrix3d &R21,
+                Eigen::Vector3d &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated) {
   // Fill structures with current keypoints and matches with reference frame
   // Reference Frame: 1, Current Frame: 2
   mvKeys2 = CurrentFrame.mvKeysUn;
@@ -444,39 +445,36 @@ float Initializer::CheckFundamental(const cv::Mat &F21, vector<bool> &vbMatchesI
   return score;
 }
 
-bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv::Mat &K,
-              cv::Mat &R21, cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated) {
+bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, const Eigen::Matrix3d &K,
+              Eigen::Matrix3d &R21, Eigen::Vector3d &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated) {
   int N=0;
   for (size_t i=0, iend = vbMatchesInliers.size() ; i<iend; i++)
     if (vbMatchesInliers[i])
       N++;
 
   // Compute Essential Matrix from Fundamental Matrix
-  cv::Mat E21 = K.t()*F21*K;
+  cv::Mat E21 = Converter::toCvMat(K).t()*F21*Converter::toCvMat(K);
 
-  cv::Mat R1, R2, t;
+  Eigen::Matrix3d R1, R2;
+  Eigen::Vector3d t;
 
   // Recover the 4 motion hypotheses
-  DecomposeE(E21,R1,R2,t);  
+  DecomposeE(E21, R1, R2, t);
 
-  cv::Mat t1=t;
-  cv::Mat t2=-t;
+  Eigen::Vector3d t1 = t;
+  Eigen::Vector3d t2 = -t;
 
   // Reconstruct with the 4 hyphoteses and check
   vector<cv::Point3f> vP3D1, vP3D2, vP3D3, vP3D4;
   vector<bool> vbTriangulated1,vbTriangulated2,vbTriangulated3, vbTriangulated4;
   float parallax1,parallax2, parallax3, parallax4;
 
-  int nGood1 = CheckRT(R1,t1,mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K, vP3D1, 4.0*mSigma2, vbTriangulated1, parallax1);
-  int nGood2 = CheckRT(R2,t1,mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K, vP3D2, 4.0*mSigma2, vbTriangulated2, parallax2);
-  int nGood3 = CheckRT(R1,t2,mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K, vP3D3, 4.0*mSigma2, vbTriangulated3, parallax3);
-  int nGood4 = CheckRT(R2,t2,mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K, vP3D4, 4.0*mSigma2, vbTriangulated4, parallax4);
+  int nGood1 = CheckRT(R1, t1, mvKeys1, mvKeys2, mvMatches12, vbMatchesInliers, K, vP3D1, 4.0*mSigma2, vbTriangulated1, parallax1);
+  int nGood2 = CheckRT(R2, t1, mvKeys1, mvKeys2, mvMatches12, vbMatchesInliers, K, vP3D2, 4.0*mSigma2, vbTriangulated2, parallax2);
+  int nGood3 = CheckRT(R1, t2, mvKeys1, mvKeys2, mvMatches12, vbMatchesInliers, K, vP3D3, 4.0*mSigma2, vbTriangulated3, parallax3);
+  int nGood4 = CheckRT(R2, t2, mvKeys1, mvKeys2, mvMatches12, vbMatchesInliers, K, vP3D4, 4.0*mSigma2, vbTriangulated4, parallax4);
 
   int maxGood = std::max(nGood1, std::max(nGood2, std::max(nGood3,nGood4)));
-
-  R21 = cv::Mat();
-  t21 = cv::Mat();
-
   int nMinGood = std::max(static_cast<int>(0.9*N),minTriangulated);
 
   int nsimilar = 0;
@@ -500,8 +498,8 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
       vP3D = vP3D1;
       vbTriangulated = vbTriangulated1;
 
-      R1.copyTo(R21);
-      t1.copyTo(t21);
+      R21 = R1;
+      t21 = t1;
       return true;
     }
   }else if (maxGood==nGood2) {
@@ -509,8 +507,8 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
       vP3D = vP3D2;
       vbTriangulated = vbTriangulated2;
 
-      R2.copyTo(R21);
-      t1.copyTo(t21);
+      R21 = R2;
+      t21 = t1;
       return true;
     }
   }else if (maxGood==nGood3) {
@@ -518,8 +516,8 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
       vP3D = vP3D3;
       vbTriangulated = vbTriangulated3;
 
-      R1.copyTo(R21);
-      t2.copyTo(t21);
+      R21 = R1;
+      t21 = t2;
       return true;
     }
   }else if (maxGood==nGood4) {
@@ -527,8 +525,8 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
       vP3D = vP3D4;
       vbTriangulated = vbTriangulated4;
 
-      R2.copyTo(R21);
-      t2.copyTo(t21);
+      R21 = R2;
+      t21 = t2;
       return true;
     }
   }
@@ -536,8 +534,8 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
   return false;
 }
 
-bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv::Mat &K,
-            cv::Mat &R21, cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated) {
+bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, const Eigen::Matrix3d &K,
+            Eigen::Matrix3d &R21, Eigen::Vector3d &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated) {
   int N=0;
   for (size_t i=0, iend = vbMatchesInliers.size() ; i<iend; i++)
     if (vbMatchesInliers[i])
@@ -547,8 +545,8 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
   // Motion and structure from motion in a piecewise planar environment.
   // International Journal of Pattern Recognition and Artificial Intelligence, 1988
 
-  cv::Mat invK = K.inv();
-  cv::Mat A = invK*H21*K;
+  cv::Mat invK = Converter::toCvMat(K).inv();
+  cv::Mat A = invK*H21*Converter::toCvMat(K);
 
   cv::Mat U,w,Vt,V;
   cv::SVD::compute(A,w,U,Vt,cv::SVD::FULL_UV);
@@ -564,7 +562,8 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
     return false;
   }
 
-  vector<cv::Mat> vR, vt, vn;
+  vector<Eigen::Matrix3d> vR;
+  vector<Eigen::Vector3d> vt, vn;
   vR.reserve(8);
   vt.reserve(8);
   vn.reserve(8);
@@ -582,31 +581,32 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
   float stheta[] = {aux_stheta, -aux_stheta, -aux_stheta, aux_stheta};
 
   for (int i=0; i<4; i++) {
-    cv::Mat Rp=cv::Mat::eye(3,3,CV_32F);
-    Rp.at<float>(0,0)=ctheta;
-    Rp.at<float>(0,2)=-stheta[i];
-    Rp.at<float>(2,0)=stheta[i];
-    Rp.at<float>(2,2)=ctheta;
+    Eigen::Matrix3d Rp;
+    Rp.setIdentity();
+    Rp(0,0)=ctheta;
+    Rp(0,2)=-stheta[i];
+    Rp(2,0)=stheta[i];
+    Rp(2,2)=ctheta;
 
-    cv::Mat R = s*U*Rp*Vt;
+    Eigen::Matrix3d R = s*Converter::toMatrix3d(U)*Rp*Converter::toMatrix3d(Vt);
     vR.push_back(R);
 
-    cv::Mat tp(3,1,CV_32F);
-    tp.at<float>(0)=x1[i];
-    tp.at<float>(1)=0;
-    tp.at<float>(2)=-x3[i];
+    Eigen::Vector3d tp;
+    tp(0)=x1[i];
+    tp(1)=0;
+    tp(2)=-x3[i];
     tp*=d1-d3;
 
-    cv::Mat t = U*tp;
-    vt.push_back(t/cv::norm(t));
+    Eigen::Vector3d t = Converter::toMatrix3d(U)*tp;
+    vt.push_back(t/t.norm());
 
-    cv::Mat np(3,1,CV_32F);
-    np.at<float>(0)=x1[i];
-    np.at<float>(1)=0;
-    np.at<float>(2)=x3[i];
+    Eigen::Vector3d np;
+    np(0)=x1[i];
+    np(1)=0;
+    np(2)=x3[i];
 
-    cv::Mat n = V*np;
-    if (n.at<float>(2)<0)
+    Eigen::Vector3d n = Converter::toMatrix3d(V)*np;
+    if (n(2)<0)
       n=-n;
     vn.push_back(n);
   }
@@ -618,32 +618,33 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
   float sphi[] = {aux_sphi, -aux_sphi, -aux_sphi, aux_sphi};
 
   for (int i=0; i<4; i++) {
-    cv::Mat Rp=cv::Mat::eye(3,3,CV_32F);
-    Rp.at<float>(0,0)=cphi;
-    Rp.at<float>(0,2)=sphi[i];
-    Rp.at<float>(1,1)=-1;
-    Rp.at<float>(2,0)=sphi[i];
-    Rp.at<float>(2,2)=-cphi;
+    Eigen::Matrix3d Rp;
+    Rp.setIdentity();
+    Rp(0,0)=cphi;
+    Rp(0,2)=sphi[i];
+    Rp(1,1)=-1;
+    Rp(2,0)=sphi[i];
+    Rp(2,2)=-cphi;
 
-    cv::Mat R = s*U*Rp*Vt;
+    Eigen::Matrix3d R = s*Converter::toMatrix3d(U)*Rp*Converter::toMatrix3d(Vt);
     vR.push_back(R);
 
-    cv::Mat tp(3,1,CV_32F);
-    tp.at<float>(0)=x1[i];
-    tp.at<float>(1)=0;
-    tp.at<float>(2)=x3[i];
+    Eigen::Vector3d tp(3,1,CV_32F);
+    tp(0)=x1[i];
+    tp(1)=0;
+    tp(2)=x3[i];
     tp*=d1+d3;
 
-    cv::Mat t = U*tp;
-    vt.push_back(t/cv::norm(t));
+    Eigen::Vector3d t = Converter::toMatrix3d(U)*tp;
+    vt.push_back(t/t.norm());
 
-    cv::Mat np(3,1,CV_32F);
-    np.at<float>(0)=x1[i];
-    np.at<float>(1)=0;
-    np.at<float>(2)=x3[i];
+    Eigen::Vector3d np;
+    np(0)=x1[i];
+    np(1)=0;
+    np(2)=x3[i];
 
-    cv::Mat n = V*np;
-    if (n.at<float>(2)<0)
+    Eigen::Vector3d n = Converter::toMatrix3d(V)*np;
+    if (n(2)<0)
       n=-n;
     vn.push_back(n);
   }
@@ -662,7 +663,7 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
     float parallaxi;
     vector<cv::Point3f> vP3Di;
     vector<bool> vbTriangulatedi;
-    int nGood = CheckRT(vR[i],vt[i],mvKeys1,mvKeys2,mvMatches12,vbMatchesInliers,K,vP3Di, 4.0*mSigma2, vbTriangulatedi, parallaxi);
+    int nGood = CheckRT(vR[i], vt[i], mvKeys1, mvKeys2, mvMatches12, vbMatchesInliers, K, vP3Di, 4.0*mSigma2, vbTriangulatedi, parallaxi);
 
     if (nGood>bestGood) {
       secondBestGood = bestGood;
@@ -678,8 +679,8 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
 
 
   if (secondBestGood<0.75*bestGood && bestParallax>=minParallax && bestGood>minTriangulated && bestGood>0.9*N) {
-    vR[bestSolutionIdx].copyTo(R21);
-    vt[bestSolutionIdx].copyTo(t21);
+    R21 = vR[bestSolutionIdx];
+    t21 = vt[bestSolutionIdx];
     vP3D = bestP3D;
     vbTriangulated = bestTriangulated;
 
@@ -689,8 +690,8 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
   return false;
 }
 
-void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D) {
-  cv::Mat A(4,4,CV_32F);
+void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix<double,3,4> &P1, const Eigen::Matrix<double,3,4> &P2, Eigen::Vector3d &x3D) {
+  Eigen::Matrix4d A;
 
   A.row(0) = kp1.pt.x*P1.row(2)-P1.row(0);
   A.row(1) = kp1.pt.y*P1.row(2)-P1.row(1);
@@ -698,9 +699,10 @@ void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
   A.row(3) = kp2.pt.y*P2.row(2)-P2.row(1);
 
   cv::Mat u,w,vt;
-  cv::SVD::compute(A,w,u,vt,cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
-  x3D = vt.row(3).t();
-  x3D = x3D.rowRange(0,3)/x3D.at<float>(3);
+  cv::SVD::compute(Converter::toCvMat(A),w,u,vt,cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
+  cv::Mat x3D_cv = vt.row(3).t();
+  x3D_cv = x3D_cv.rowRange(0,3)/x3D_cv.at<float>(3);
+  x3D = Converter::toVector3d(x3D_cv);
 }
 
 void Initializer::Normalize(const vector<cv::KeyPoint> &vKeys, vector<cv::Point2f> &vNormalizedPoints, cv::Mat &T) {
@@ -748,14 +750,14 @@ void Initializer::Normalize(const vector<cv::KeyPoint> &vKeys, vector<cv::Point2
 }
 
 
-int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::KeyPoint> &vKeys1, const vector<cv::KeyPoint> &vKeys2,
-             const vector<Match> &vMatches12, vector<bool> &vbMatchesInliers,
-             const cv::Mat &K, vector<cv::Point3f> &vP3D, float th2, vector<bool> &vbGood, float &parallax) {
+int Initializer::CheckRT(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, const vector<cv::KeyPoint> &vKeys1, 
+    const vector<cv::KeyPoint> &vKeys2, const vector<Match> &vMatches12, vector<bool> &vbMatchesInliers, 
+    const Eigen::Matrix3d &K, vector<cv::Point3f> &vP3D, float th2, vector<bool> &vbGood, float &parallax) {
   // Calibration parameters
-  const float fx = K.at<float>(0,0);
-  const float fy = K.at<float>(1,1);
-  const float cx = K.at<float>(0,2);
-  const float cy = K.at<float>(1,2);
+  const float fx = K(0,0);
+  const float fy = K(1,1);
+  const float cx = K(0,2);
+  const float cy = K(1,2);
 
   vbGood = vector<bool>(vKeys1.size(),false);
   vP3D.resize(vKeys1.size());
@@ -764,18 +766,19 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
   vCosParallax.reserve(vKeys1.size());
 
   // Camera 1 Projection Matrix K[I|0]
-  cv::Mat P1(3,4,CV_32F,cv::Scalar(0));
-  K.copyTo(P1.rowRange(0,3).colRange(0,3));
+  Eigen::Matrix<double,3,4> P1;
+  P1.setZero();
+  P1.block<3,3>(0,0) = K;
 
-  cv::Mat O1 = cv::Mat::zeros(3,1,CV_32F);
+  Eigen::Vector3d O1(0, 0, 0);
 
   // Camera 2 Projection Matrix K[R|t]
-  cv::Mat P2(3,4,CV_32F);
-  R.copyTo(P2.rowRange(0,3).colRange(0,3));
-  t.copyTo(P2.rowRange(0,3).col(3));
+  Eigen::Matrix<double,3,4> P2;
+  P2.block<3,3>(0,0) = R;
+  P2.block<3,1>(0,3) = t;
   P2 = K*P2;
 
-  cv::Mat O2 = -R.t()*t;
+  Eigen::Vector3d O2 = -R.transpose()*t;
 
   int nGood=0;
 
@@ -785,39 +788,39 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
 
     const cv::KeyPoint &kp1 = vKeys1[vMatches12[i].first];
     const cv::KeyPoint &kp2 = vKeys2[vMatches12[i].second];
-    cv::Mat p3dC1;
+    Eigen::Vector3d p3dC1;
 
-    Triangulate(kp1,kp2,P1,P2,p3dC1);
+    Triangulate(kp1, kp2, P1, P2, p3dC1);
 
-    if (!std::isfinite(p3dC1.at<float>(0)) || !std::isfinite(p3dC1.at<float>(1)) || !std::isfinite(p3dC1.at<float>(2))) {
+    if (!std::isfinite(p3dC1(0)) || !std::isfinite(p3dC1(1)) || !std::isfinite(p3dC1(2))) {
       vbGood[vMatches12[i].first]=false;
       continue;
     }
 
     // Check parallax
-    cv::Mat normal1 = p3dC1 - O1;
-    float dist1 = cv::norm(normal1);
+    Eigen::Vector3d normal1 = p3dC1 - O1;
+    float dist1 = normal1.norm();
 
-    cv::Mat normal2 = p3dC1 - O2;
-    float dist2 = cv::norm(normal2);
+    Eigen::Vector3d normal2 = p3dC1 - O2;
+    float dist2 = normal2.norm();
 
     float cosParallax = normal1.dot(normal2)/(dist1*dist2);
 
     // Check depth in front of first camera (only if enough parallax, as "infinite" points can easily go to negative depth)
-    if (p3dC1.at<float>(2)<=0 && cosParallax<0.99998)
+    if (p3dC1(2)<=0 && cosParallax<0.99998)
       continue;
 
     // Check depth in front of second camera (only if enough parallax, as "infinite" points can easily go to negative depth)
-    cv::Mat p3dC2 = R*p3dC1+t;
+    Eigen::Vector3d p3dC2 = R*p3dC1+t;
 
-    if (p3dC2.at<float>(2)<=0 && cosParallax<0.99998)
+    if (p3dC2(2)<=0 && cosParallax<0.99998)
       continue;
 
     // Check reprojection error in first image
     float im1x, im1y;
-    float invZ1 = 1.0/p3dC1.at<float>(2);
-    im1x = fx*p3dC1.at<float>(0)*invZ1+cx;
-    im1y = fy*p3dC1.at<float>(1)*invZ1+cy;
+    float invZ1 = 1.0/p3dC1(2);
+    im1x = fx*p3dC1(0)*invZ1+cx;
+    im1y = fy*p3dC1(1)*invZ1+cy;
 
     float squareError1 = (im1x-kp1.pt.x)*(im1x-kp1.pt.x)+(im1y-kp1.pt.y)*(im1y-kp1.pt.y);
 
@@ -826,9 +829,9 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
 
     // Check reprojection error in second image
     float im2x, im2y;
-    float invZ2 = 1.0/p3dC2.at<float>(2);
-    im2x = fx*p3dC2.at<float>(0)*invZ2+cx;
-    im2y = fy*p3dC2.at<float>(1)*invZ2+cy;
+    float invZ2 = 1.0/p3dC2(2);
+    im2x = fx*p3dC2(0)*invZ2+cx;
+    im2y = fy*p3dC2(1)*invZ2+cy;
 
     float squareError2 = (im2x-kp2.pt.x)*(im2x-kp2.pt.x)+(im2y-kp2.pt.y)*(im2y-kp2.pt.y);
 
@@ -836,7 +839,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
       continue;
 
     vCosParallax.push_back(cosParallax);
-    vP3D[vMatches12[i].first] = cv::Point3f(p3dC1.at<float>(0),p3dC1.at<float>(1),p3dC1.at<float>(2));
+    vP3D[vMatches12[i].first] = cv::Point3f(p3dC1(0), p3dC1(1), p3dC1(2));
 
     if (cosParallax<0.99998) {
       vbGood[vMatches12[i].first]=true;
@@ -855,24 +858,25 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
   return nGood;
 }
 
-void Initializer::DecomposeE(const cv::Mat &E, cv::Mat &R1, cv::Mat &R2, cv::Mat &t) {
+void Initializer::DecomposeE(const cv::Mat &E, Eigen::Matrix3d &R1, Eigen::Matrix3d &R2, Eigen::Vector3d &t) {
   cv::Mat u,w,vt;
   cv::SVD::compute(E,w,u,vt);
 
-  u.col(2).copyTo(t);
-  t=t/cv::norm(t);
+  t = Converter::toVector3d(u.col(2));
+  t=t/t.norm();
 
-  cv::Mat W(3,3,CV_32F,cv::Scalar(0));
-  W.at<float>(0,1)=-1;
-  W.at<float>(1,0)=1;
-  W.at<float>(2,2)=1;
+  Eigen::Matrix3d W;
+  W.setZero();
+  W(0,1)=-1;
+  W(1,0)=1;
+  W(2,2)=1;
 
-  R1 = u*W*vt;
-  if (cv::determinant(R1)<0)
+  R1 = Converter::toMatrix3d(u)*W*Converter::toMatrix3d(vt);
+  if (R1.determinant()<0)
     R1=-R1;
 
-  R2 = u*W.t()*vt;
-  if (cv::determinant(R2)<0)
+  R2 = Converter::toMatrix3d(u)*W.transpose()*Converter::toMatrix3d(vt);
+  if (R2.determinant()<0)
     R2=-R2;
 }
 

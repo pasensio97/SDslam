@@ -18,7 +18,6 @@
  */
 
 #include "ImageAlign.h"
-#include "Converter.h"
 #include "extra/timer.h"
 
 using std::vector;
@@ -68,8 +67,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
     if (!pMP || LastFrame.mvbOutlier[i])
       continue;
 
-    cv::Mat pos = pMP->GetWorldPos();
-    Eigen::Vector3d p = Converter::toVector3d(pos);
+    Eigen::Vector3d p = pMP->GetWorldPos();
     points_.push_back(p);
     counter++;
   }
@@ -86,8 +84,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
   jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
 
   // Initial displacement between frames.
-  cv::Mat current_se3 = Converter::toCvMat(CurrentFrame.GetPose()) * Converter::toCvMat(LastFrame.GetPoseInverse());
-  cv::Mat last_pose = Converter::toCvMat(LastFrame.GetPose());
+  Eigen::Matrix4d current_se3 = CurrentFrame.GetPose() * LastFrame.GetPoseInverse();
+  Eigen::Matrix4d last_pose = LastFrame.GetPose();
 
   for (int level=max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
@@ -96,8 +94,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
     Optimize(CurrentFrame.mvImagePyramid[level], LastFrame.mvImagePyramid[level], last_pose, current_se3, scale);
   }
 
-  cv::Mat pose = current_se3 * last_pose;
-  CurrentFrame.SetPose(Converter::toMatrix4d(pose));
+  Eigen::Matrix4d pose = current_se3 * last_pose;
+  CurrentFrame.SetPose(pose);
 
   total.Stop();
   cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
@@ -132,8 +130,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   counter = 0;
   for (auto it=mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
     MapPoint* pMP = *it;
-    cv::Mat pos = pMP->GetWorldPos();
-    Eigen::Vector3d p = Converter::toVector3d(pos);
+    Eigen::Vector3d p = pMP->GetWorldPos();
     points_.push_back(p);
     counter++;
   }
@@ -150,8 +147,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
 
   // Initial displacement between frames.
-  cv::Mat current_se3 = Converter::toCvMat(CurrentFrame.GetPose()) * Converter::toCvMat(LastKF->GetPoseInverse());
-  cv::Mat last_pose = Converter::toCvMat(LastKF->GetPose());
+  Eigen::Matrix4d current_se3 = CurrentFrame.GetPose() * LastKF->GetPoseInverse();
+  Eigen::Matrix4d last_pose = LastKF->GetPose();
 
   for (int level=max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
@@ -166,8 +163,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
     }
   }
 
-  cv::Mat pose = current_se3 * last_pose;
-  CurrentFrame.SetPose(Converter::toMatrix4d(pose));
+  Eigen::Matrix4d pose = current_se3 * last_pose;
+  CurrentFrame.SetPose(pose);
 
   if (!fast) {
     total.Stop();
@@ -197,8 +194,7 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
   counter = 0;
   for (auto it=mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
     MapPoint* pMP = *it;
-    cv::Mat pos = pMP->GetWorldPos();
-    Eigen::Vector3d p = Converter::toVector3d(pos);
+    Eigen::Vector3d p = pMP->GetWorldPos();
     points_.push_back(p);
     counter++;
   }
@@ -215,8 +211,8 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
   jacobian_cache_.resize(Eigen::NoChange, size*patch_area);
 
   // Initial displacement between frames.
-  cv::Mat current_se3 = cv::Mat::eye(4, 4, CV_32F);
-  cv::Mat last_pose = Converter::toCvMat(LastKF->GetPose());
+  Eigen::Matrix4d current_se3 = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d last_pose = LastKF->GetPose();
 
   // Only last level
   int level = max_level_;
@@ -234,10 +230,10 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
   return true;
 }
 
-void ImageAlign::Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose,
-                          cv::Mat &se3, float scale) {
+void ImageAlign::Optimize(const cv::Mat &src, const cv::Mat &last_img, const Eigen::Matrix4d &last_pose,
+                          Eigen::Matrix4d &se3, float scale) {
   Eigen::Matrix<double, 6, 1>  x;
-  cv::Mat se3_bk = se3.clone();
+  Eigen::Matrix4d se3_bk = se3;
   bool small = false;
 
   // Perform iterative estimation
@@ -260,7 +256,7 @@ void ImageAlign::Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv:
 
     // Check if error increased since last iteration
     if ((i > 0 && new_chi2 > chi2_) || stop_) {
-      se3 = se3_bk.clone();  // rollback
+      se3 = se3_bk;  // rollback
       break;
     }
 
@@ -269,7 +265,7 @@ void ImageAlign::Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv:
       small = true;
 
     // Update se3
-    se3_bk = se3.clone();
+    se3_bk = se3;
     se3 = se3 * Exp(-x);
 
     chi2_ = new_chi2;
@@ -281,8 +277,8 @@ void ImageAlign::Optimize(const cv::Mat &src, const cv::Mat &last_img, const cv:
   }
 }
 
-double ImageAlign::ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img, const cv::Mat &last_pose,
-                                    const cv::Mat &se3, float scale, bool patches) {
+double ImageAlign::ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img, const Eigen::Matrix4d &last_pose,
+                                    const Eigen::Matrix4d &se3, float scale, bool patches) {
   Eigen::Vector2d p2d;
   int half_patch, patch_area, border;
 
@@ -294,11 +290,9 @@ double ImageAlign::ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img,
   if (patches)
     PrecomputePatches(last_img, last_pose, scale);
 
-  cv::Mat pose = se3 * last_pose;
-  cv::Mat Rcv = pose.rowRange(0,3).colRange(0,3);
-  cv::Mat Tcv = pose.rowRange(0,3).col(3);
-  Eigen::Matrix3d R = Converter::toMatrix3d(Rcv);
-  Eigen::Vector3d T = Converter::toVector3d(Tcv);
+  Eigen::Matrix4d pose = se3 * last_pose;
+  Eigen::Matrix3d R = pose.block<3,3>(0,0);
+  Eigen::Vector3d T = pose.block<3,1>(0,3);
 
   float chi2 = 0.0;
   size_t counter = 0;
@@ -357,7 +351,7 @@ double ImageAlign::ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img,
   return chi2/n_meas_;
 }
 
-void ImageAlign::PrecomputePatches(const cv::Mat &src, const cv::Mat &pose, float scale) {
+void ImageAlign::PrecomputePatches(const cv::Mat &src, const Eigen::Matrix4d &pose, float scale) {
   Eigen::Vector2d p2d;
   int half_patch, patch_area, border;
 
@@ -365,10 +359,8 @@ void ImageAlign::PrecomputePatches(const cv::Mat &src, const cv::Mat &pose, floa
   patch_area = patch_size_*patch_size_;
   border = half_patch+1;
 
-  cv::Mat Rcv = pose.rowRange(0,3).colRange(0,3);
-  cv::Mat Tcv = pose.rowRange(0,3).col(3);
-  Eigen::Matrix3d R = Converter::toMatrix3d(Rcv);
-  Eigen::Vector3d T = Converter::toVector3d(Tcv);
+  Eigen::Matrix3d R = pose.block<3,3>(0,0);
+  Eigen::Vector3d T = pose.block<3,1>(0,3);
 
   size_t counter = 0;
   Eigen::Matrix<double, 2, 6> frame_jac;
@@ -477,7 +469,7 @@ double ImageAlign::AbsMax(const Eigen::VectorXd &v) {
   return max;
 }
 
-cv::Mat ImageAlign::Exp(const Eigen::Matrix<double, 6, 1> &update) {
+Eigen::Matrix4d ImageAlign::Exp(const Eigen::Matrix<double, 6, 1> &update) {
   Eigen::Vector3d upsilon = update.head<3>();
   Eigen::Vector3d omega = update.tail<3>();
 
@@ -498,21 +490,10 @@ cv::Mat ImageAlign::Exp(const Eigen::Matrix<double, 6, 1> &update) {
   }
 
   Eigen::Vector3d t = V*upsilon;
-  
   Eigen::Matrix3d rot = q.toRotationMatrix();
-  cv::Mat res = cv::Mat::eye(4,4,CV_32F);
-  res.at<float>(0,0) = rot(0,0);
-  res.at<float>(0,1) = rot(0,1);
-  res.at<float>(0,2) = rot(0,2);
-  res.at<float>(0,3) = t(0);
-  res.at<float>(1,0) = rot(1,0);
-  res.at<float>(1,1) = rot(1,1);
-  res.at<float>(1,2) = rot(1,2);
-  res.at<float>(1,3) = t(1);
-  res.at<float>(2,0) = rot(2,0);
-  res.at<float>(2,1) = rot(2,1);
-  res.at<float>(2,2) = rot(2,2);
-  res.at<float>(2,3) = t(2);
+  Eigen::Matrix4d res = Eigen::Matrix4d::Identity();
+  res.block<3,3>(0,0) = rot;
+  res.block<3,1>(0,3) = t;
   return res;
 }
 

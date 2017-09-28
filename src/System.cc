@@ -28,7 +28,6 @@
 #ifdef PANGOLIN
 #include <pangolin/pangolin.h>
 #endif
-#include "Converter.h"
 #include "Config.h"
 
 using std::mutex;

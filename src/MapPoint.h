@@ -27,6 +27,7 @@
 
 #include <mutex>
 #include <opencv2/core/core.hpp>
+#include <Eigen/Dense>
 #include "KeyFrame.h"
 #include "Frame.h"
 #include "Map.h"
@@ -39,13 +40,13 @@ class Frame;
 
 class MapPoint {
  public:
-  MapPoint(const cv::Mat &Pos, KeyFrame* pRefKF, Map* pMap);
-  MapPoint(const cv::Mat &Pos,  Map* pMap, Frame* pFrame, const int &idxF);
+  MapPoint(const Eigen::Vector3d &Pos, KeyFrame* pRefKF, Map* pMap);
+  MapPoint(const Eigen::Vector3d &Pos,  Map* pMap, Frame* pFrame, const int &idxF);
 
-  void SetWorldPos(const cv::Mat &Pos);
-  cv::Mat GetWorldPos();
+  void SetWorldPos(const Eigen::Vector3d &Pos);
+  Eigen::Vector3d GetWorldPos();
 
-  cv::Mat GetNormal();
+  Eigen::Vector3d GetNormal();
   KeyFrame* GetReferenceKeyFrame();
 
   std::map<KeyFrame*,size_t> GetObservations();
@@ -106,7 +107,7 @@ class MapPoint {
   long unsigned int mnLoopPointForKF;
   long unsigned int mnCorrectedByKF;
   long unsigned int mnCorrectedReference;
-  cv::Mat mPosGBA;
+  Eigen::Vector3d mPosGBA;
   long unsigned int mnBAGlobalForKF;
 
 
@@ -114,13 +115,13 @@ class MapPoint {
 
  protected:
    // Position in absolute coordinates
-   cv::Mat mWorldPos;
+   Eigen::Vector3d mWorldPos;
 
    // Keyframes observing the point and associated index in keyframe
    std::map<KeyFrame*,size_t> mObservations;
 
    // Mean viewing direction
-   cv::Mat mNormalVector;
+   Eigen::Vector3d mNormalVector;
 
    // Best descriptor to fast matching
    cv::Mat mDescriptor;
@@ -144,6 +145,9 @@ class MapPoint {
 
    std::mutex mMutexPos;
    std::mutex mMutexFeatures;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

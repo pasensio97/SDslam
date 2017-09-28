@@ -125,12 +125,11 @@ float ORBmatcher::RadiusByViewingCos(const float &viewCos) {
     return 4.0;
 }
 
-
-bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoint &kp2,const cv::Mat &F12,const KeyFrame* pKF2) {
+bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix3d &F12, const KeyFrame* pKF2) {
   // Epipolar line in second image l = x1'F12 = [a b c]
-  const float a = kp1.pt.x*F12.at<float>(0,0)+kp1.pt.y*F12.at<float>(1,0)+F12.at<float>(2,0);
-  const float b = kp1.pt.x*F12.at<float>(0,1)+kp1.pt.y*F12.at<float>(1,1)+F12.at<float>(2,1);
-  const float c = kp1.pt.x*F12.at<float>(0,2)+kp1.pt.y*F12.at<float>(1,2)+F12.at<float>(2,2);
+  const float a = kp1.pt.x*F12(0,0)+kp1.pt.y*F12(1,0)+F12(2,0);
+  const float b = kp1.pt.x*F12(0,1)+kp1.pt.y*F12(1,1)+F12(2,1);
+  const float c = kp1.pt.x*F12(0,2)+kp1.pt.y*F12(1,2)+F12(2,2);
 
   const float num = a*kp2.pt.x+b*kp2.pt.y+c;
 
@@ -144,7 +143,7 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoin
   return dsqr<3.84*pKF2->mvLevelSigma2[kp2.octave];
 }
 
-int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th) {
+int ORBmatcher::SearchByProjection(KeyFrame* pKF, const Eigen::Matrix4d &Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th) {
   // Get Calibration Parameters for later projection
   const float &fx = pKF->fx;
   const float &fy = pKF->fy;
@@ -152,11 +151,11 @@ int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapP
   const float &cy = pKF->cy;
 
   // Decompose Scw
-  cv::Mat sRcw = Scw.rowRange(0,3).colRange(0,3);
+  Eigen::Matrix3d sRcw = Scw.block<3,3>(0,0);
   const float scw = sqrt(sRcw.row(0).dot(sRcw.row(0)));
-  cv::Mat Rcw = sRcw/scw;
-  cv::Mat tcw = Scw.rowRange(0,3).col(3)/scw;
-  cv::Mat Ow = -Rcw.t()*tcw;
+  Eigen::Matrix3d Rcw = sRcw/scw;
+  Eigen::Vector3d tcw = Scw.block<3,1>(0,3)/scw;
+  Eigen::Vector3d Ow = -Rcw.transpose()*tcw;
 
   // Set of MapPoints already found in the KeyFrame
   set<MapPoint*> spAlreadyFound(vpMatched.begin(), vpMatched.end());
@@ -173,19 +172,19 @@ int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapP
       continue;
 
     // Get 3D Coords.
-    cv::Mat p3Dw = pMP->GetWorldPos();
+    Eigen::Vector3d p3Dw = pMP->GetWorldPos();
 
     // Transform into Camera Coords.
-    cv::Mat p3Dc = Rcw*p3Dw+tcw;
+    Eigen::Vector3d p3Dc = Rcw*p3Dw+tcw;
 
     // Depth must be positive
-    if (p3Dc.at<float>(2)<0.0)
+    if (p3Dc(2)<0.0)
       continue;
 
     // Project into Image
-    const float invz = 1/p3Dc.at<float>(2);
-    const float x = p3Dc.at<float>(0)*invz;
-    const float y = p3Dc.at<float>(1)*invz;
+    const float invz = 1/p3Dc(2);
+    const float x = p3Dc(0)*invz;
+    const float y = p3Dc(1)*invz;
 
     const float u = fx*x+cx;
     const float v = fy*y+cy;
@@ -197,14 +196,14 @@ int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapP
     // Depth must be inside the scale invariance region of the point
     const float maxDistance = pMP->GetMaxDistanceInvariance();
     const float minDistance = pMP->GetMinDistanceInvariance();
-    cv::Mat PO = p3Dw-Ow;
-    const float dist = cv::norm(PO);
+    Eigen::Vector3d PO = p3Dw-Ow;
+    const float dist = PO.norm();
 
     if (dist<minDistance || dist>maxDistance)
       continue;
 
     // Viewing angle must be less than 60 deg
-    cv::Mat Pn = pMP->GetNormal();
+    Eigen::Vector3d Pn = pMP->GetNormal();
 
     if (PO.dot(Pn)<0.5*dist)
       continue;
@@ -357,16 +356,16 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
   return nmatches;
 }
 
-int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,
-                     vector<pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo) {
+int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, const Eigen::Matrix3d &F12,
+                     vector<pair<size_t, size_t> > &vMatchedPairs) {
   //Compute epipole in second image
-  cv::Mat Cw = Converter::toCvMat(pKF1->GetCameraCenter());
-  cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
-  cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
-  cv::Mat C2 = R2w*Cw+t2w;
-  const float invz = 1.0f/C2.at<float>(2);
-  const float ex =pKF2->fx*C2.at<float>(0)*invz+pKF2->cx;
-  const float ey =pKF2->fy*C2.at<float>(1)*invz+pKF2->cy;
+  Eigen::Vector3d Cw = pKF1->GetCameraCenter();
+  Eigen::Matrix3d R2w = pKF2->GetRotation();
+  Eigen::Vector3d t2w = pKF2->GetTranslation();
+  Eigen::Vector3d C2 = R2w*Cw+t2w;
+  const float invz = 1.0f/C2(2);
+  const float ex =pKF2->fx*C2(0)*invz+pKF2->cx;
+  const float ey =pKF2->fy*C2(1)*invz+pKF2->cy;
 
   // Find matches between not tracked keypoints
   int nmatches=0;
@@ -384,21 +383,15 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
 
   for (int idx1=0; idx1<pKF1->N; idx1++) {
     MapPoint* pMP1 = vpMapPoints1[idx1]; 
-   
+
     // If there is already a MapPoint skip
     if (pMP1)
       continue;
 
     const bool bStereo1 = pKF1->mvuRight[idx1]>=0;
-
-    if (bOnlyStereo)
-      if (!bStereo1)
-        continue;
-    
     const cv::KeyPoint &kp1 = pKF1->mvKeysUn[idx1];
-    
     const cv::Mat &d1 = pKF1->mDescriptors.row(idx1);
-    
+
     int bestDist = TH_LOW;
     int bestIdx2 = -1;
 
@@ -411,12 +404,8 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
 
       const bool bStereo2 = pKF2->mvuRight[idx2]>=0;
 
-      if (bOnlyStereo)
-        if (!bStereo2)
-          continue;
-
       const cv::KeyPoint &kp2 = pKF2->mvKeysUn[idx2];
-      if (!CheckDistEpipolarLine(kp1,kp2,F12,pKF2))
+      if (!CheckDistEpipolarLine(kp1, kp2, F12, pKF2))
         continue;
       
       const cv::Mat &d2 = pKF2->mDescriptors.row(idx2);
@@ -436,7 +425,7 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
       bestIdx2 = idx2;
       bestDist = dist;
     }
-    
+
     if (bestIdx2>=0) {
       const cv::KeyPoint &kp2 = pKF2->mvKeysUn[bestIdx2];
       vMatches12[idx1]=bestIdx2;
@@ -486,8 +475,8 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
 }
 
 int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const float th) {
-  cv::Mat Rcw = Converter::toCvMat(pKF->GetRotation());
-  cv::Mat tcw = Converter::toCvMat(pKF->GetTranslation());
+  Eigen::Matrix3d Rcw = pKF->GetRotation();
+  Eigen::Vector3d tcw = pKF->GetTranslation();
 
   const float &fx = pKF->fx;
   const float &fy = pKF->fy;
@@ -495,7 +484,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
   const float &cy = pKF->cy;
   const float &bf = pKF->mbf;
 
-  cv::Mat Ow = Converter::toCvMat(pKF->GetCameraCenter());
+  Eigen::Vector3d Ow = pKF->GetCameraCenter();
 
   int nFused=0;
 
@@ -510,16 +499,16 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
     if (pMP->isBad() || pMP->IsInKeyFrame(pKF))
       continue;
 
-    cv::Mat p3Dw = pMP->GetWorldPos();
-    cv::Mat p3Dc = Rcw*p3Dw + tcw;
+    Eigen::Vector3d p3Dw = pMP->GetWorldPos();
+    Eigen::Vector3d p3Dc = Rcw*p3Dw + tcw;
 
     // Depth must be positive
-    if (p3Dc.at<float>(2)<0.0f)
+    if (p3Dc(2)<0.0f)
       continue;
 
-    const float invz = 1/p3Dc.at<float>(2);
-    const float x = p3Dc.at<float>(0)*invz;
-    const float y = p3Dc.at<float>(1)*invz;
+    const float invz = 1/p3Dc(2);
+    const float x = p3Dc(0)*invz;
+    const float y = p3Dc(1)*invz;
 
     const float u = fx*x+cx;
     const float v = fy*y+cy;
@@ -532,15 +521,15 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
 
     const float maxDistance = pMP->GetMaxDistanceInvariance();
     const float minDistance = pMP->GetMinDistanceInvariance();
-    cv::Mat PO = p3Dw-Ow;
-    const float dist3D = cv::norm(PO);
+    Eigen::Vector3d PO = p3Dw-Ow;
+    const float dist3D = PO.norm();
 
     // Depth must be inside the scale pyramid of the image
     if (dist3D<minDistance || dist3D>maxDistance )
       continue;
 
     // Viewing angle must be less than 60 deg
-    cv::Mat Pn = pMP->GetNormal();
+    Eigen::Vector3d Pn = pMP->GetNormal();
 
     if (PO.dot(Pn)<0.5*dist3D)
       continue;
@@ -625,7 +614,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
   return nFused;
 }
 
-int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoints, float th, vector<MapPoint *> &vpReplacePoint) {
+int ORBmatcher::Fuse(KeyFrame *pKF, const Eigen::Matrix4d &Scw, const vector<MapPoint *> &vpPoints, float th, vector<MapPoint *> &vpReplacePoint) {
   // Get Calibration Parameters for later projection
   const float &fx = pKF->fx;
   const float &fy = pKF->fy;
@@ -633,11 +622,11 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
   const float &cy = pKF->cy;
 
   // Decompose Scw
-  cv::Mat sRcw = Scw.rowRange(0,3).colRange(0,3);
+  Eigen::Matrix3d sRcw = Scw.block<3,3>(0,0);
   const float scw = sqrt(sRcw.row(0).dot(sRcw.row(0)));
-  cv::Mat Rcw = sRcw/scw;
-  cv::Mat tcw = Scw.rowRange(0,3).col(3)/scw;
-  cv::Mat Ow = -Rcw.t()*tcw;
+  Eigen::Matrix3d Rcw = sRcw/scw;
+  Eigen::Vector3d tcw = Scw.block<3,1>(0,3)/scw;
+  Eigen::Vector3d Ow = -Rcw.transpose()*tcw;
 
   // Set of MapPoints already found in the KeyFrame
   const set<MapPoint*> spAlreadyFound = pKF->GetMapPoints();
@@ -655,19 +644,19 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
       continue;
 
     // Get 3D Coords.
-    cv::Mat p3Dw = pMP->GetWorldPos();
+    Eigen::Vector3d p3Dw = pMP->GetWorldPos();
 
     // Transform into Camera Coords.
-    cv::Mat p3Dc = Rcw*p3Dw+tcw;
+    Eigen::Vector3d p3Dc = Rcw*p3Dw+tcw;
 
     // Depth must be positive
-    if (p3Dc.at<float>(2)<0.0f)
+    if (p3Dc(2)<0.0f)
       continue;
 
     // Project into Image
-    const float invz = 1.0/p3Dc.at<float>(2);
-    const float x = p3Dc.at<float>(0)*invz;
-    const float y = p3Dc.at<float>(1)*invz;
+    const float invz = 1.0/p3Dc(2);
+    const float x = p3Dc(0)*invz;
+    const float y = p3Dc(1)*invz;
 
     const float u = fx*x+cx;
     const float v = fy*y+cy;
@@ -679,14 +668,14 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
     // Depth must be inside the scale pyramid of the image
     const float maxDistance = pMP->GetMaxDistanceInvariance();
     const float minDistance = pMP->GetMinDistanceInvariance();
-    cv::Mat PO = p3Dw-Ow;
-    const float dist3D = cv::norm(PO);
+    Eigen::Vector3d PO = p3Dw-Ow;
+    const float dist3D = PO.norm();
 
     if (dist3D<minDistance || dist3D>maxDistance)
       continue;
 
     // Viewing angle must be less than 60 deg
-    cv::Mat Pn = pMP->GetNormal();
+    Eigen::Vector3d Pn = pMP->GetNormal();
 
     if (PO.dot(Pn)<0.5*dist3D)
       continue;
@@ -743,24 +732,24 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
 }
 
 int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &vpMatches12,
-               const float &s12, const cv::Mat &R12, const cv::Mat &t12, const float th) {
+               const float &s12, const Eigen::Matrix3d &R12, const Eigen::Vector3d &t12, const float th) {
   const float &fx = pKF1->fx;
   const float &fy = pKF1->fy;
   const float &cx = pKF1->cx;
   const float &cy = pKF1->cy;
 
   // Camera 1 from world
-  cv::Mat R1w = Converter::toCvMat(pKF1->GetRotation());
-  cv::Mat t1w = Converter::toCvMat(pKF1->GetTranslation());
+  Eigen::Matrix3d R1w = pKF1->GetRotation();
+  Eigen::Vector3d t1w = pKF1->GetTranslation();
 
   //Camera 2 from world
-  cv::Mat R2w = Converter::toCvMat(pKF2->GetRotation());
-  cv::Mat t2w = Converter::toCvMat(pKF2->GetTranslation());
+  Eigen::Matrix3d R2w = pKF2->GetRotation();
+  Eigen::Vector3d t2w = pKF2->GetTranslation();
 
   //Transformation between cameras
-  cv::Mat sR12 = s12*R12;
-  cv::Mat sR21 = (1.0/s12)*R12.t();
-  cv::Mat t21 = -sR21*t12;
+  Eigen::Matrix3d sR12 = s12*R12;
+  Eigen::Matrix3d sR21 = (1.0/s12)*R12.transpose();
+  Eigen::Vector3d t21 = -sR21*t12;
 
   const vector<MapPoint*> vpMapPoints1 = pKF1->GetMapPointMatches();
   const int N1 = vpMapPoints1.size();
@@ -781,8 +770,8 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
     }
   }
 
-  vector<int> vnMatch1(N1,-1);
-  vector<int> vnMatch2(N2,-1);
+  vector<int> vnMatch1(N1, -1);
+  vector<int> vnMatch2(N2, -1);
 
   // Transform from KF1 to KF2 and search
   for (int i1=0; i1<N1; i1++) {
@@ -794,17 +783,17 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
     if (pMP->isBad())
       continue;
 
-    cv::Mat p3Dw = pMP->GetWorldPos();
-    cv::Mat p3Dc1 = R1w*p3Dw + t1w;
-    cv::Mat p3Dc2 = sR21*p3Dc1 + t21;
+    Eigen::Vector3d p3Dw = pMP->GetWorldPos();
+    Eigen::Vector3d p3Dc1 = R1w*p3Dw + t1w;
+    Eigen::Vector3d p3Dc2 = sR21*p3Dc1 + t21;
 
     // Depth must be positive
-    if (p3Dc2.at<float>(2)<0.0)
+    if (p3Dc2(2)<0.0)
       continue;
 
-    const float invz = 1.0/p3Dc2.at<float>(2);
-    const float x = p3Dc2.at<float>(0)*invz;
-    const float y = p3Dc2.at<float>(1)*invz;
+    const float invz = 1.0/p3Dc2(2);
+    const float x = p3Dc2(0)*invz;
+    const float y = p3Dc2(1)*invz;
 
     const float u = fx*x+cx;
     const float v = fy*y+cy;
@@ -815,7 +804,7 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
 
     const float maxDistance = pMP->GetMaxDistanceInvariance();
     const float minDistance = pMP->GetMinDistanceInvariance();
-    const float dist3D = cv::norm(p3Dc2);
+    const float dist3D = p3Dc2.norm();
 
     // Depth must be inside the scale invariance region
     if (dist3D<minDistance || dist3D>maxDistance )
@@ -870,17 +859,17 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
     if (pMP->isBad())
       continue;
 
-    cv::Mat p3Dw = pMP->GetWorldPos();
-    cv::Mat p3Dc2 = R2w*p3Dw + t2w;
-    cv::Mat p3Dc1 = sR12*p3Dc2 + t12;
+    Eigen::Vector3d p3Dw = pMP->GetWorldPos();
+    Eigen::Vector3d p3Dc2 = R2w*p3Dw + t2w;
+    Eigen::Vector3d p3Dc1 = sR12*p3Dc2 + t12;
 
     // Depth must be positive
-    if (p3Dc1.at<float>(2)<0.0)
+    if (p3Dc1(2)<0.0)
       continue;
 
-    const float invz = 1.0/p3Dc1.at<float>(2);
-    const float x = p3Dc1.at<float>(0)*invz;
-    const float y = p3Dc1.at<float>(1)*invz;
+    const float invz = 1.0/p3Dc1(2);
+    const float x = p3Dc1(0)*invz;
+    const float y = p3Dc1(1)*invz;
 
     const float u = fx*x+cx;
     const float v = fy*y+cy;
@@ -891,7 +880,7 @@ int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &
 
     const float maxDistance = pMP->GetMaxDistanceInvariance();
     const float minDistance = pMP->GetMinDistanceInvariance();
-    const float dist3D = cv::norm(p3Dc1);
+    const float dist3D = p3Dc1.norm();
 
     // Depth must be inside the scale pyramid of the image
     if (dist3D<minDistance || dist3D>maxDistance)
@@ -963,18 +952,18 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
     rotHist[i].reserve(500);
   const float factor = 1.0f/HISTO_LENGTH;
 
-  const cv::Mat Rcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).colRange(0,3);
-  const cv::Mat tcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).col(3);
+  Eigen::Matrix3d Rcw = CurrentFrame.GetPose().block<3,3>(0,0);
+  Eigen::Vector3d tcw = CurrentFrame.GetPose().block<3,1>(0,3);
 
-  const cv::Mat twc = -Rcw.t()*tcw;
+  Eigen::Vector3d twc = -Rcw.transpose()*tcw;
 
-  const cv::Mat Rlw = Converter::toCvMat(LastFrame.GetPose()).rowRange(0,3).colRange(0,3);
-  const cv::Mat tlw = Converter::toCvMat(LastFrame.GetPose()).rowRange(0,3).col(3);
+  Eigen::Matrix3d Rlw = LastFrame.GetPose().block<3,3>(0,0);
+  Eigen::Vector3d tlw = LastFrame.GetPose().block<3,1>(0,3);
 
-  const cv::Mat tlc = Rlw*twc+tlw;
+  Eigen::Vector3d tlc = Rlw*twc+tlw;
 
-  const bool bForward = tlc.at<float>(2) > CurrentFrame.mb && !bMono;
-  const bool bBackward = -tlc.at<float>(2) > CurrentFrame.mb && !bMono;
+  const bool bForward = tlc(2) > CurrentFrame.mb && !bMono;
+  const bool bBackward = -tlc(2) > CurrentFrame.mb && !bMono;
 
   for (int i=0; i<LastFrame.N; i++) {
     MapPoint* pMP = LastFrame.mvpMapPoints[i];
@@ -982,12 +971,12 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
     if (pMP) {
       if (!LastFrame.mvbOutlier[i]) {
         // Project
-        cv::Mat x3Dw = pMP->GetWorldPos();
-        cv::Mat x3Dc = Rcw*x3Dw+tcw;
+        Eigen::Vector3d x3Dw = pMP->GetWorldPos();
+        Eigen::Vector3d x3Dc = Rcw*x3Dw+tcw;
 
-        const float xc = x3Dc.at<float>(0);
-        const float yc = x3Dc.at<float>(1);
-        const float invzc = 1.0/x3Dc.at<float>(2);
+        const float xc = x3Dc(0);
+        const float yc = x3Dc(1);
+        const float invzc = 1.0/x3Dc(2);
 
         if (invzc<0)
           continue;
@@ -1094,19 +1083,19 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame* pKF, const flo
     rotHist[i].reserve(500);
   const float factor = 1.0f/HISTO_LENGTH;
 
-  const cv::Mat Rcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).colRange(0,3);
-  const cv::Mat tcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).col(3);
+  Eigen::Matrix3d Rcw = CurrentFrame.GetPose().block<3,3>(0,0);
+  Eigen::Vector3d tcw = CurrentFrame.GetPose().block<3,1>(0,3);
 
-  const cv::Mat twc = -Rcw.t()*tcw;
+  Eigen::Vector3d twc = -Rcw.transpose()*tcw;
 
-  const cv::Mat pose = Converter::toCvMat(pKF->GetPose());
-  const cv::Mat Rlw = pose.rowRange(0,3).colRange(0,3);
-  const cv::Mat tlw = pose.rowRange(0,3).col(3);
+  Eigen::Matrix4d pose = pKF->GetPose();
+  Eigen::Matrix3d Rlw = pose.block<3,3>(0,0);
+  Eigen::Vector3d tlw = pose.block<3,1>(0,3);
 
-  const cv::Mat tlc = Rlw*twc+tlw;
+  Eigen::Vector3d tlc = Rlw*twc+tlw;
 
-  const bool bForward = tlc.at<float>(2)>CurrentFrame.mb && !bMono;
-  const bool bBackward = -tlc.at<float>(2)>CurrentFrame.mb && !bMono;
+  const bool bForward = tlc(2)>CurrentFrame.mb && !bMono;
+  const bool bBackward = -tlc(2)>CurrentFrame.mb && !bMono;
 
   const vector<MapPoint*> vpMapPointMatches = pKF->GetMapPointMatches();
   for (size_t i=0; i<vpMapPointMatches.size(); i++) {
@@ -1114,12 +1103,12 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame* pKF, const flo
     if (pMP) {
       if (!pMP->isBad()) {
         // Project
-        cv::Mat x3Dw = pMP->GetWorldPos();
-        cv::Mat x3Dc = Rcw*x3Dw+tcw;
+        Eigen::Vector3d x3Dw = pMP->GetWorldPos();
+        Eigen::Vector3d x3Dc = Rcw*x3Dw+tcw;
 
-        const float xc = x3Dc.at<float>(0);
-        const float yc = x3Dc.at<float>(1);
-        const float invzc = 1.0/x3Dc.at<float>(2);
+        const float xc = x3Dc(0);
+        const float yc = x3Dc(1);
+        const float invzc = 1.0/x3Dc(2);
 
         if (invzc<0)
           continue;
@@ -1317,9 +1306,9 @@ int ORBmatcher::SearchByPoints(KeyFrame* currentKF, KeyFrame* pKF, vector<MapPoi
 int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set<MapPoint*> &sAlreadyFound, const float th , const int ORBdist) {
   int nmatches = 0;
 
-  const cv::Mat Rcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).colRange(0,3);
-  const cv::Mat tcw = Converter::toCvMat(CurrentFrame.GetPose()).rowRange(0,3).col(3);
-  const cv::Mat Ow = -Rcw.t()*tcw;
+  Eigen::Matrix3d Rcw = CurrentFrame.GetPose().block<3,3>(0,0);
+  Eigen::Vector3d tcw = CurrentFrame.GetPose().block<3,1>(0,3);
+  Eigen::Vector3d Ow = -Rcw.transpose()*tcw;
 
   // Rotation Histogram (to check rotation consistency)
   vector<int> rotHist[HISTO_LENGTH];
@@ -1335,12 +1324,12 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
     if (pMP) {
       if (!pMP->isBad() && !sAlreadyFound.count(pMP)) {
         //Project
-        cv::Mat x3Dw = pMP->GetWorldPos();
-        cv::Mat x3Dc = Rcw*x3Dw+tcw;
+        Eigen::Vector3d x3Dw = pMP->GetWorldPos();
+        Eigen::Vector3d x3Dc = Rcw*x3Dw+tcw;
 
-        const float xc = x3Dc.at<float>(0);
-        const float yc = x3Dc.at<float>(1);
-        const float invzc = 1.0/x3Dc.at<float>(2);
+        const float xc = x3Dc(0);
+        const float yc = x3Dc(1);
+        const float invzc = 1.0/x3Dc(2);
 
         const float u = CurrentFrame.fx*xc*invzc+CurrentFrame.cx;
         const float v = CurrentFrame.fy*yc*invzc+CurrentFrame.cy;
@@ -1351,8 +1340,8 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
           continue;
 
         // Compute predicted scale level
-        cv::Mat PO = x3Dw-Ow;
-        float dist3D = cv::norm(PO);
+        Eigen::Vector3d PO = x3Dw-Ow;
+        float dist3D = PO.norm();
 
         const float maxDistance = pMP->GetMaxDistanceInvariance();
         const float minDistance = pMP->GetMinDistanceInvariance();

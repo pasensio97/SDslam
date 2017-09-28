@@ -23,7 +23,6 @@
  */
 
 #include "KeyFrame.h"
-#include "Converter.h"
 #include "ORBmatcher.h"
 
 using std::vector;
@@ -550,28 +549,28 @@ Eigen::Vector3d KeyFrame::UnprojectStereo(int i) {
     unique_lock<mutex> lock(mMutexPose);
     return Twc.block<3,3>(0,0)*x3Dc+Twc.block<3,1>(0,3);
   } else
-    return Eigen::Vector3d();
+    return Eigen::Vector3d::Zero();
 }
 
 float KeyFrame::ComputeSceneMedianDepth(const int q) {
   vector<MapPoint*> vpMapPoints;
-  cv::Mat Tcw_;
+  Eigen::Matrix4d Tcw_;
   {
     unique_lock<mutex> lock(mMutexFeatures);
     unique_lock<mutex> lock2(mMutexPose);
     vpMapPoints = mvpMapPoints;
-    Tcw_ = Converter::toCvMat(Tcw);
+    Tcw_ = Tcw;
   }
 
   vector<float> vDepths;
   vDepths.reserve(N);
-  cv::Mat Rcw2 = Tcw_.row(2).colRange(0,3);
-  Rcw2 = Rcw2.t();
-  float zcw = Tcw_.at<float>(2,3);
+  Eigen::Vector3d Rcw2(Tcw_(2,0), Tcw_(2,1), Tcw_(2,2));
+  float zcw = Tcw_(2,3);
+
   for (int i=0; i<N; i++) {
     if (mvpMapPoints[i]) {
       MapPoint* pMP = mvpMapPoints[i];
-      cv::Mat x3Dw = pMP->GetWorldPos();
+      Eigen::Vector3d x3Dw = pMP->GetWorldPos();
       float z = Rcw2.dot(x3Dw)+zcw;
       vDepths.push_back(z);
     }

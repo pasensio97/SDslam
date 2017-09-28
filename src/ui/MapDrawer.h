@@ -27,6 +27,7 @@
 
 #include <mutex>
 #include <pangolin/pangolin.h>
+#include <Eigen/Dense>
 #include "Map.h"
 #include "MapPoint.h"
 #include "KeyFrame.h"
@@ -42,14 +43,17 @@ class MapDrawer {
   void DrawMapPoints();
   void DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph);
   void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc);
-  void SetCurrentCameraPose(const cv::Mat &Tcw);
+  void SetCurrentCameraPose(const Eigen::Matrix4d &Tcw);
   void SetReferenceKeyFrame(KeyFrame *pKF);
   void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
 
  private:
-  cv::Mat mCameraPose;
+  Eigen::Matrix4d mCameraPose;
 
   std::mutex mMutexCamera;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

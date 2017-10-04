@@ -114,8 +114,6 @@ class KeyFrame {
   long unsigned int mnId;
   const long unsigned int mnFrameId;
 
-  const double mTimeStamp;
-
   // Grid (to speed up feature matching)
   const int mnGridCols;
   const int mnGridRows;

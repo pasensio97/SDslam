@@ -29,13 +29,13 @@
 #include <pangolin/pangolin.h>
 #endif
 #include "Config.h"
+#include "extra/log.h"
 
 using std::mutex;
 using std::unique_lock;
 using std::vector;
 using std::string;
 using std::cout;
-using std::cerr;
 using std::endl;
 
 namespace SD_SLAM {
@@ -73,7 +73,7 @@ System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mb
 
   // Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
-  mptLocalMapping = new std::thread(&SD_SLAM::LocalMapping::Run,mpLocalMapper);
+  mptLocalMapping = new std::thread(&SD_SLAM::LocalMapping::Run, mpLocalMapper);
 
   // Initialize the Loop Closing thread and launch
   mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
@@ -100,9 +100,11 @@ System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mb
   mpLoopCloser->SetLocalMapper(mpLocalMapper);
 }
 
-Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp) {
+Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
+  LOGD("Track RGBD image");
+
   if (mSensor!=RGBD) {
-    cerr << "ERROR: you called TrackRGBD but input sensor was not set to RGBD." << endl;
+    LOGE("Called TrackRGBD but input sensor was not set to RGBD");
     exit(-1);
   }
 
@@ -115,7 +117,7 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, co
     }
   }
 
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageRGBD(im,depthmap,timestamp);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageRGBD(im,depthmap);
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;
@@ -124,9 +126,11 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, co
   return Tcw;
 }
 
-Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
+Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
+  LOGD("Track monocular image");
+
   if (mSensor!=MONOCULAR) {
-    cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." << endl;
+    LOGE("Called TrackMonocular but input sensor was not set to Monocular");
     exit(-1);
   }
 
@@ -139,7 +143,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const double &timestam
     }
   }
 
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im,timestamp);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im);
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;

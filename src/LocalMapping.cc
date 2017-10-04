@@ -28,13 +28,13 @@
 #include "ORBmatcher.h"
 #include "Optimizer.h"
 #include "Converter.h"
+#include "extra/log.h"
 
 using std::vector;
 using std::list;
 using std::map;
 using std::mutex;
 using std::unique_lock;
-using std::cout;
 using std::endl;
 
 namespace SD_SLAM {
@@ -517,7 +517,7 @@ bool LocalMapping::Stop() {
   unique_lock<mutex> lock(mMutexStop);
   if (mbStopRequested && !mbNotStop) {
     mbStopped = true;
-    cout << "Local Mapping STOP" << endl;
+    LOGD("Local Mapping STOP");
     return true;
   }
 
@@ -545,7 +545,7 @@ void LocalMapping::Release() {
     delete *lit;
   mlNewKeyFrames.clear();
 
-  cout << "Local Mapping RELEASE" << endl;
+  LOGD("Local Mapping RELEASE");
 }
 
 bool LocalMapping::AcceptKeyFrames() {

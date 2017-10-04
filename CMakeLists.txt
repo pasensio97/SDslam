@@ -191,7 +191,7 @@ LIST(APPEND SOURCEFILES
 add_library(${PROJECT_NAME} SHARED ${SOURCEFILES})
 
 if(USE_ANDROID)
-  target_link_libraries(${PROJECT_NAME} lib_opencv)
+  target_link_libraries(${PROJECT_NAME} lib_opencv log)
 else()
   if(USE_PANGOLIN)
     target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Pangolin_LIBRARIES})

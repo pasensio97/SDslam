@@ -60,8 +60,8 @@ class Tracking {
   Tracking(System* pSys, Map* pMap, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
-  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp);
-  Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const double &timestamp);
+  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD);
+  Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im);
 
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
     mpLocalMapper = pLocalMapper;
@@ -116,7 +116,6 @@ class Tracking {
   // Basically we store the reference keyframe for each frame and its relative transformation
   std::list<Eigen::Matrix4d> mlRelativeFramePoses;
   std::list<KeyFrame*> mlpReferences;
-  std::list<double> mlFrameTimes;
   std::list<bool> mlbLost;
 
   void Reset();

@@ -30,13 +30,13 @@
 #include "Optimizer.h"
 #include "ORBmatcher.h"
 #include "ImageAlign.h"
+#include "extra/log.h"
 
 using std::mutex;
 using std::unique_lock;
 using std::vector;
 using std::set;
 using std::map;
-using std::cout;
 using std::endl;
 using std::list;
 
@@ -368,7 +368,7 @@ bool LoopClosing::ComputeSim3() {
 }
 
 void LoopClosing::CorrectLoop() {
-  cout << "Loop detected!" << endl;
+  LOGD("Loop detected!");
 
   // Send a stop signal to Local Mapping
   // Avoid new keyframes are inserted while correcting the loop
@@ -584,7 +584,7 @@ void LoopClosing::ResetIfRequested() {
 }
 
 void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
-  cout << "Starting Global Bundle Adjustment" << endl;
+  LOGD("Starting Global Bundle Adjustment");
 
   int idx =  mnFullBAIdx;
   Optimizer::GlobalBundleAdjustemnt(mpMap,10,&mbStopGBA,nLoopKF,false);
@@ -599,8 +599,8 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
       return;
 
     if (!mbStopGBA) {
-      cout << "Global Bundle Adjustment finished" << endl;
-      cout << "Updating map ..." << endl;
+      LOGD("Global Bundle Adjustment finished");
+      LOGD("Updating map ...");
       mpLocalMapper->RequestStop();
       // Wait until Local Mapping has effectively stopped
 
@@ -670,7 +670,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
 
       mpLocalMapper->Release();
 
-      cout << "Map updated!" << endl;
+      LOGD("Map updated!");
     }
 
     mbFinishedGBA = true;

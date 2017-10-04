@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
         SD_SLAM::Timer ttracking(true);
 
         // Pass the image to the SLAM system
-        SLAM.TrackRGBD(im,imD,tframe);
+        SLAM.TrackRGBD(im,imD);
 
         ttracking.Stop();
         cout << "[INFO] Tracking time is " << ttracking.GetMsTime() << "ms" << endl;

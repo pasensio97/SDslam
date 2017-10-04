@@ -19,8 +19,8 @@
 
 #include <opencv2/core/core.hpp>
 #include "Config.h"
+#include "extra/log.h"
 
-using std::cerr;
 using std::endl;
 
 namespace SD_SLAM {
@@ -68,11 +68,11 @@ bool Config::ReadParameters(std::string filename) {
     // Read config file
     fs.open(filename.c_str(), cv::FileStorage::READ);
     if (!fs.isOpened()) {
-      cerr << "[ERROR] Failed to open file: " << filename << endl;
+      LOGE("Failed to open file: %s", filename.c_str());
       return false;
     }
   } catch(cv::Exception &ex) {
-    cerr << "[ERROR] Parse error: " << ex.what();
+    LOGE("Parse error: %s", ex.what());
     return false;
   }
 
@@ -115,6 +115,23 @@ bool Config::ReadParameters(std::string filename) {
   fs.release();
 
   return true;
+}
+
+void Config::SetCameraIntrinsics(double w, double h, double fx, double fy, double cx, double cy) {
+  camera_params_.w = w;
+  camera_params_.h = h;
+  camera_params_.fx = fx;
+  camera_params_.fy = fy;
+  camera_params_.cx = cx;
+  camera_params_.cy = cy;
+}
+
+void Config::SetCameraDistortion(double k1, double k2, double p1, double p2, double k3) {
+  camera_params_.k1 = k1;
+  camera_params_.k2 = k2;
+  camera_params_.p1 = p1;
+  camera_params_.p2 = p2;
+  camera_params_.k3 = k3;
 }
 
 }  // namespace SD_SLAM

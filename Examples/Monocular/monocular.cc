@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
         SD_SLAM::Timer ttracking(true);
 
         // Pass the image to the SLAM system
-        SLAM.TrackMonocular(im,tframe);
+        SLAM.TrackMonocular(im);
 
         ttracking.Stop();
         cout << "[INFO] Tracking time is " << ttracking.GetMsTime() << "ms" << endl;

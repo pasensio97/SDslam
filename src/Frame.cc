@@ -43,7 +43,7 @@ Frame::Frame() {
 
 //Copy Constructor
 Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
-   mTimeStamp(frame.mTimeStamp), mK(frame.mK), mDistCoef(frame.mDistCoef.clone()),
+   mK(frame.mK), mDistCoef(frame.mDistCoef.clone()),
    mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
    mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight),
    mvDepth(frame.mvDepth), mDescriptors(frame.mDescriptors.clone()),
@@ -66,8 +66,9 @@ Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth) : mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K),
-  mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
+Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extractor,
+  const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth) :
+  mpORBextractorLeft(extractor), mK(K), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
 
@@ -120,8 +121,9 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-  :mpORBextractorLeft(extractor), mTimeStamp(timeStamp), mK(K),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
+Frame::Frame(const cv::Mat &imGray, ORBextractor* extractor, const Eigen::Matrix3d &K,
+  cv::Mat &distCoef, const float &bf, const float &thDepth) :
+  mpORBextractorLeft(extractor), mK(K),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
   // Frame ID
   mnId=nNextId++;
 

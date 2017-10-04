@@ -60,10 +60,10 @@
 #include <cmath>
 #include <algorithm>
 #include "extra/utils.h"
+#include "extra/log.h"
 
 using std::vector;
 using std::cout;
-using std::cerr;
 using std::endl;
 
 namespace SD_SLAM {
@@ -837,7 +837,7 @@ void PnPsolver::qr_solve(CvMat * A, CvMat * b, CvMat * X) {
 
   if (eta == 0) {
     A1[k] = A2[k] = 0.0;
-    cerr << "God damnit, A is singular, this shouldn't happen." << endl;
+    LOGE("A is singular, this shouldn't happen");
     return;
   } else {
     double * ppAik = ppAkk, sum = 0.0, inv_eta = 1. / eta;

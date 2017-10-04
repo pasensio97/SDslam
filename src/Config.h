@@ -52,6 +52,11 @@ class Config {
   // Read parameters from file
   bool ReadParameters(std::string filename);
 
+  // Set parameters
+  void SetCameraIntrinsics(double w, double h, double fx, double fy, double cx, double cy);
+  void SetCameraDistortion(double k1, double k2, double p1, double p2, double k3);
+
+  // Get parameters
   static double Width() { return GetInstance().camera_params_.w; }
   static double Height() { return GetInstance().camera_params_.h; }
   static double fx() { return GetInstance().camera_params_.fx; }

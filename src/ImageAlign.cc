@@ -19,10 +19,9 @@
 
 #include "ImageAlign.h"
 #include "extra/timer.h"
+#include "extra/log.h"
 
 using std::vector;
-using std::cout;
-using std::cerr;
 using std::endl;
 using std::set;
 
@@ -56,7 +55,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
   Timer total(true);
 
   if (static_cast<int>(CurrentFrame.mvImagePyramid.size()) <= max_level_) {
-    cerr << "[ERROR] Not enough pyramid levels" << endl;
+    LOGE("Not enough pyramid levels");
     return false;
   }
 
@@ -74,7 +73,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
 
   size = points_.size();
   if (size == 0) {
-    cerr << "[ERROR] No points to track!" << endl;
+    LOGE("No points to track!");
     return false;
   }
 
@@ -98,7 +97,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
   CurrentFrame.SetPose(pose);
 
   total.Stop();
-  cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
+  LOGD("Align time is %.2fms", total.GetMsTime());
 
   return true;
 }
@@ -121,7 +120,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   Timer total(true);
 
   if (static_cast<int>(CurrentFrame.mvImagePyramid.size()) <= max_level_) {
-    cerr << "[ERROR] Not enough pyramid levels" << endl;
+    LOGE("Not enough pyramid levels");
     return false;
   }
 
@@ -137,7 +136,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
 
   size = points_.size();
   if (size == 0) {
-    cerr << "[ERROR] No points to track!" << endl;
+    LOGE("No points to track!");
     return false;
   }
 
@@ -168,7 +167,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
 
   if (!fast) {
     total.Stop();
-    cout << "[INFO] Align time is " << total.GetMsTime() << "ms" << endl;
+    LOGD("Align time is %.2fms", total.GetMsTime());
   }
 
   return true;
@@ -185,7 +184,7 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
   cam_cy_ = CurrentKF->cy;
 
   if (static_cast<int>(CurrentKF->mvImagePyramid.size()) <= max_level_) {
-    cerr << "[ERROR] Not enough pyramid levels" << endl;
+    LOGE("Not enough pyramid levels");
     return false;
   }
 
@@ -201,7 +200,7 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
 
   size = points_.size();
   if (size == 0) {
-    cerr << "[ERROR] No points to track!" << endl;
+    LOGE("No points to track!");
     return false;
   }
 

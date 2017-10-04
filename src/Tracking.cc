@@ -32,6 +32,7 @@
 #include "ImageAlign.h"
 #include "Config.h"
 #include "extra/timer.h"
+#include "extra/log.h"
 
 using namespace std;
 
@@ -126,19 +127,19 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
 #endif
 }
 
-Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp) {
+Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD) {
   mImGray = imRGB;
   cv::Mat imDepth = imD;
 
   if (mImGray.channels() != 1) {
-    cout << "[ERROR] Image must be in gray scale" << endl;
+    LOGE("[ERROR] Image must be in gray scale");
     return Eigen::Matrix4d::Zero();
   }
 
   if ((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
     imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-  mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mK,mDistCoef,mbf,mThDepth);
+  mCurrentFrame = Frame(mImGray, imDepth, mpORBextractorLeft, mK,mDistCoef, mbf,mThDepth);
 
   Track();
 
@@ -146,18 +147,18 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD,
 }
 
 
-Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp) {
+Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im) {
   mImGray = im;
 
   if (mImGray.channels() != 1) {
-    cout << "[ERROR] Image must be in gray scale" << endl;
+    LOGE("Image must be in gray scale");
     return Eigen::Matrix4d::Zero();
   }
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
-    mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray, mpIniORBextractor, mK,mDistCoef, mbf, mThDepth);
   else
-    mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray, mpORBextractorLeft, mK,mDistCoef, mbf, mThDepth);
 
   Track();
   return mCurrentFrame.GetPose();
@@ -274,7 +275,7 @@ void Tracking::Track() {
     // Reset if the camera get lost soon after initialization
     if (mState==LOST) {
       if (mpMap->KeyFramesInMap()<=5) {
-        cout << "Track lost soon after initialisation, reseting..." << endl;
+        LOGD("Track lost soon after initialisation, reseting...");
         mpSystem->Reset();
         return;
       }
@@ -291,13 +292,11 @@ void Tracking::Track() {
     Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
     mlRelativeFramePoses.push_back(Tcr);
     mlpReferences.push_back(mpReferenceKF);
-    mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
     mlbLost.push_back(mState==LOST);
   } else {
     // This can happen if tracking is lost
     mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
     mlpReferences.push_back(mlpReferences.back());
-    mlFrameTimes.push_back(mlFrameTimes.back());
     mlbLost.push_back(mState==LOST);
   }
 
@@ -331,7 +330,7 @@ void Tracking::StereoInitialization() {
       }
     }
 
-    cout << "New map created with " << mpMap->MapPointsInMap() << " points" << endl;
+    LOGD("New map created with %lu points", mpMap->MapPointsInMap());
 
     mpLocalMapper->InsertKeyFrame(pKFini);
 
@@ -463,7 +462,7 @@ void Tracking::CreateInitialMapMonocular() {
   pKFcur->UpdateConnections();
 
   // Bundle Adjustment
-  cout << "New Map created with " << mpMap->MapPointsInMap() << " points" << endl;
+  LOGD("New Map created with %lu points", mpMap->MapPointsInMap());
 
   Optimizer::GlobalBundleAdjustemnt(mpMap,20);
 
@@ -472,7 +471,7 @@ void Tracking::CreateInitialMapMonocular() {
   float invMedianDepth = 1.0f/medianDepth;
 
   if (medianDepth<0 || pKFcur->TrackedMapPoints(1)<100) {
-    cout << "Wrong initialization, reseting..." << endl;
+    LOGE("Wrong initialization, reseting...");
     Reset();
     return;
   }
@@ -541,7 +540,7 @@ bool Tracking::TrackReferenceKeyFrame() {
   // Align current and last image
   ImageAlign image_align;
   if (!image_align.ComputePose(mCurrentFrame, mpReferenceKF)) {
-    std::cerr << "[ERROR] Image align failed" << endl;
+    LOGE("Image align failed");
     return false;
   }
 
@@ -552,7 +551,7 @@ bool Tracking::TrackReferenceKeyFrame() {
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
-    std::cout << "[DEBUG] Not enough matches, double threshold" << std::endl;
+    LOGD("Not enough matches, double threshold");
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor==System::MONOCULAR);
   }
@@ -605,7 +604,7 @@ bool Tracking::TrackWithMotionModel() {
   // Align current and last image
   ImageAlign image_align;
   if (!image_align.ComputePose(mCurrentFrame,mLastFrame)) {
-    std::cerr << "[ERROR] Image align failed" << endl;
+    LOGE("Image align failed");
     return false;
   }
 
@@ -616,7 +615,7 @@ bool Tracking::TrackWithMotionModel() {
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
-    std::cout << "[DEBUG] Not enough matches, double threshold" << std::endl;
+    LOGD("Not enough matches, double threshold");
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor==System::MONOCULAR);
   }
@@ -1027,7 +1026,7 @@ bool Tracking::Relocalization() {
 
 void Tracking::Reset() {
 
-  cout << "System Reseting" << endl;
+  LOGD("System Reseting");
 
 #ifdef PANGOLIN
   if (mpViewer) {
@@ -1038,14 +1037,12 @@ void Tracking::Reset() {
 #endif
 
   // Reset Local Mapping
-  cout << "Reseting Local Mapper...";
+  LOGD("Reseting Local Mapper...");
   mpLocalMapper->RequestReset();
-  cout << " done" << endl;
 
   // Reset Loop Closing
-  cout << "Reseting Loop Closing...";
+  LOGD("Reseting Loop Closing...");
   mpLoopClosing->RequestReset();
-  cout << " done" << endl;
 
   // Clear Map (this erase MapPoints and KeyFrames)
   mpMap->clear();
@@ -1061,7 +1058,6 @@ void Tracking::Reset() {
 
   mlRelativeFramePoses.clear();
   mlpReferences.clear();
-  mlFrameTimes.clear();
   mlbLost.clear();
 
 #ifdef PANGOLIN

@@ -92,7 +92,7 @@ LIST(APPEND SOURCEFILES
   src/extra/utils.cc
 )
 
-if(USE_PANGOLIN)
+if(NOT USE_ANDROID AND USE_PANGOLIN)
   LIST(APPEND SOURCEFILES
     # UI
     src/ui/FrameDrawer.cc

@@ -41,7 +41,7 @@ class System;
 
 class Viewer {
  public:
-  Viewer(System* pSystem, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Tracking *pTracking);
+  Viewer(System* pSystem, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer);
 
   // Main thread function. Draw points, keyframes, the current camera pose and the last processed
   // frame. Drawing is refreshed according to the camera fps. We use Pangolin.
@@ -49,17 +49,9 @@ class Viewer {
 
   void RequestFinish();
 
-  void RequestStop();
-
   bool isFinished();
 
-  bool isStopped();
-
-  void Release();
-
  private:
-  bool Stop();
-
   System* mpSystem;
   FrameDrawer* mpFrameDrawer;
   MapDrawer* mpMapDrawer;
@@ -70,10 +62,6 @@ class Viewer {
   bool mbFinishRequested;
   bool mbFinished;
   std::mutex mMutexFinish;
-
-  bool mbStopped;
-  bool mbStopRequested;
-  std::mutex mMutexStop;
 };
 
 }  // namespace SD_SLAM

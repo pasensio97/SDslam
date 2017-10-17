@@ -87,7 +87,7 @@ cv::Mat FrameDrawer::DrawFrame() {
   }
 
   cv::Mat imWithInfo;
-  DrawTextInfo(im,state, imWithInfo);
+  DrawTextInfo(im, state, imWithInfo);
 
   return imWithInfo;
 }
@@ -119,24 +119,25 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
 
 void FrameDrawer::Update(Tracking *pTracker) {
   std::unique_lock<mutex> lock(mMutex);
-  pTracker->mImGray.copyTo(mIm);
-  mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
+  pTracker->GetImage().copyTo(mIm);
+  Frame &currentFrame = pTracker->GetCurrentFrame();
+  mvCurrentKeys = currentFrame.mvKeys;
   N = mvCurrentKeys.size();
   mvbMap = vector<bool>(N,false);
 
-  if (pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)  {
-    mvIniKeys=pTracker->mInitialFrame.mvKeys;
-    mvIniMatches=pTracker->mvIniMatches;
-  } else if (pTracker->mLastProcessedState==Tracking::OK) {
+  if (pTracker->GetLastState() == Tracking::NOT_INITIALIZED)  {
+    mvIniKeys=pTracker->GetInitialFrame().mvKeys;
+    mvIniMatches=pTracker->GetInitialMatches();
+  } else if (pTracker->GetLastState() == Tracking::OK) {
     for (int i=0;i<N;i++) {
-      MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
+      MapPoint* pMP = currentFrame.mvpMapPoints[i];
       if (pMP) {
-        if (!pTracker->mCurrentFrame.mvbOutlier[i])
+        if (!currentFrame.mvbOutlier[i])
           mvbMap[i]=true;
       }
     }
   }
-  mState=static_cast<int>(pTracker->mLastProcessedState);
+  mState=static_cast<int>(pTracker->GetLastState());
 }
 
 }  // namespace SD_SLAM

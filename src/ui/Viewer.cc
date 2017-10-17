@@ -32,16 +32,14 @@ using std::unique_lock;
 
 namespace SD_SLAM {
 
-Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Tracking *pTracking):
-  mpSystem(pSystem), mpFrameDrawer(pFrameDrawer),mpMapDrawer(pMapDrawer), mpTracker(pTracking),
-  mbFinishRequested(false), mbFinished(true), mbStopped(true), mbStopRequested(false) {
+Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer):
+  mpSystem(pSystem), mpFrameDrawer(pFrameDrawer),mpMapDrawer(pMapDrawer), mbFinishRequested(false), mbFinished(true) {
 }
 
 void Viewer::Run() {
   int w, h, mw, iw, ih, ib;
 
   mbFinished = false;
-  mbStopped = false;
   iw = Config::Width();
   ih = Config::Height();
   w = 1024;
@@ -137,12 +135,6 @@ void Viewer::Run() {
       menuReset = false;
     }
 
-    if (Stop()) {
-      while (isStopped()) {
-        usleep(3000);
-      }
-    }
-
     if (CheckFinish())
       break;
   }
@@ -150,7 +142,6 @@ void Viewer::Run() {
   SetFinish();
 
 	std::cout << "UI thread finished, exiting..." << std::endl;
-	exit(1);
 }
 
 void Viewer::RequestFinish() {
@@ -171,38 +162,6 @@ void Viewer::SetFinish() {
 bool Viewer::isFinished() {
   unique_lock<mutex> lock(mMutexFinish);
   return mbFinished;
-}
-
-void Viewer::RequestStop() {
-  unique_lock<mutex> lock(mMutexStop);
-  if (!mbStopped)
-    mbStopRequested = true;
-}
-
-bool Viewer::isStopped() {
-  unique_lock<mutex> lock(mMutexStop);
-  return mbStopped;
-}
-
-bool Viewer::Stop() {
-  unique_lock<mutex> lock(mMutexStop);
-  unique_lock<mutex> lock2(mMutexFinish);
-
-  if (mbFinishRequested)
-    return false;
-  else if (mbStopRequested) {
-    mbStopped = true;
-    mbStopRequested = false;
-    return true;
-  }
-
-  return false;
-
-}
-
-void Viewer::Release() {
-  unique_lock<mutex> lock(mMutexStop);
-  mbStopped = false;
 }
 
 }

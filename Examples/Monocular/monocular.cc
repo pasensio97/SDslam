@@ -29,8 +29,15 @@
 #include <unistd.h>
 #include <opencv2/core/core.hpp>
 #include "System.h"
+#include "Tracking.h"
+#include "Map.h"
 #include "Config.h"
 #include "extra/timer.h"
+#ifdef PANGOLIN
+#include "ui/Viewer.h"
+#include "ui/FrameDrawer.h"
+#include "ui/MapDrawer.h"
+#endif
 
 using namespace std;
 
@@ -38,6 +45,8 @@ void LoadImages(const string &strFile, vector<string> &vstrImageFilenames,
                 vector<double> &vTimestamps);
 
 int main(int argc, char **argv) {
+    bool useViewer = true;
+
     if(argc != 3) {
         cerr << endl << "Usage: ./mono path_to_settings path_to_sequence" << endl;
         return 1;
@@ -59,7 +68,24 @@ int main(int argc, char **argv) {
     }
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
+    SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR);
+
+#ifdef PANGOLIN
+    // Create user interface
+    SD_SLAM::Map * map = SLAM.GetMap();
+    SD_SLAM::Tracking * tracker = SLAM.GetTracker();
+
+    SD_SLAM::FrameDrawer * fdrawer = new SD_SLAM::FrameDrawer(map);
+    SD_SLAM::MapDrawer * mdrawer = new SD_SLAM::MapDrawer(map);
+
+    SD_SLAM::Viewer* viewer = nullptr;
+    std::thread* tviewer = nullptr;
+
+    if (useViewer) {
+      viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
+      tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
+    }
+#endif
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -86,11 +112,15 @@ int main(int argc, char **argv) {
         SD_SLAM::Timer ttracking(true);
 
         // Pass the image to the SLAM system
-        SLAM.TrackMonocular(im);
+        Eigen::Matrix4d pose = SLAM.TrackMonocular(im);
+
+        // Set data to UI
+#ifdef PANGOLIN
+        fdrawer->Update(tracker);
+        mdrawer->SetCurrentCameraPose(pose);
+#endif
 
         ttracking.Stop();
-        cout << "[INFO] Tracking time is " << ttracking.GetMsTime() << "ms" << endl;
-
         vTimesTrack[ni]=ttracking.GetTime();
 
         // Wait to load the next frame
@@ -106,6 +136,16 @@ int main(int argc, char **argv) {
 
     // Stop all threads
     SLAM.Shutdown();
+
+#ifdef PANGOLIN
+    if (useViewer) {
+      viewer->RequestFinish();
+      while (!viewer->isFinished())
+        usleep(5000);
+
+      tviewer->join();
+    }
+#endif
 
     // Tracking time statistics
     sort(vTimesTrack.begin(),vTimesTrack.end());

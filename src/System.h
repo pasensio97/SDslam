@@ -32,18 +32,9 @@
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
-#ifdef PANGOLIN
-#include "ui/Viewer.h"
-#include "ui/FrameDrawer.h"
-#include "ui/MapDrawer.h"
-#endif
 
 namespace SD_SLAM {
 
-#ifdef PANGOLIN
-class Viewer;
-class FrameDrawer;
-#endif
 class Map;
 class Tracking;
 class LocalMapping;
@@ -58,8 +49,11 @@ class System {
   };
 
  public:
-  // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
-  System(const eSensor sensor, const bool bUseViewer = true);
+  // Initialize the SLAM system. It launches the Local Mapping and Loop Closing.
+  System(const eSensor sensor);
+
+  inline Map * GetMap() { return mpMap; }
+  inline Tracking * GetTracker() { return mpTracker; }
 
   // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
   // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
@@ -109,20 +103,10 @@ class System {
   // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
   LoopClosing* mpLoopCloser;
 
-  // The viewer draws the map and the current camera pose. It uses Pangolin.
-#ifdef PANGOLIN
-  Viewer* mpViewer;
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
-#endif
-
-  // System threads: Local Mapping, Loop Closing, Viewer.
+  // System threads: Local Mapping, Loop Closing
   // The Tracking thread "lives" in the main execution thread that creates the System object.
   std::thread* mptLocalMapping;
   std::thread* mptLoopClosing;
-#ifdef PANGOLIN
-  std::thread* mptViewer;
-#endif
 
   // Reset flag
   std::mutex mMutexReset;

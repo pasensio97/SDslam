@@ -38,24 +38,25 @@
 #include "ORBextractor.h"
 #include "Initializer.h"
 #include "System.h"
-#ifdef PANGOLIN
-#include "ui/Viewer.h"
-#include "ui/FrameDrawer.h"
-#include "ui/MapDrawer.h"
-#endif
 
 namespace SD_SLAM {
 
-#ifdef PANGOLIN
-class Viewer;
-class FrameDrawer;
-#endif
 class Map;
 class LocalMapping;
 class LoopClosing;
 class System;
 
 class Tracking {
+ public:
+  // Tracking states
+  enum eTrackingState{
+    SYSTEM_NOT_READY = -1,
+    NO_IMAGES_YET = 0,
+    NOT_INITIALIZED = 1,
+    OK = 2,
+    LOST = 3
+  };
+
  public:
   Tracking(System* pSys, Map* pMap, const int sensor);
 
@@ -71,52 +72,14 @@ class Tracking {
     mpLoopClosing = pLoopClosing;
   }
 
-#ifdef PANGOLIN
-  inline void SetViewer(Viewer* pViewer) {
-    mpViewer = pViewer;
-  }
+  inline eTrackingState GetState() { return mState; }
+  inline eTrackingState GetLastState() { return mLastProcessedState; }
 
-  inline void SetFrameDrawer(FrameDrawer* pFrameDrawer) {
-    mpFrameDrawer = pFrameDrawer;
-  }
+  inline Frame& GetCurrentFrame() { return mCurrentFrame; }
+  inline Frame& GetInitialFrame() { return mInitialFrame; }
+  inline cv::Mat& GetImage() { return mImGray; }
 
-  inline void SetMapDrawer(MapDrawer* pMapDrawer) {
-    mpMapDrawer = pMapDrawer;
-  }
-#endif
-
- public:
-  // Tracking states
-  enum eTrackingState{
-    SYSTEM_NOT_READY = -1,
-    NO_IMAGES_YET = 0,
-    NOT_INITIALIZED = 1,
-    OK = 2,
-    LOST = 3
-  };
-
-  eTrackingState mState;
-  eTrackingState mLastProcessedState;
-
-  // Input sensor
-  int mSensor;
-
-  // Current Frame
-  Frame mCurrentFrame;
-  cv::Mat mImGray;
-
-  // Initialization Variables (Monocular)
-  std::vector<int> mvIniLastMatches;
-  std::vector<int> mvIniMatches;
-  std::vector<cv::Point2f> mvbPrevMatched;
-  std::vector<cv::Point3f> mvIniP3D;
-  Frame mInitialFrame;
-
-  // Lists used to recover the full camera trajectory at the end of the execution.
-  // Basically we store the reference keyframe for each frame and its relative transformation
-  std::list<Eigen::Matrix4d> mlRelativeFramePoses;
-  std::list<KeyFrame*> mlpReferences;
-  std::list<bool> mlbLost;
+  inline std::vector<int> GetInitialMatches() { return mvIniMatches; }
 
   void Reset();
 
@@ -152,6 +115,17 @@ class Tracking {
   LocalMapping* mpLocalMapper;
   LoopClosing* mpLoopClosing;
 
+  // Tracking state
+  eTrackingState mState;
+  eTrackingState mLastProcessedState;
+
+  // Input sensor
+  int mSensor;
+
+  // Current Frame
+  Frame mCurrentFrame;
+  cv::Mat mImGray;
+
   // ORB
   ORBextractor* mpORBextractorLeft;
   ORBextractor* mpIniORBextractor;
@@ -166,13 +140,6 @@ class Tracking {
 
   // System
   System* mpSystem;
-
-#ifdef PANGOLIN
-  // Drawers
-  Viewer* mpViewer;
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
-#endif
 
   // Map
   Map* mpMap;
@@ -208,6 +175,19 @@ class Tracking {
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
+
+  // Initialization Variables (Monocular)
+  std::vector<int> mvIniLastMatches;
+  std::vector<int> mvIniMatches;
+  std::vector<cv::Point2f> mvbPrevMatched;
+  std::vector<cv::Point3f> mvIniP3D;
+  Frame mInitialFrame;
+
+  // Lists used to recover the full camera trajectory at the end of the execution.
+  // Basically we store the reference keyframe for each frame and its relative transformation
+  std::list<Eigen::Matrix4d> mlRelativeFramePoses;
+  std::list<KeyFrame*> mlpReferences;
+  std::list<bool> mlbLost;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

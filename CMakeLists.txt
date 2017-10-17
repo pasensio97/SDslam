@@ -12,7 +12,6 @@ MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
 if(USE_ANDROID)
   MESSAGE(STATUS "Compiling for Android")
-  set(USE_PANGOLIN OFF)
 
   ADD_DEFINITIONS(-DANDROID)
 

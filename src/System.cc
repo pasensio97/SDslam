@@ -25,10 +25,8 @@
 #include "System.h"
 #include <iomanip>
 #include <unistd.h>
-#ifdef PANGOLIN
-#include <pangolin/pangolin.h>
-#endif
 #include "Config.h"
+#include "extra/timer.h"
 #include "extra/log.h"
 
 using std::mutex;
@@ -40,7 +38,7 @@ using std::endl;
 
 namespace SD_SLAM {
 
-System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mbReset(false) {
+System::System(const eSensor sensor): mSensor(sensor), mbReset(false) {
 
   cout << "Input sensor was set to: ";
   if (mSensor==MONOCULAR)
@@ -48,28 +46,11 @@ System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mb
   else if (mSensor==RGBD)
     cout << "RGB-D" << endl;
 
-  #ifdef PANGOLIN
-    cout << "User Interface activated" << endl;
-  #else
-    cout << "No user interface available" << endl;
-  #endif
-
   // Create the Map
   mpMap = new Map();
 
-#ifdef PANGOLIN
-  // Create Drawers. These are used by the Viewer
-  mpFrameDrawer = new FrameDrawer(mpMap);
-  mpMapDrawer = new MapDrawer(mpMap);
-#endif
-
-  // Initialize the Tracking thread
-  // (it will live in the main thread of execution, the one that called this constructor)
+  // Initialize the Tracking thread (it will live in the main thread of execution)
   mpTracker = new Tracking(this, mpMap, mSensor);
-#ifdef PANGOLIN
-  mpTracker->SetFrameDrawer(mpFrameDrawer);
-  mpTracker->SetMapDrawer(mpMapDrawer);
-#endif
 
   // Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
@@ -78,16 +59,6 @@ System::System(const eSensor sensor, const bool bUseViewer): mSensor(sensor), mb
   // Initialize the Loop Closing thread and launch
   mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
   mptLoopClosing = new std::thread(&SD_SLAM::LoopClosing::Run, mpLoopCloser);
-
-  // Initialize the Viewer thread and launch
-#ifdef PANGOLIN
-  mpViewer = nullptr;
-  if (bUseViewer) {
-    mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker);
-    mptViewer = new std::thread(&Viewer::Run, mpViewer);
-    mpTracker->SetViewer(mpViewer);
-  }
-#endif
 
   // Set pointers between threads
   mpTracker->SetLocalMapper(mpLocalMapper);
@@ -117,12 +88,19 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
     }
   }
 
+  Timer total(true);
+
   Eigen::Matrix4d Tcw = mpTracker->GrabImageRGBD(im,depthmap);
 
+  total.Stop();
+  LOGD("Tracking time is %.2fms", total.GetMsTime());
+
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0,3), Tcw(1,3), Tcw(2,3));
+
   unique_lock<mutex> lock2(mMutexState);
-  mTrackingState = mpTracker->mState;
-  mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
-  mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
+  mTrackingState = mpTracker->GetState();
+  mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
+  mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
   return Tcw;
 }
 
@@ -143,12 +121,19 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
     }
   }
 
+  Timer total(true);
+
   Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im);
 
+  total.Stop();
+  LOGD("Tracking time is %.2fms", total.GetMsTime());
+
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0,3), Tcw(1,3), Tcw(2,3));
+
   unique_lock<mutex> lock2(mMutexState);
-  mTrackingState = mpTracker->mState;
-  mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
-  mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
+  mTrackingState = mpTracker->GetState();
+  mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
+  mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
 
   return Tcw;
 }
@@ -171,23 +156,14 @@ void System::Reset() {
 void System::Shutdown() {
   mpLocalMapper->RequestFinish();
   mpLoopCloser->RequestFinish();
-#ifdef PANGOLIN
-  if (mpViewer) {
-    mpViewer->RequestFinish();
-    while (!mpViewer->isFinished())
-      usleep(5000);
-  }
-#endif
 
   // Wait until all thread have effectively stopped
   while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA()) {
     usleep(5000);
   }
 
-#ifdef PANGOLIN
-  if (mpViewer)
-    pangolin::BindToContext("SD-SLAM: Map Viewer");
-#endif
+  mptLocalMapping->join();
+  mptLoopClosing->join();
 }
 
 int System::GetTrackingState() {

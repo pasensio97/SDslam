@@ -31,7 +31,6 @@
 #include "Optimizer.h"
 #include "ImageAlign.h"
 #include "Config.h"
-#include "extra/timer.h"
 #include "extra/log.h"
 
 using namespace std;
@@ -119,12 +118,6 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   threshold_ = 8;
 
   mVelocity.setZero();
-
-#ifdef PANGOLIN
-  mpViewer = nullptr;
-  mpFrameDrawer = nullptr;
-  mpMapDrawer = nullptr;
-#endif
 }
 
 Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD) {
@@ -161,6 +154,7 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im) {
     mCurrentFrame = Frame(mImGray, mpORBextractorLeft, mK,mDistCoef, mbf, mThDepth);
 
   Track();
+
   return mCurrentFrame.GetPose();
 }
 
@@ -178,11 +172,6 @@ void Tracking::Track() {
       StereoInitialization();
     else
       MonocularInitialization();
-
-#ifdef PANGOLIN
-    if (mpFrameDrawer != nullptr)
-      mpFrameDrawer->Update(this);
-#endif
 
     if (mState!=OK)
       return;
@@ -218,12 +207,6 @@ void Tracking::Track() {
     else
       mState=LOST;
 
-    // Update drawer
-#ifdef PANGOLIN
-    if (mpFrameDrawer != nullptr)
-      mpFrameDrawer->Update(this);
-#endif
-
     // If tracking were good, check if we insert a keyframe
     if (bOK) {
       // Update motion model
@@ -235,11 +218,6 @@ void Tracking::Track() {
         mVelocity = mCurrentFrame.GetPose()*LastTwc;
       } else
         mVelocity.setZero();
-
-#ifdef PANGOLIN
-      if (mpMapDrawer != nullptr)
-        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
-#endif
 
       // Clean VO matches
       for (int i=0; i<mCurrentFrame.N; i++) {
@@ -302,7 +280,6 @@ void Tracking::Track() {
 
 }
 
-
 void Tracking::StereoInitialization() {
   if (mCurrentFrame.N>500) {
     // Set Frame pose to the origin
@@ -346,11 +323,6 @@ void Tracking::StereoInitialization() {
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
-
-#ifdef PANGOLIN
-    if (mpMapDrawer != nullptr)
-      mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
-#endif
 
     mState=OK;
   }
@@ -506,11 +478,6 @@ void Tracking::CreateInitialMapMonocular() {
   mLastFrame = Frame(mCurrentFrame);
 
   mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-
-#ifdef PANGOLIN
-  if (mpMapDrawer != nullptr)
-    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
-#endif
 
   mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
@@ -1028,14 +995,6 @@ void Tracking::Reset() {
 
   LOGD("System Reseting");
 
-#ifdef PANGOLIN
-  if (mpViewer) {
-    mpViewer->RequestStop();
-    while (!mpViewer->isStopped())
-      usleep(3000);
-  }
-#endif
-
   // Reset Local Mapping
   LOGD("Reseting Local Mapper...");
   mpLocalMapper->RequestReset();
@@ -1059,11 +1018,6 @@ void Tracking::Reset() {
   mlRelativeFramePoses.clear();
   mlpReferences.clear();
   mlbLost.clear();
-
-#ifdef PANGOLIN
-  if (mpViewer)
-    mpViewer->Release();
-#endif
 }
 
 }  // namespace SD_SLAM

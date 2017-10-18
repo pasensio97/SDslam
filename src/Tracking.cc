@@ -116,6 +116,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   }
 
   threshold_ = 8;
+  mpLoopClosing = nullptr;
+  mpLocalMapper = nullptr;
 
   mVelocity.setZero();
 }
@@ -1000,8 +1002,10 @@ void Tracking::Reset() {
   mpLocalMapper->RequestReset();
 
   // Reset Loop Closing
-  LOGD("Reseting Loop Closing...");
-  mpLoopClosing->RequestReset();
+  if (mpLoopClosing) {
+    LOGD("Reseting Loop Closing...");
+    mpLoopClosing->RequestReset();
+  }
 
   // Clear Map (this erase MapPoints and KeyFrames)
   mpMap->clear();

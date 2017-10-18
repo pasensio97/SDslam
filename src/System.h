@@ -50,7 +50,7 @@ class System {
 
  public:
   // Initialize the SLAM system. It launches the Local Mapping and Loop Closing.
-  System(const eSensor sensor);
+  System(const eSensor sensor, bool loopClosing = true);
 
   inline Map * GetMap() { return mpMap; }
   inline Tracking * GetTracker() { return mpTracker; }

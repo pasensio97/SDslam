@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     }
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR);
+    SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
 
 #ifdef PANGOLIN
     // Create user interface

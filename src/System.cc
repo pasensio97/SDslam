@@ -38,13 +38,12 @@ using std::endl;
 
 namespace SD_SLAM {
 
-System::System(const eSensor sensor): mSensor(sensor), mbReset(false) {
-
-  cout << "Input sensor was set to: ";
-  if (mSensor==MONOCULAR)
-    cout << "Monocular" << endl;
-  else if (mSensor==RGBD)
-    cout << "RGB-D" << endl;
+System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset(false) {
+  if (mSensor==MONOCULAR) {
+    LOGD("Input sensor was set to Monocular");
+  } else if (mSensor==RGBD) {
+    LOGD("Input sensor was set to RGB-D");
+  }
 
   // Create the Map
   mpMap = new Map();
@@ -57,18 +56,26 @@ System::System(const eSensor sensor): mSensor(sensor), mbReset(false) {
   mptLocalMapping = new std::thread(&SD_SLAM::LocalMapping::Run, mpLocalMapper);
 
   // Initialize the Loop Closing thread and launch
-  mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
-  mptLoopClosing = new std::thread(&SD_SLAM::LoopClosing::Run, mpLoopCloser);
+  if (loopClosing) {
+    LOGD("Loop closing activated");
+    mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
+    mptLoopClosing = new std::thread(&SD_SLAM::LoopClosing::Run, mpLoopCloser);
+  } else {
+    LOGD("Loop closing not activated");
+    mpLoopCloser = nullptr;
+    mptLoopClosing = nullptr;
+  }
 
   // Set pointers between threads
   mpTracker->SetLocalMapper(mpLocalMapper);
-  mpTracker->SetLoopClosing(mpLoopCloser);
-
   mpLocalMapper->SetTracker(mpTracker);
-  mpLocalMapper->SetLoopCloser(mpLoopCloser);
 
-  mpLoopCloser->SetTracker(mpTracker);
-  mpLoopCloser->SetLocalMapper(mpLocalMapper);
+  if (loopClosing) {
+    mpTracker->SetLoopClosing(mpLoopCloser);
+    mpLocalMapper->SetLoopCloser(mpLoopCloser);
+    mpLoopCloser->SetTracker(mpTracker);
+    mpLoopCloser->SetLocalMapper(mpLocalMapper);
+  }
 }
 
 Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
@@ -154,16 +161,24 @@ void System::Reset() {
 }
 
 void System::Shutdown() {
+  bool waitLoop = false;
+
   mpLocalMapper->RequestFinish();
-  mpLoopCloser->RequestFinish();
+  if (mpLoopCloser) {
+    mpLoopCloser->RequestFinish();
+    waitLoop = true;
+  }
 
   // Wait until all thread have effectively stopped
-  while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA()) {
+  while (!mpLocalMapper->isFinished() || waitLoop) {
     usleep(5000);
+    if (mpLoopCloser)
+      waitLoop = !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA();
   }
 
   mptLocalMapping->join();
-  mptLoopClosing->join();
+  if (mptLoopClosing)
+    mptLoopClosing->join();
 }
 
 int System::GetTrackingState() {

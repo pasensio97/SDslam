@@ -42,6 +42,9 @@ namespace SD_SLAM {
 LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
   mbMonocular(bMonocular), mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
   mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true) {
+
+  mpLoopCloser = nullptr;
+  mpTracker = nullptr;
 }
 
 void LocalMapping::SetLoopCloser(LoopClosing* pLoopCloser) {
@@ -86,7 +89,8 @@ void LocalMapping::Run() {
         KeyFrameCulling();
       }
 
-      mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
+      if (mpLoopCloser)
+        mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);
     } else if (Stop()) {
       // Safe area to stop
       while (isStopped() && !CheckFinish()) {

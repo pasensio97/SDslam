@@ -50,6 +50,10 @@ class FrameDrawer {
  protected:
   void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
 
+  void GetInitialPlane(Tracking *pTracker);
+
+  bool Project(const Frame &frame, const Eigen::Matrix<double, 3, 4> &planeRT, const Eigen::Vector3d &p3d, Eigen::Vector2d &p2d);
+
   // Info of the frame to be drawn
   cv::Mat mIm;
   int N;
@@ -63,6 +67,8 @@ class FrameDrawer {
   Map* mpMap;
 
   std::mutex mMutex;
+
+  std::vector<cv::Point> ARPoints_;
 };
 
 }  // namespace SD_SLAM

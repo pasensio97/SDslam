@@ -42,6 +42,7 @@ cv::Mat FrameDrawer::DrawFrame() {
   vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
   vector<bool> vbMap; // Tracked MapPoints in current frame
   int state; // Tracking state
+  std::vector<cv::Point> ARPoints; // Initial plane
 
   //Copy variables within scoped mutex
   {
@@ -59,6 +60,7 @@ cv::Mat FrameDrawer::DrawFrame() {
     } else if (mState==Tracking::OK) {
       vCurrentKeys = mvCurrentKeys;
       vbMap = mvbMap;
+      ARPoints = ARPoints_;
     } else if (mState==Tracking::LOST) {
       vCurrentKeys = mvCurrentKeys;
     }
@@ -74,6 +76,10 @@ cv::Mat FrameDrawer::DrawFrame() {
         cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt, cv::Scalar(0,255,0), 2);
     }    
   } else if (state==Tracking::OK) { //TRACKING
+    // Show plane grid
+    for (auto it=ARPoints.begin(); it!=ARPoints.end(); it+=2)
+      cv::line(im, *it, *(it+1), cv::Scalar(150,150,150), 2);
+
     mnTracked=0;
     const float r = 3;
     const int n = vCurrentKeys.size();
@@ -118,6 +124,8 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
 }
 
 void FrameDrawer::Update(Tracking *pTracker) {
+  bool showGrid = false;
+
   std::unique_lock<mutex> lock(mMutex);
   pTracker->GetImage().copyTo(mIm);
   Frame &currentFrame = pTracker->GetCurrentFrame();
@@ -138,6 +146,78 @@ void FrameDrawer::Update(Tracking *pTracker) {
     }
   }
   mState=static_cast<int>(pTracker->GetLastState());
+
+  // Save initial plane positions
+  if (showGrid)
+    GetInitialPlane(pTracker);
+}
+
+void FrameDrawer::GetInitialPlane(Tracking *pTracker) {
+  double rmin = -0.5;
+  double rmax = 0.5;
+  double step = 0.1;
+  Eigen::Vector3d p1, p2;
+  Eigen::Vector2d p1i, p2i;
+
+  Frame &currentFrame = pTracker->GetCurrentFrame();
+  Eigen::Matrix<double, 3, 4> planeRT = pTracker->GetPlaneRT();
+
+  ARPoints_.clear();
+  for (double i=rmin; i<=rmax; i+=step) {
+    for (double j=rmin; j<=rmax; j+=step) {
+      p1 << i, j, 0.0;
+      p2 << i+step, j, 0.0;
+      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
+        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
+        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+      }
+
+      p1 << i+step, j, 0.0;
+      p2 << i+step, j+step, 0.0;
+      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
+        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
+        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+      }
+
+      p1 << i+step, j+step, 0.0;
+      p2 << i, j+step, 0.0;
+      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
+        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
+        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+      }
+
+      p1 << i, j+step, 0.0;
+      p2 << i, j, 0.0;
+      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
+        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
+        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+      }
+    }
+  }
+}
+
+bool FrameDrawer::Project(const Frame &frame, const Eigen::Matrix<double, 3, 4> &planeRT, const Eigen::Vector3d &p3d, Eigen::Vector2d &p2d) {
+  Eigen::Matrix3d Rcw = frame.GetPose().block<3,3>(0,0);
+  Eigen::Vector3d tcw = frame.GetPose().block<3,1>(0,3);
+
+  Eigen::Vector3d p, pc;
+
+  p = planeRT.block<3,3>(0,0)*p3d + planeRT.block<3,1>(0,3);
+  pc = Rcw*p+tcw;
+
+  const float invzc = 1.0/pc(2);
+
+  if (invzc >= 0) {
+    p2d(0) = frame.fx*pc(0)*invzc + frame.cx;
+    p2d(1) = frame.fy*pc(1)*invzc + frame.cy;
+
+    if (p2d(0) < -2000 || p2d(0) > 2000 || p2d(1) < -2000 || p2d(1) > 2000)
+      return false;
+
+    return true;
+  }
+
+  return false;
 }
 
 }  // namespace SD_SLAM

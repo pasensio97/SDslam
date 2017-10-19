@@ -80,6 +80,7 @@ class Tracking {
   inline cv::Mat& GetImage() { return mImGray; }
 
   inline std::vector<int> GetInitialMatches() { return mvIniMatches; }
+  inline Eigen::Matrix<double, 3, 4> GetPlaneRT() { return initialRT; }
 
   void Reset();
 
@@ -93,6 +94,8 @@ class Tracking {
   // Map initialization for monocular
   void MonocularInitialization();
   void CreateInitialMapMonocular();
+
+  void CalcPlaneAligner(const std::vector<MapPoint*> &points);
 
   void CheckReplacedInLastFrame();
   bool TrackReferenceKeyFrame();
@@ -188,6 +191,9 @@ class Tracking {
   std::list<Eigen::Matrix4d> mlRelativeFramePoses;
   std::list<KeyFrame*> mlpReferences;
   std::list<bool> mlbLost;
+
+  // Initial plane RT
+  Eigen::Matrix<double, 3, 4> initialRT;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

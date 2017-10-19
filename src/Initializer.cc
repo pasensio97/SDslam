@@ -95,8 +95,8 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
   float SH, SF;
   cv::Mat H, F;
 
-  std::thread threadH(&Initializer::FindHomography,this, std::ref(vbMatchesInliersH), std::ref(SH), std::ref(H));
-  std::thread threadF(&Initializer::FindFundamental,this, std::ref(vbMatchesInliersF), std::ref(SF), std::ref(F));
+  std::thread threadH(&Initializer::FindHomography, this, std::ref(vbMatchesInliersH), std::ref(SH), std::ref(H));
+  std::thread threadF(&Initializer::FindFundamental, this, std::ref(vbMatchesInliersF), std::ref(SF), std::ref(F));
 
   // Wait until both threads have finished
   threadH.join();

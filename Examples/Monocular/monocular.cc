@@ -132,6 +132,11 @@ int main(int argc, char **argv) {
 
         if(vTimesTrack[ni]<T)
             usleep((T-vTimesTrack[ni])*1e6);
+
+#ifdef PANGOLIN
+        if (useViewer && viewer->isFinished())
+          return 0;
+#endif
     }
 
     // Stop all threads

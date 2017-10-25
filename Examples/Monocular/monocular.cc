@@ -2,11 +2,6 @@
  *
  *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
  *
- *  The following code is a derivative work of the code from the ORB-SLAM2 project,
- *  which is licensed under the GNU Public License, version 3. This code therefore
- *  is also licensed under the terms of the GNU Public License, version 3.
- *  For more information see <https://github.com/raulmur/ORB_SLAM2>.
- *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 3 of the License, or
@@ -41,149 +36,147 @@
 
 using namespace std;
 
-void LoadImages(const string &strFile, vector<string> &vstrImageFilenames,
-                vector<double> &vTimestamps);
+void LoadImages(const string &strFile, vector<string> &vFilenames);
 
 int main(int argc, char **argv) {
-    bool useViewer = true;
+  vector<string> vFilenames;
+  cv::Mat im;
+  cv::VideoCapture * cap = nullptr;
+  int nImages, ni = 0;
+  bool useViewer = true;
+  bool live = false;
+  double freq = 1.0/30.0;
 
-    if(argc != 3) {
-        cerr << endl << "Usage: ./mono path_to_settings path_to_sequence" << endl;
-        return 1;
-    }
+  if(argc != 3) {
+      cerr << endl << "Usage: ./mono path_to_settings path_to_sequence/device_number" << endl;
+      return 1;
+  }
 
-    // Retrieve paths to images
-    vector<string> vstrImageFilenames;
-    vector<double> vTimestamps;
-    string strFile = string(argv[2])+"/files.txt";
-    LoadImages(strFile, vstrImageFilenames, vTimestamps);
+  // Read parameters
+  SD_SLAM::Config &config = SD_SLAM::Config::GetInstance();
+  if (!config.ReadParameters(argv[1])) {
+    cerr << "[ERROR] Config file contains errors" << endl;
+    return 1;
+  }
 
-    int nImages = vstrImageFilenames.size();
+  // Check if live mode is activated
+  if (isdigit(argv[2][0])) {
+    live = true;
+    string sdevice = string(argv[2]);
+    int device;
+    istringstream(sdevice) >> device;
 
-    // Read parameters
-    SD_SLAM::Config &config = SD_SLAM::Config::GetInstance();
-    if (!config.ReadParameters(argv[1])) {
-      cerr << "[ERROR] Config file contains errors" << endl;
+    cap = new cv::VideoCapture(device);
+    cap->set(CV_CAP_PROP_FRAME_WIDTH, config.Width());
+    cap->set(CV_CAP_PROP_FRAME_HEIGHT, config.Height());
+    cap->set(CV_CAP_PROP_FPS, config.fps());
+
+    if (!cap->isOpened()) {
+      cerr << "[ERROR] Couldn't open video device" << endl;
       return 1;
     }
 
-    // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
+    std::cout << "[INFO] Get images from /dev/video" << device << std::endl;
+    nImages = INT_MAX;
+  } else {
+    // Retrieve paths to images
+    string filename = string(argv[2])+"/files.txt";
+    LoadImages(filename, vFilenames);
+    nImages = vFilenames.size();
+    cout << "[INFO] Sequence has " << nImages << " images" << endl;
+  }
+
+  // Create SLAM system. It initializes all system threads and gets ready to process frames.
+  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
 
 #ifdef PANGOLIN
-    // Create user interface
-    SD_SLAM::Map * map = SLAM.GetMap();
-    SD_SLAM::Tracking * tracker = SLAM.GetTracker();
+  // Create user interface
+  SD_SLAM::Map * map = SLAM.GetMap();
+  SD_SLAM::Tracking * tracker = SLAM.GetTracker();
 
-    SD_SLAM::FrameDrawer * fdrawer = new SD_SLAM::FrameDrawer(map);
-    SD_SLAM::MapDrawer * mdrawer = new SD_SLAM::MapDrawer(map);
+  SD_SLAM::FrameDrawer * fdrawer = new SD_SLAM::FrameDrawer(map);
+  SD_SLAM::MapDrawer * mdrawer = new SD_SLAM::MapDrawer(map);
 
-    SD_SLAM::Viewer* viewer = nullptr;
-    std::thread* tviewer = nullptr;
+  SD_SLAM::Viewer* viewer = nullptr;
+  std::thread* tviewer = nullptr;
 
-    if (useViewer) {
-      viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
-      tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
+  if (useViewer) {
+    viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
+    tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
+  }
+#endif
+
+  // Main loop
+  while (ni<nImages) {
+    if (live) {
+      cv::Mat frame;
+      *cap >> frame;
+      cv::cvtColor(frame, im, CV_RGB2GRAY);
+    } else {
+      // Read image from file
+      cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenames[ni] << endl;
+      im = cv::imread(string(argv[2])+"/"+vFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);
+
+      if(im.empty()) {
+        cerr << endl << "[ERROR] Failed to load image at: "  << string(argv[2]) << "/" << vFilenames[ni] << endl;
+        return 1;
+      }
     }
-#endif
 
-    // Vector for tracking time statistics
-    vector<float> vTimesTrack;
-    vTimesTrack.resize(nImages);
+    SD_SLAM::Timer ttracking(true);
 
-    cout << endl << "-------" << endl;
-    cout << "Start processing sequence ..." << endl;
-    cout << "Images in the sequence: " << nImages << endl << endl;
+    // Pass the image to the SLAM system
+    Eigen::Matrix4d pose = SLAM.TrackMonocular(im);
 
-    // Main loop
-    cv::Mat im;
-    for(int ni=0; ni<nImages; ni++) {
-        // Read image from file
-        cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vstrImageFilenames[ni] << endl;
-        im = cv::imread(string(argv[2])+"/"+vstrImageFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);
-        double tframe = vTimestamps[ni];
-
-        if(im.empty()) {
-            cerr << endl << "Failed to load image at: "
-                 << string(argv[2]) << "/" << vstrImageFilenames[ni] << endl;
-            return 1;
-        }
-
-        SD_SLAM::Timer ttracking(true);
-
-        // Pass the image to the SLAM system
-        Eigen::Matrix4d pose = SLAM.TrackMonocular(im);
-
-        // Set data to UI
+    // Set data to UI
 #ifdef PANGOLIN
-        fdrawer->Update(tracker);
-        mdrawer->SetCurrentCameraPose(pose);
+    fdrawer->Update(tracker);
+    mdrawer->SetCurrentCameraPose(pose);
 #endif
 
-        ttracking.Stop();
-        vTimesTrack[ni]=ttracking.GetTime();
+    ttracking.Stop();
+    double delay = ttracking.GetTime();
 
-        // Wait to load the next frame
-        double T=0;
-        if(ni<nImages-1)
-            T = vTimestamps[ni+1]-tframe;
-        else if(ni>0)
-            T = tframe-vTimestamps[ni-1];
-
-        if(vTimesTrack[ni]<T)
-            usleep((T-vTimesTrack[ni])*1e6);
+    // Wait to load the next frame
+    if(delay<freq)
+      usleep((freq-delay)*1e6);
 
 #ifdef PANGOLIN
-        if (useViewer && viewer->isFinished())
-          return 0;
+    if (useViewer && viewer->isFinished())
+      return 0;
 #endif
-    }
 
-    // Stop all threads
-    SLAM.Shutdown();
+    ni++;
+  }
+
+  // Stop all threads
+  SLAM.Shutdown();
 
 #ifdef PANGOLIN
-    if (useViewer) {
-      viewer->RequestFinish();
-      while (!viewer->isFinished())
-        usleep(5000);
+  if (useViewer) {
+    viewer->RequestFinish();
+    while (!viewer->isFinished())
+      usleep(5000);
 
-      tviewer->join();
-    }
+    tviewer->join();
+  }
 #endif
 
-    // Tracking time statistics
-    sort(vTimesTrack.begin(),vTimesTrack.end());
-    float totaltime = 0;
-    for(int ni=0; ni<nImages; ni++)
-    {
-        totaltime+=vTimesTrack[ni];
-    }
-    cout << "-------" << endl << endl;
-    cout << "median tracking time: " << vTimesTrack[nImages/2] << endl;
-    cout << "mean tracking time: " << totaltime/nImages << endl;
-
-    return 0;
+  return 0;
 }
 
-void LoadImages(const string &strFile, vector<string> &vstrImageFilenames, vector<double> &vTimestamps)
-{
-    ifstream f;
-    f.open(strFile.c_str());
-    double t=0.0;
-    while(!f.eof())
-    {
-        string s;
-        getline(f,s);
-        if(!s.empty())
-        {
-            stringstream ss;
-            ss << s;
-            string sRGB;
-            t+=0.033;
-            vTimestamps.push_back(t);
-            ss >> sRGB;
-            vstrImageFilenames.push_back(sRGB);
-        }
+void LoadImages(const string &strFile, vector<string> &vFilenames) {
+  ifstream f;
+  f.open(strFile.c_str());
+  while(!f.eof()) {
+    string s;
+    getline(f, s);
+    if(!s.empty()) {
+      stringstream ss;
+      string sRGB;
+      ss << s;
+      ss >> sRGB;
+      vFilenames.push_back(sRGB);
     }
+  }
 }

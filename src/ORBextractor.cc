@@ -529,7 +529,6 @@ void ORBextractor::ComputeKeyPoints(vector<std::vector<KeyPoint>> &allKeypoints,
             continue;
         }
 
-
         Mat cellImage = imagePyramid[level].rowRange(iniY,iniY+hY).colRange(iniX,iniX+hX);
 
         cellKeyPoints[i][j].reserve(nfeaturesCell*5);

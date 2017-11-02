@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   double freq = 1.0/30.0;
 
   if(argc != 3) {
-      cerr << endl << "Usage: ./mono path_to_settings path_to_sequence/device_number" << endl;
+      cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
       return 1;
   }
 

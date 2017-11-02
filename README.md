@@ -77,17 +77,22 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
   ```
  
 # 7. Processing your own sequences
+
 You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM dataset for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the SD-SLAM library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
 
-# 8. SLAM and Localization Modes
-You can change between the *SLAM* and *Localization mode* using the GUI of the map viewer.
+## Camera Calibration
 
-### SLAM Mode
-This is the default mode. The system runs in parallal three threads: Tracking, Local Mapping and Loop Closing. The system localizes the camera, builds new map and tries to close loops.
+We provide a tool to calibrate your camera using the calibration model of OpenCV. You need to print the pattern found inside ` Examples/Calibration` folder and take several pictures of this pattern from different points of view. Then store these pictures in a folder and execute the calibration tool.
 
-### Localization Mode
-This mode can be used when you have a good map of your working area. In this mode the Local Mapping and Loop Closing are deactivated. The system localizes the camera in the map (which is no longer updated), using relocalization if needed. 
+  ```
+  ./Examples/Calibration/calibration Examples/RGB-D/TUMX.yaml PATH_TO_IMAGES_FOLDER
+  ```
 
-# 9. Android Compilation
+Inside `PATH_TO_IMAGES_FOLDER` there must be a file named ''files.txt'' with each image filename.
+
+You can check if the intrinsic parameters calculated are accurate checking the rectified images stored in `PATH_TO_IMAGES_FOLDER`.
+
+
+# 8. Android Compilation
 Read: https://github.com/taka-no-me/android-cmake
 

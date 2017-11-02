@@ -212,5 +212,12 @@ if(NOT USE_ANDROID)
   add_executable(rgbd
   Examples/RGB-D/rgbd.cc)
   target_link_libraries(rgbd ${PROJECT_NAME})
+
+  # Calibration
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Calibration)
+
+  add_executable(calibration
+  Examples/Calibration/calibration.cc)
+  target_link_libraries(calibration ${PROJECT_NAME})
 endif()
 

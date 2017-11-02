@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   double freq = 1.0/30.0;
 
   if(argc != 4) {
-      cerr << endl << "Usage: ./rgbd_tum path_to_settings path_to_sequence path_to_association" << endl;
+      cerr << endl << "Usage: ./rgbd path_to_settings path_to_sequence path_to_association" << endl;
       return 1;
   }
 

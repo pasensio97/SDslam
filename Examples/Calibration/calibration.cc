@@ -33,7 +33,7 @@ void LoadImages(const string &strFile, vector<string> &vFilenames);
 int main(int argc, char **argv) {
   bool debug = true;
   const cv::Size patternsize(6,4);  // Num internal corners of pattern
-  const double size = 0.032;  // Cell size (cm)
+  const double size = 0.0302;  // Cell size (cm)
 
   vector<string> vFilenames;
   int nImages;

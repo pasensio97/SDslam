@@ -71,6 +71,7 @@ class Config {
   static double fps() { return GetInstance().camera_params_.fps; }
   static double bf() { return GetInstance().camera_params_.bf; }
 
+  static double UsePattern() { return GetInstance().kUsePattern_; }
   static double ThDepth() { return GetInstance().kThDepth_; }
   static double DepthMapFactor() { return GetInstance().kDepthMapFactor_; }
 
@@ -96,6 +97,7 @@ class Config {
   // Camera
   CameraParameters camera_params_;
 
+  bool kUsePattern_;
   double kThDepth_;
   double kDepthMapFactor_;
 

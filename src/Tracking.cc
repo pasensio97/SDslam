@@ -39,7 +39,7 @@ namespace SD_SLAM {
 
 Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
-  mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0) {
+  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0) {
   // Load camera parameters
   float fx = Config::fx();
   float fy = Config::fy();
@@ -116,6 +116,11 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   }
 
   threshold_ = 8;
+  usePattern = Config::UsePattern();
+
+  if (usePattern)
+    std::cout << "Use pattern for initialization" << std::endl;
+
   mpLoopClosing = nullptr;
   mpLocalMapper = nullptr;
 
@@ -172,12 +177,17 @@ void Tracking::Track() {
   if (mState==NOT_INITIALIZED) {
     if (mSensor==System::RGBD)
       StereoInitialization();
-    else
-      MonocularInitialization();
+    else {
+      if (usePattern)
+        PatternInitialization();
+      else
+        MonocularInitialization();
+    }
 
     if (mState!=OK)
       return;
   } else {
+
     // System is initialized. Track Frame.
     bool bOK;
 
@@ -316,7 +326,6 @@ void Tracking::StereoInitialization() {
 
     mpLocalMapper->InsertKeyFrame(pKFini);
 
-    mLastFrame = Frame(mCurrentFrame);
     mnLastKeyFrameId=mCurrentFrame.mnId;
     mpLastKeyFrame = pKFini;
 
@@ -324,6 +333,8 @@ void Tracking::StereoInitialization() {
     mvpLocalMapPoints=mpMap->GetAllMapPoints();
     mpReferenceKF = pKFini;
     mCurrentFrame.mpReferenceKF = pKFini;
+
+    mLastFrame = Frame(mCurrentFrame);
 
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
@@ -334,7 +345,6 @@ void Tracking::StereoInitialization() {
 }
 
 void Tracking::MonocularInitialization() {
-
   if (!mpInitializer) {
     // Set Reference Frame
     if (mCurrentFrame.mvKeys.size()>100) {
@@ -347,7 +357,7 @@ void Tracking::MonocularInitialization() {
       if (mpInitializer)
         delete mpInitializer;
 
-      mpInitializer =  new Initializer(mCurrentFrame,1.0,200);
+      mpInitializer =  new Initializer(mCurrentFrame, 1.0, 200);
 
       fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
 
@@ -490,6 +500,73 @@ void Tracking::CreateInitialMapMonocular() {
   mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
   mState=OK;
+}
+
+void Tracking::PatternInitialization() {
+  if (mCurrentFrame.N <= 500)
+    return;
+
+  // Search pattern
+  if (mpPatternDetector.Detect(mCurrentFrame)) {
+
+    // Set Frame pose from pattern
+    Eigen::Matrix4d cam_pos = mpPatternDetector.GetRT();
+    mCurrentFrame.SetPose(cam_pos);
+    mCurrentFrame.SetPose(Eigen::Matrix4d::Identity());
+
+    std::cout << "[INFO] Initial camera pose: [" << cam_pos(0,3) << ", " << cam_pos(1,3) << ", " << cam_pos(2,3) << "]" << std::endl;
+
+    // Create KeyFrame
+    KeyFrame* pKFini = new KeyFrame(mCurrentFrame,mpMap);
+
+    // Insert KeyFrame in the map
+    mpMap->AddKeyFrame(pKFini);
+
+    // Create MapPoints and asscoiate to keyframes
+    vector<pair<int, Eigen::Vector3d>>& points = mpPatternDetector.GetPoints();
+    for (auto p=points.begin(); p!=points.end(); p++) {
+      int idx = p->first;
+
+      // Calculate 3d point position from camera
+      Eigen::Vector4d abspos(p->second(0), p->second(1), p->second(2), 1.0);
+      Eigen::Vector4d relpos = cam_pos.inverse()*abspos;
+
+      // Create MapPoint
+      Eigen::Vector3d worldPos(relpos(0), relpos(1), relpos(2));
+      MapPoint* pMP = new MapPoint(worldPos, pKFini, mpMap);
+      pMP->AddObservation(pKFini,idx);
+      pKFini->AddMapPoint(pMP,idx);
+      pMP->ComputeDistinctiveDescriptors();
+      pMP->UpdateNormalAndDepth();
+      mpMap->AddMapPoint(pMP);
+
+      // Fill Current Frame structure
+      mCurrentFrame.mvpMapPoints[idx] = pMP;
+    }
+
+    LOGD("New map created from pattern with %lu points", mpMap->MapPointsInMap());
+
+    // Calculate dominant plane
+    CalcPlaneAligner(pKFini->GetMapPointMatches());
+
+    mpLocalMapper->InsertKeyFrame(pKFini);
+
+    mnLastKeyFrameId=mCurrentFrame.mnId;
+    mpLastKeyFrame = pKFini;
+
+    mvpLocalKeyFrames.push_back(pKFini);
+    mvpLocalMapPoints=mpMap->GetAllMapPoints();
+    mpReferenceKF = pKFini;
+    mCurrentFrame.mpReferenceKF = pKFini;
+
+    mLastFrame = Frame(mCurrentFrame);
+
+    mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+    mpMap->mvpKeyFrameOrigins.push_back(pKFini);
+
+    mState=OK;
+  }
 }
 
 void Tracking::CalcPlaneAligner(const vector<MapPoint*> &points) {
@@ -806,6 +883,8 @@ bool Tracking::NeedNewKeyFrame() {
   int nMinObs = 3;
   if (nKFs<=2)
     nMinObs=2;
+  if (nKFs==1 && usePattern)
+    nMinObs=1;
   int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
 
   // Local Mapping accept keyframes?
@@ -851,6 +930,7 @@ bool Tracking::NeedNewKeyFrame() {
       return true;
     } else {
       mpLocalMapper->InterruptBA();
+
       if (mSensor!=System::MONOCULAR) {
         if (mpLocalMapper->KeyframesInQueue()<3)
           return true;
@@ -1163,6 +1243,7 @@ void Tracking::Reset() {
   mlRelativeFramePoses.clear();
   mlpReferences.clear();
   mlbLost.clear();
+  mVelocity.setZero();
 }
 
 }  // namespace SD_SLAM

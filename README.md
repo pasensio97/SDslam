@@ -85,7 +85,7 @@ You will need to create a settings file with the calibration of your camera. See
 We provide a tool to calibrate your camera using the calibration model of OpenCV. You need to print the pattern found inside ` Examples/Calibration` folder and take several pictures of this pattern from different points of view. Then store these pictures in a folder and execute the calibration tool.
 
   ```
-  ./Examples/Calibration/calibration Examples/RGB-D/TUMX.yaml PATH_TO_IMAGES_FOLDER
+  ./Examples/Calibration/calibration PATH_TO_IMAGES_FOLDER
   ```
 
 Inside `PATH_TO_IMAGES_FOLDER` there must be a file named ''files.txt'' with each image filename.

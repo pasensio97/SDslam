@@ -41,6 +41,7 @@ Config::Config() {
   camera_params_.fps = 30.0;
   camera_params_.bf = 40.0;
 
+  kUsePattern_ = false;
   kThDepth_ = 40.0;
   kDepthMapFactor_ = 5000.0;
 
@@ -91,6 +92,7 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Camera.fps"].isNamed()) fs["Camera.fps"] >> camera_params_.fps;
   if (fs["Camera.bf"].isNamed()) fs["Camera.bf"] >> camera_params_.bf;
 
+  if (fs["UsePattern"].isNamed()) fs["UsePattern"] >> kUsePattern_;
   if (fs["ThDepth"].isNamed()) fs["ThDepth"] >> kThDepth_;
   if (fs["DepthMapFactor"].isNamed()) fs["DepthMapFactor"] >> kDepthMapFactor_;
 

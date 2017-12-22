@@ -87,6 +87,7 @@ LIST(APPEND SOURCEFILES
   src/Sim3Solver.cc
   src/Initializer.cc
   src/Config.cc
+  src/PatternDetector.cc
 
   # Extra
   src/extra/utils.cc

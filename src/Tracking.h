@@ -30,13 +30,13 @@
 #include <list>
 #include <vector>
 #include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Frame.h"
 #include "ORBextractor.h"
 #include "Initializer.h"
+#include "PatternDetector.h"
 #include "System.h"
 
 namespace SD_SLAM {
@@ -95,6 +95,9 @@ class Tracking {
   void MonocularInitialization();
   void CreateInitialMapMonocular();
 
+  // Initialization with pattern
+  void PatternInitialization();
+
   void CalcPlaneAligner(const std::vector<MapPoint*> &points);
 
   void CheckReplacedInLastFrame();
@@ -135,6 +138,7 @@ class Tracking {
 
   // Initalization (only for monocular)
   Initializer* mpInitializer;
+  PatternDetector mpPatternDetector;
 
   // Local Map
   KeyFrame* mpReferenceKF;
@@ -193,6 +197,7 @@ class Tracking {
   std::list<bool> mlbLost;
 
   // Initial plane RT
+  bool usePattern;
   Eigen::Matrix<double, 3, 4> initialRT;
 
  public:

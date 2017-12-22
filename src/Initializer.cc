@@ -122,8 +122,8 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
   // Normalize coordinates
   vector<cv::Point2f> vPn1, vPn2;
   cv::Mat T1, T2;
-  Normalize(mvKeys1,vPn1, T1);
-  Normalize(mvKeys2,vPn2, T2);
+  Normalize(mvKeys1, vPn1, T1);
+  Normalize(mvKeys2, vPn2, T2);
   cv::Mat T2inv = T2.inv();
 
   // Best Results variables
@@ -169,8 +169,8 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
   // Normalize coordinates
   vector<cv::Point2f> vPn1, vPn2;
   cv::Mat T1, T2;
-  Normalize(mvKeys1,vPn1, T1);
-  Normalize(mvKeys2,vPn2, T2);
+  Normalize(mvKeys1, vPn1, T1);
+  Normalize(mvKeys2, vPn2, T2);
   cv::Mat T2t = T2.t();
 
   // Best Results variables
@@ -676,7 +676,6 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, con
       secondBestGood = nGood;
     }
   }
-
 
   if (secondBestGood<0.75*bestGood && bestParallax>=minParallax && bestGood>minTriangulated && bestGood>0.9*N) {
     R21 = vR[bestSolutionIdx];

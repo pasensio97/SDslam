@@ -48,7 +48,7 @@ namespace g2o {
    * E - type to represent the measurement
    */
   template <int D, typename E>
-  class BaseMultiEdge : public BaseEdge<D,E>
+  class BaseMultiEdge : public BaseEdge<D, E>
   {
     public:
       /**
@@ -61,14 +61,14 @@ namespace g2o {
       };
 
     public:
-      static const int Dimension = BaseEdge<D,E>::Dimension;
-      typedef typename BaseEdge<D,E>::Measurement Measurement;
+      static const int Dimension = BaseEdge<D, E>::Dimension;
+      typedef typename BaseEdge<D, E>::Measurement Measurement;
       typedef MatrixXd::MapType JacobianType;
-      typedef typename BaseEdge<D,E>::ErrorVector ErrorVector;
-      typedef typename BaseEdge<D,E>::InformationType InformationType;
+      typedef typename BaseEdge<D, E>::ErrorVector ErrorVector;
+      typedef typename BaseEdge<D, E>::InformationType InformationType;
       typedef Eigen::Map<MatrixXd, MatrixXd::Flags & PacketAccessBit ? Aligned : Unaligned > HessianBlockType;
 
-      BaseMultiEdge() : BaseEdge<D,E>()
+      BaseMultiEdge() : BaseEdge<D, E>()
       {
       }
       
@@ -88,14 +88,14 @@ namespace g2o {
 
       virtual void mapHessianMemory(double* d, int i, int j, bool rowMajor);
 
-      using BaseEdge<D,E>::computeError;
+      using BaseEdge<D, E>::computeError;
 
     protected:
-      using BaseEdge<D,E>::_measurement;
-      using BaseEdge<D,E>::_information;
-      using BaseEdge<D,E>::_error;
-      using BaseEdge<D,E>::_vertices;
-      using BaseEdge<D,E>::_dimension;
+      using BaseEdge<D, E>::_measurement;
+      using BaseEdge<D, E>::_information;
+      using BaseEdge<D, E>::_error;
+      using BaseEdge<D, E>::_vertices;
+      using BaseEdge<D, E>::_dimension;
 
       std::vector<HessianHelper> _hessian;
       std::vector<JacobianType, aligned_allocator<JacobianType> > _jacobianOplus; ///< jacobians of the edge (w.r.t. oplus)

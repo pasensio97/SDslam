@@ -31,7 +31,7 @@ using std::set;
 
 namespace SD_SLAM {
 
-Map::Map():mnMaxKFid(0),mnBigChangeIdx(0) {
+Map::Map():mnMaxKFid(0), mnBigChangeIdx(0) {
 }
 
 void Map::AddKeyFrame(KeyFrame *pKF) {
@@ -79,12 +79,12 @@ int Map::GetLastBigChangeIdx() {
 
 vector<KeyFrame*> Map::GetAllKeyFrames() {
   unique_lock<mutex> lock(mMutexMap);
-  return vector<KeyFrame*>(mspKeyFrames.begin(),mspKeyFrames.end());
+  return vector<KeyFrame*>(mspKeyFrames.begin(), mspKeyFrames.end());
 }
 
 vector<MapPoint*> Map::GetAllMapPoints() {
   unique_lock<mutex> lock(mMutexMap);
-  return vector<MapPoint*>(mspMapPoints.begin(),mspMapPoints.end());
+  return vector<MapPoint*>(mspMapPoints.begin(), mspMapPoints.end());
 }
 
 long unsigned int Map::MapPointsInMap() {
@@ -108,10 +108,10 @@ long unsigned int Map::GetMaxKFid() {
 }
 
 void Map::clear() {
-  for (set<MapPoint*>::iterator sit=mspMapPoints.begin(), send=mspMapPoints.end(); sit!=send; sit++)
+  for (set<MapPoint*>::iterator sit = mspMapPoints.begin(), send = mspMapPoints.end(); sit != send; sit++)
     delete *sit;
 
-  for (set<KeyFrame*>::iterator sit=mspKeyFrames.begin(), send=mspKeyFrames.end(); sit!=send; sit++)
+  for (set<KeyFrame*>::iterator sit = mspKeyFrames.begin(), send = mspKeyFrames.end(); sit != send; sit++)
     delete *sit;
 
   mspMapPoints.clear();

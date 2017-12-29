@@ -158,7 +158,7 @@ namespace g2o {
   /**
    * apply an action to all the elements of the graph.
    */
-  void  applyAction(HyperGraph* graph, HyperGraphElementAction* action, HyperGraphElementAction::Parameters* parameters=0, const std::string& typeName="");
+  void  applyAction(HyperGraph* graph, HyperGraphElementAction* action, HyperGraphElementAction::Parameters* parameters = 0, const std::string& typeName="");
 
   /**
    * brief write into gnuplot

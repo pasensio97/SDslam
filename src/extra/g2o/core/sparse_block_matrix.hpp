@@ -52,8 +52,8 @@ namespace g2o {
 
   template <class MatrixType>
   SparseBlockMatrix<MatrixType>::SparseBlockMatrix( const int * rbi, const int* cbi, int rb, int cb, bool hasStorage):
-    _rowBlockIndices(rbi,rbi+rb),
-    _colBlockIndices(cbi,cbi+cb),
+    _rowBlockIndices(rbi, rbi+rb),
+    _colBlockIndices(cbi, cbi+cb),
     _blockCols(cb), _hasStorage(hasStorage) 
   {
   }
@@ -69,7 +69,7 @@ namespace g2o {
 #   ifdef G2O_OPENMP
 #   pragma omp parallel for default (shared) if (_blockCols.size() > 100)
 #   endif
-    for (int i=0; i < static_cast<int>(_blockCols.size()); ++i) {
+    for (int i = 0; i < static_cast<int>(_blockCols.size()); ++i) {
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
         typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b=it->second;
         if (_hasStorage && dealloc)
@@ -91,14 +91,14 @@ namespace g2o {
   template <class MatrixType>
   typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* SparseBlockMatrix<MatrixType>::block(int r, int c, bool alloc) {
     typename SparseBlockMatrix<MatrixType>::IntBlockMap::iterator it =_blockCols[c].find(r);
-    typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* _block=0;
+    typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* _block = 0;
     if (it==_blockCols[c].end()){
       if (!_hasStorage && ! alloc )
         return 0;
       else {
         int rb=rowsOfBlock(r);
         int cb=colsOfBlock(c);
-        _block=new typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock(rb,cb);
+        _block=new typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock(rb, cb);
         _block->setZero();
         std::pair < typename SparseBlockMatrix<MatrixType>::IntBlockMap::iterator, bool> result
           =_blockCols[c].insert(std::make_pair(r,_block)); (void) result;
@@ -122,7 +122,7 @@ namespace g2o {
   template <class MatrixType>
   SparseBlockMatrix<MatrixType>* SparseBlockMatrix<MatrixType>::clone() const {
     SparseBlockMatrix* ret= new SparseBlockMatrix(&_rowBlockIndices[0], &_colBlockIndices[0], _rowBlockIndices.size(), _colBlockIndices.size());
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i < _blockCols.size(); ++i){
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
         typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b=new typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock(*it->second);
         ret->_blockCols[i].insert(std::make_pair(it->first, b));
@@ -145,20 +145,20 @@ namespace g2o {
         return false;
       if (_colBlockIndices.size()!=dest->_rowBlockIndices.size())
         return  false;
-      for (size_t i=0; i<_rowBlockIndices.size(); ++i){
+      for (size_t i = 0; i < _rowBlockIndices.size(); ++i){
         if(_rowBlockIndices[i]!=dest->_colBlockIndices[i])
           return false;
       }
-      for (size_t i=0; i<_colBlockIndices.size(); ++i){
+      for (size_t i = 0; i < _colBlockIndices.size(); ++i){
         if(_colBlockIndices[i]!=dest->_rowBlockIndices[i])
           return false;
       }
     }
 
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i < _blockCols.size(); ++i){
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
         typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* s=it->second;
-        typename SparseBlockMatrix<MatrixTransposedType>::SparseMatrixBlock* d=dest->block(i,it->first,true);
+        typename SparseBlockMatrix<MatrixTransposedType>::SparseMatrixBlock* d=dest->block(i, it->first, true);
         *d = s->transpose();
       }
     }
@@ -176,19 +176,19 @@ namespace g2o {
         return false;
       if (_colBlockIndices.size()!=dest->_colBlockIndices.size())
         return  false;
-      for (size_t i=0; i<_rowBlockIndices.size(); ++i){
+      for (size_t i = 0; i < _rowBlockIndices.size(); ++i){
         if(_rowBlockIndices[i]!=dest->_rowBlockIndices[i])
           return false;
       }
-      for (size_t i=0; i<_colBlockIndices.size(); ++i){
+      for (size_t i = 0; i < _colBlockIndices.size(); ++i){
         if(_colBlockIndices[i]!=dest->_colBlockIndices[i])
           return false;
       }
     }
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i < _blockCols.size(); ++i){
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
         typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* s=it->second;
-        typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* d=dest->block(it->first,i,true);
+        typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* d=dest->block(it->first, i, true);
         (*d)+=*s;
       }
     }
@@ -201,7 +201,7 @@ namespace g2o {
     // sanity check
     if (_colBlockIndices.size()!=M->_rowBlockIndices.size())
       return false;
-    for (size_t i=0; i<_colBlockIndices.size(); ++i){
+    for (size_t i = 0; i < _colBlockIndices.size(); ++i){
       if (_colBlockIndices[i]!=M->_rowBlockIndices[i])
         return false;
     }
@@ -210,7 +210,7 @@ namespace g2o {
     }
     if (! dest->_hasStorage)
       return false;
-    for (size_t i=0; i<M->_blockCols.size(); ++i){
+    for (size_t i = 0; i < M->_blockCols.size(); ++i){
       for (typename SparseBlockMatrix<MatrixFactorType>::IntBlockMap::const_iterator it=M->_blockCols[i].begin(); it!=M->_blockCols[i].end(); ++it){
         // look for a non-zero block in a row of column it
         int colM=i;
@@ -220,7 +220,7 @@ namespace g2o {
           //int colA=it->first;
           int rowA=rbt->first;
           typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock *a=rbt->second;
-          typename SparseBlockMatrix<MatrixResultType>::SparseMatrixBlock *c=dest->block(rowA,colM,true);
+          typename SparseBlockMatrix<MatrixResultType>::SparseMatrixBlock *c=dest->block(rowA, colM, true);
           assert (c->rows()==a->rows());
           assert (c->cols()==b->cols());
           ++rbt;
@@ -235,14 +235,14 @@ namespace g2o {
   void SparseBlockMatrix<MatrixType>::multiply(double*& dest, const double* src) const {
     if (! dest){
       dest=new double [_rowBlockIndices[_rowBlockIndices.size()-1] ];
-      memset(dest,0, _rowBlockIndices[_rowBlockIndices.size()-1]*sizeof(double));
+      memset(dest, 0, _rowBlockIndices[_rowBlockIndices.size()-1]*sizeof(double));
     }
 
     // map the memory by Eigen
     Eigen::Map<VectorXd> destVec(dest, rows());
     const Eigen::Map<const VectorXd> srcVec(src, cols());
 
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i < _blockCols.size(); ++i){
       int srcOffset = i ? _colBlockIndices[i-1] : 0;
 
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
@@ -259,14 +259,14 @@ namespace g2o {
   {
     if (! dest){
       dest=new double [_rowBlockIndices[_rowBlockIndices.size()-1] ];
-      memset(dest,0, _rowBlockIndices[_rowBlockIndices.size()-1]*sizeof(double));
+      memset(dest, 0, _rowBlockIndices[_rowBlockIndices.size()-1]*sizeof(double));
     }
 
     // map the memory by Eigen
     Eigen::Map<VectorXd> destVec(dest, rows());
     const Eigen::Map<const VectorXd> srcVec(src, cols());
 
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i < _blockCols.size(); ++i){
       int srcOffset = colBaseOfBlock(i);
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
         const typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* a=it->second;
@@ -287,7 +287,7 @@ namespace g2o {
 
     if (! dest){
       dest=new double [ destSize ];
-      memset(dest,0, destSize*sizeof(double));
+      memset(dest, 0, destSize*sizeof(double));
     }
 
     // map the memory by Eigen
@@ -297,7 +297,7 @@ namespace g2o {
 #   ifdef G2O_OPENMP
 #   pragma omp parallel for default (shared) schedule(dynamic, 10)
 #   endif
-    for (int i=0; i < static_cast<int>(_blockCols.size()); ++i){
+    for (int i = 0; i < static_cast<int>(_blockCols.size()); ++i){
       int destOffset = colBaseOfBlock(i);
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); 
           it!=_blockCols[i].end(); 
@@ -313,7 +313,7 @@ namespace g2o {
 
   template <class MatrixType>
   void SparseBlockMatrix<MatrixType>::scale(double a_) {
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i < _blockCols.size(); ++i){
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
         typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* a=it->second;
         *a *= a_;
@@ -327,17 +327,17 @@ namespace g2o {
     int n=cmax-cmin;
     int rowIdx [m];
     rowIdx[0] = rowsOfBlock(rmin);
-    for (int i=1; i<m; ++i){
+    for (int i=1; i < m; ++i){
       rowIdx[i]=rowIdx[i-1]+rowsOfBlock(rmin+i);
     }
 
     int colIdx [n];
     colIdx[0] = colsOfBlock(cmin);
-    for (int i=1; i<n; ++i){
+    for (int i=1; i < n; ++i){
       colIdx[i]=colIdx[i-1]+colsOfBlock(cmin+i);
     }
     typename SparseBlockMatrix<MatrixType>::SparseBlockMatrix* s=new SparseBlockMatrix(rowIdx, colIdx, m, n, true);
-    for (int i=0; i<n; ++i){
+    for (int i = 0; i < n; ++i){
       int mc=cmin+i;
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[mc].begin(); it!=_blockCols[mc].end(); ++it){
         if (it->first >= rmin && it->first < rmax){
@@ -352,8 +352,8 @@ namespace g2o {
 
   template <class MatrixType>
   size_t SparseBlockMatrix<MatrixType>::nonZeroBlocks() const {
-    size_t count=0;
-    for (size_t i=0; i<_blockCols.size(); ++i)
+    size_t count = 0;
+    for (size_t i = 0; i < _blockCols.size(); ++i)
       count+=_blockCols[i].size();
     return count;
   }
@@ -364,8 +364,8 @@ namespace g2o {
       size_t nnz = nonZeroBlocks() * MatrixType::SizeAtCompileTime;
       return nnz;
     } else {
-      size_t count=0;
-      for (size_t i=0; i<_blockCols.size(); ++i){
+      size_t count = 0;
+      for (size_t i = 0; i < _blockCols.size(); ++i){
         for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
           const typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* a=it->second;
           count += a->cols()*a->rows();
@@ -378,16 +378,16 @@ namespace g2o {
   template <class MatrixType>
   std::ostream& operator << (std::ostream& os, const SparseBlockMatrix<MatrixType>& m){
     os << "RBI: " << m.rowBlockIndices().size();
-    for (size_t i=0; i<m.rowBlockIndices().size(); ++i)
+    for (size_t i = 0; i < m.rowBlockIndices().size(); ++i)
       os << " " << m.rowBlockIndices()[i];
     os << std::endl;
     os << "CBI: " << m.colBlockIndices().size();
-    for (size_t i=0; i<m.colBlockIndices().size(); ++i)
+    for (size_t i = 0; i<m.colBlockIndices().size(); ++i)
       os << " " << m.colBlockIndices()[i];
     os << std::endl;
 
-    for (size_t i=0; i<m.blockCols().size(); ++i){
-      for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=m.blockCols()[i].begin(); it!=m.blockCols()[i].end(); ++it){
+    for (size_t i = 0; i<m.blockCols().size(); ++i){
+      for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it = m.blockCols()[i].begin(); it != m.blockCols()[i].end(); ++it){
         const typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b=it->second;
         os << "BLOCK: " << it->first << " " << i << std::endl;
         os << *b << std::endl;
@@ -408,7 +408,7 @@ namespace g2o {
     }
     // permute them
     int pBlockIndices[_rowBlockIndices.size()];
-    for (size_t i=0; i<n; ++i){
+    for (size_t i = 0; i<n; ++i){
       pBlockIndices[pinv[i]]=blockSizes[i];
     }
     for (size_t i=1; i<n; ++i){
@@ -422,7 +422,7 @@ namespace g2o {
         return false;
       if (dest->_colBlockIndices.size()!=n)
         return false;
-      for (size_t i=0; i<n; ++i){
+      for (size_t i = 0; i<n; ++i){
         if (dest->_rowBlockIndices[i]!=pBlockIndices[i])
           return false;
         if (dest->_colBlockIndices[i]!=pBlockIndices[i])
@@ -431,27 +431,27 @@ namespace g2o {
       dest->clear();
     }
     // now ready to permute the columns
-    for (size_t i=0; i<n; ++i){
+    for (size_t i = 0; i<n; ++i){
       //cerr << PVAR(i) <<  " ";
       int pi=pinv[i];
       for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); 
           it!=_blockCols[i].end(); ++it){
-        int pj=pinv[it->first];
+        int pj = pinv[it->first];
 
         const typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* s=it->second;
 
-        typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b=0;
-        if (! upperTriangle || pj<=pi) {
-          b=dest->block(pj,pi,true);
-          assert(b->cols()==s->cols());
-          assert(b->rows()==s->rows());
+        typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b = 0;
+        if (! upperTriangle || pj <= pi) {
+          b=dest->block(pj,pi, true);
+          assert(b->cols() == s->cols());
+          assert(b->rows() == s->rows());
           *b=*s;
         } else {
-          b=dest->block(pi,pj,true);
+          b=dest->block(pi,pj, true);
           assert(b);
-          assert(b->rows()==s->cols());
-          assert(b->cols()==s->rows());
-          *b=s->transpose();
+          assert(b->rows() == s->cols());
+          assert(b->cols() == s->rows());
+          *b = s->transpose();
         }
       }
       //cerr << endl;
@@ -466,10 +466,10 @@ namespace g2o {
   {
     assert(Cx && "Target destination is NULL");
     double* CxStart = Cx;
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    for (size_t i = 0; i<_blockCols.size(); ++i){
       int cstart=i ? _colBlockIndices[i-1] : 0;
       int csize=colsOfBlock(i);
-      for (int c=0; c<csize; ++c) {
+      for (int c = 0; c<csize; ++c) {
         for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
           const typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b=it->second;
           int rstart=it->first ? _rowBlockIndices[it->first-1] : 0;
@@ -490,11 +490,11 @@ namespace g2o {
   int SparseBlockMatrix<MatrixType>::fillCCS(int* Cp, int* Ci, double* Cx, bool upperTriangle) const
   {
     assert(Cp && Ci && Cx && "Target destination is NULL");
-    int nz=0;
-    for (size_t i=0; i<_blockCols.size(); ++i){
+    int nz = 0;
+    for (size_t i = 0; i<_blockCols.size(); ++i){
       int cstart=i ? _colBlockIndices[i-1] : 0;
       int csize=colsOfBlock(i);
-      for (int c=0; c<csize; ++c) {
+      for (int c = 0; c<csize; ++c) {
         *Cp=nz;
         for (typename SparseBlockMatrix<MatrixType>::IntBlockMap::const_iterator it=_blockCols[i].begin(); it!=_blockCols[i].end(); ++it){
           const typename SparseBlockMatrix<MatrixType>::SparseMatrixBlock* b=it->second;
@@ -503,8 +503,8 @@ namespace g2o {
           int elemsToCopy = b->rows();
           if (upperTriangle && rstart == cstart)
             elemsToCopy = c + 1;
-          for (int r=0; r<elemsToCopy; ++r){
-            *Cx++ = (*b)(r,c);
+          for (int r = 0; r<elemsToCopy; ++r){
+            *Cx++ = (*b)(r, c);
             *Ci++ = rstart++;
             ++nz;
           }

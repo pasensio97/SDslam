@@ -153,7 +153,7 @@ class LinearSolverEigen: public LinearSolver<MatrixType>
         // block ordering with the Eigen Interface
         // This is really ugly currently, as it calls internal functions from Eigen
         // and modifies the SparseMatrix class
-        Eigen::PermutationMatrix<Eigen::Dynamic,Eigen::Dynamic> blockP;
+        Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> blockP;
         {
           // prepare a block structure matrix for calling AMD
           std::vector<Triplet> triplets;

@@ -102,7 +102,7 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
 
-  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0,3), Tcw(1,3), Tcw(2,3));
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0, 3), Tcw(1, 3), Tcw(2, 3));
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->GetState();
@@ -135,7 +135,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
 
-  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0,3), Tcw(1,3), Tcw(2,3));
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0, 3), Tcw(1, 3), Tcw(2, 3));
 
   unique_lock<mutex> lock2(mMutexState);
   mTrackingState = mpTracker->GetState();
@@ -146,7 +146,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
 }
 
 bool System::MapChanged() {
-  static int n=0;
+  static int n = 0;
   int curn = mpMap->GetLastBigChangeIdx();
   if (n<curn) {
     n=curn;

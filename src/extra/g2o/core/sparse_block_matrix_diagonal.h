@@ -79,7 +79,7 @@ namespace g2o {
         int destSize=cols();
         if (! dest) {
           dest=new double[destSize];
-          memset(dest,0, destSize*sizeof(double));
+          memset(dest, 0, destSize*sizeof(double));
         }
 
         // map the memory by Eigen
@@ -89,7 +89,7 @@ namespace g2o {
 #      ifdef G2O_OPENMP
 #      pragma omp parallel for default (shared) schedule(dynamic, 10)
 #      endif
-        for (int i=0; i < static_cast<int>(_diagonal.size()); ++i){
+        for (int i = 0; i < static_cast<int>(_diagonal.size()); ++i){
           int destOffset = baseOfBlock(i);
           int srcOffset = destOffset;
           const SparseMatrixBlock& A = _diagonal[i];

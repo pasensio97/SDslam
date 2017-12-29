@@ -184,7 +184,7 @@ class KeyFrame {
   // Grid over the image to speed up feature matching
   std::vector< std::vector <std::vector<size_t> > > mGrid;
 
-  std::map<KeyFrame*,int> mConnectedKeyFrameWeights;
+  std::map<KeyFrame*, int> mConnectedKeyFrameWeights;
   std::vector<KeyFrame*> mvpOrderedConnectedKeyFrames;
   std::vector<int> mvOrderedWeights;
 

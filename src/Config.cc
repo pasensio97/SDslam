@@ -113,7 +113,7 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Viewer.ViewpointY"].isNamed()) fs["Viewer.ViewpointY"] >> kViewpointY_;
   if (fs["Viewer.ViewpointZ"].isNamed()) fs["Viewer.ViewpointZ"] >> kViewpointZ_;
   if (fs["Viewer.ViewpointF"].isNamed()) fs["Viewer.ViewpointF"] >> kViewpointF_;
-  
+
   fs.release();
 
   return true;

@@ -64,8 +64,8 @@ namespace g2o {
   public:
     BaseVertex();
 
-    virtual const double& hessian(int i, int j) const { assert(i<D && j<D); return _hessian(i,j);}
-    virtual double& hessian(int i, int j)  { assert(i<D && j<D); return _hessian(i,j);}
+    virtual const double& hessian(int i, int j) const { assert(i < D && j < D); return _hessian(i, j);}
+    virtual double& hessian(int i, int j)  { assert(i < D && j < D); return _hessian(i, j);}
     virtual double hessianDeterminant() const {return _hessian.determinant();}
     virtual double* hessianData() { return const_cast<double*>(_hessian.data());}
 
@@ -84,7 +84,7 @@ namespace g2o {
 
     //! updates the current vertex with the direct solution x += H_ii\b_ii
     //! @returns the determinant of the inverted hessian
-    virtual double solveDirect(double lambda=0);
+    virtual double solveDirect(double lambda = 0);
 
     //! return right hand side b of the constructed linear system
     Matrix<double, D, 1>& b() { return _b;}

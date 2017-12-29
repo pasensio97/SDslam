@@ -117,16 +117,16 @@ namespace g2o{
     if (vertices().empty())
       return 0;
 
-    int maxDim=0;
+    int maxDim = 0;
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second); 
-      maxDim=std::max(maxDim,v->dimension());
+      OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>(it->second); 
+      maxDim = std::max(maxDim, v->dimension());
     }
     
-    OptimizableGraph::Vertex* rut=0;
+    OptimizableGraph::Vertex* rut = 0;
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
-      if (v->dimension()==maxDim){
+      OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>(it->second);
+      if (v->dimension() == maxDim){
         rut=v;
         break;
       }
@@ -139,14 +139,14 @@ namespace g2o{
     if (vertices().empty())
       return false;
 
-    int maxDim=0;
+    int maxDim = 0;
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second); 
-      maxDim = std::max(maxDim,v->dimension());
+      OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>(it->second); 
+      maxDim = std::max(maxDim, v->dimension());
     }
 
     for (HyperGraph::VertexIDMap::iterator it=vertices().begin(); it!=vertices().end(); ++it){
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
+      OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>(it->second);
       if (v->dimension() == maxDim) {
         // test for fixed vertex
         if (v->fixed()) {
@@ -171,7 +171,7 @@ namespace g2o{
 
     _ivMap.resize(vlist.size());
     size_t i = 0;
-    for (int k=0; k<2; k++)
+    for (int k = 0; k<2; k++)
       for (VertexContainer::iterator it=vlist.begin(); it!=vlist.end(); ++it){
       OptimizableGraph::Vertex* v = *it;
       if (! v->fixed()){
@@ -190,9 +190,9 @@ namespace g2o{
   }
 
   void SparseOptimizer::clearIndexMapping(){
-    for (size_t i=0; i<_ivMap.size(); ++i){
+    for (size_t i = 0; i<_ivMap.size(); ++i){
       _ivMap[i]->setHessianIndex(-1);
-      _ivMap[i]=0;
+      _ivMap[i] = 0;
     }
   }
 
@@ -219,7 +219,7 @@ namespace g2o{
       OptimizableGraph::Vertex* v= (OptimizableGraph::Vertex*) *it;
       const OptimizableGraph::EdgeSet& vEdges=v->edges();
       // count if there are edges in that level. If not remove from the pool
-      int levelEdges=0;
+      int levelEdges = 0;
       for (OptimizableGraph::EdgeSet::const_iterator it=vEdges.begin(); it!=vEdges.end(); ++it){
         OptimizableGraph::Edge* e=reinterpret_cast<OptimizableGraph::Edge*>(*it);
         if (level < 0 || e->level() == level) {
@@ -358,8 +358,8 @@ namespace g2o{
       return -1;
     }
 
-    int cjIterations=0;
-    double cumTime=0;
+    int cjIterations = 0;
+    double cumTime = 0;
     bool ok=true;
 
     ok = _algorithm->init(online);
@@ -373,7 +373,7 @@ namespace g2o{
       _batchStatistics.resize(iterations);
     
     OptimizationAlgorithm::SolverResult result = OptimizationAlgorithm::OK;
-    for (int i=0; i<iterations && ! terminate() && ok; i++){
+    for (int i = 0; i < iterations && ! terminate() && ok; i++){
       preIteration(i);
 
       if (_computeBatchStatistics) {
@@ -422,7 +422,7 @@ namespace g2o{
   void SparseOptimizer::update(const double* update)
   {
     // update the graph by calling oplus on the vertices
-    for (size_t i=0; i < _ivMap.size(); ++i) {
+    for (size_t i = 0; i < _ivMap.size(); ++i) {
       OptimizableGraph::Vertex* v= _ivMap[i];
 #ifndef NDEBUG
       bool hasNan = arrayHasNaN(update, v->dimension());
@@ -457,7 +457,7 @@ namespace g2o{
     // update the index mapping
     size_t next = _ivMap.size();
     for (HyperGraph::VertexSet::iterator it = vset.begin(); it != vset.end(); ++it) {
-      OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(*it);
+      OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>(*it);
       if (! v->fixed()){
         if (! v->marginalized()){
           v->setHessianIndex(next);

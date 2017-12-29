@@ -96,7 +96,7 @@ bool MatrixStructure::write(const char* filename) const
     name = name.substr(0, lastDot);
 
   vector<pair<int, int> > entries;
-  for (int i=0; i < cols; ++i) {
+  for (int i = 0; i < cols; ++i) {
     const int& rbeg = Ap[i];
     const int& rend = Ap[i+1];
     for (int j = rbeg; j < rend; ++j) {

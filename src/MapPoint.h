@@ -49,10 +49,10 @@ class MapPoint {
   Eigen::Vector3d GetNormal();
   KeyFrame* GetReferenceKeyFrame();
 
-  std::map<KeyFrame*,size_t> GetObservations();
+  std::map<KeyFrame*, size_t> GetObservations();
   int Observations();
 
-  void AddObservation(KeyFrame* pKF,size_t idx);
+  void AddObservation(KeyFrame* pKF, size_t idx);
   void EraseObservation(KeyFrame* pKF);
 
   int GetIndexInKeyFrame(KeyFrame* pKF);
@@ -118,7 +118,7 @@ class MapPoint {
    Eigen::Vector3d mWorldPos;
 
    // Keyframes observing the point and associated index in keyframe
-   std::map<KeyFrame*,size_t> mObservations;
+   std::map<KeyFrame*, size_t> mObservations;
 
    // Mean viewing direction
    Eigen::Vector3d mNormalVector;

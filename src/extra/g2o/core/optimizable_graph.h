@@ -180,7 +180,7 @@ namespace g2o {
          * updates the current vertex with the direct solution x += H_ii\b_ii
          * @return the determinant of the inverted hessian
          */
-        virtual double solveDirect(double lambda=0) = 0;
+        virtual double solveDirect(double lambda = 0) = 0;
 
         /**
          * sets the initial estimate from an array of double
@@ -617,7 +617,7 @@ namespace g2o {
 
     /**
      * set the renamed types lookup from a string, format is for example:
-     * VERTEX_CAM=VERTEX_SE3:EXPMAP,EDGE_PROJECT_P2MC=EDGE_PROJECT_XYZ:EXPMAP
+     * VERTEX_CAM=VERTEX_SE3:EXPMAP, EDGE_PROJECT_P2MC=EDGE_PROJECT_XYZ:EXPMAP
      * This will change the occurance of VERTEX_CAM in the file to VERTEX_SE3:EXPMAP
      */
     void setRenamedTypesFromString(const std::string& types);

@@ -32,7 +32,7 @@ namespace SD_SLAM {
 
 FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap) {
   mState=Tracking::SYSTEM_NOT_READY;
-  mIm = cv::Mat(Config::Height(),Config::Width(),CV_8UC3, cv::Scalar(0,0,0));
+  mIm = cv::Mat(Config::Height(), Config::Width(), CV_8UC3, cv::Scalar(0, 0, 0));
 }
 
 cv::Mat FrameDrawer::DrawFrame() {
@@ -47,7 +47,7 @@ cv::Mat FrameDrawer::DrawFrame() {
   //Copy variables within scoped mutex
   {
     std::unique_lock<mutex> lock(mMutex);
-    state=mState;
+    state = mState;
     if (mState==Tracking::SYSTEM_NOT_READY)
       mState=Tracking::NO_IMAGES_YET;
 
@@ -67,26 +67,26 @@ cv::Mat FrameDrawer::DrawFrame() {
   }
 
   if (im.channels()<3) //this should be always true
-    cvtColor(im,im,CV_GRAY2BGR);
+    cvtColor(im, im, CV_GRAY2BGR);
 
   //Draw
   if (state==Tracking::NOT_INITIALIZED) { //INITIALIZING
-    for (unsigned int i=0; i<vMatches.size(); i++) {
-      if (vMatches[i]>=0)
-        cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt, cv::Scalar(0,255,0), 2);
+    for (unsigned int i = 0; i < vMatches.size(); i++) {
+      if (vMatches[i] >= 0)
+        cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt, cv::Scalar(0, 255, 0), 2);
     }    
   } else if (state==Tracking::OK) { //TRACKING
     // Show plane grid
     for (auto it=ARPoints.begin(); it!=ARPoints.end(); it+=2)
-      cv::line(im, *it, *(it+1), cv::Scalar(150,150,150), 2);
+      cv::line(im, *it, *(it+1), cv::Scalar(150, 150, 150), 2);
 
-    mnTracked=0;
+    mnTracked = 0;
     const float r = 3;
     const int n = vCurrentKeys.size();
-    for (int i=0;i<n;i++) {
+    for (int i = 0; i<n; i++) {
       if (vbMap[i]) {
         // This is a match to a MapPoint in the map
-        cv::circle(im, vCurrentKeys[i].pt, r, cv::Scalar(0,255,0), 2);
+        cv::circle(im, vCurrentKeys[i].pt, r, cv::Scalar(0, 255, 0), 2);
         mnTracked++;
       }
     }
@@ -115,12 +115,12 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
     s << " LOADING ORB VOCABULARY. PLEASE WAIT...";
   }
 
-  int baseline=0;
-  cv::Size textSize = cv::getTextSize(s.str(),cv::FONT_HERSHEY_PLAIN,1,1,&baseline);
+  int baseline = 0;
+  cv::Size textSize = cv::getTextSize(s.str(), cv::FONT_HERSHEY_PLAIN, 1, 1,&baseline);
 
   im.copyTo(imText);
-  imText.rowRange(imText.rows-(textSize.height+10),imText.rows) = cv::Mat::zeros(textSize.height+10,im.cols,im.type());
-  cv::putText(imText,s.str(),cv::Point(5,imText.rows-5),cv::FONT_HERSHEY_PLAIN,1,cv::Scalar(255,255,255),1,8);
+  imText.rowRange(imText.rows-(textSize.height+10), imText.rows) = cv::Mat::zeros(textSize.height+10, im.cols, im.type());
+  cv::putText(imText, s.str(), cv::Point(5, imText.rows-5), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1, 8);
 }
 
 void FrameDrawer::Update(Tracking *pTracker) {
@@ -131,13 +131,13 @@ void FrameDrawer::Update(Tracking *pTracker) {
   Frame &currentFrame = pTracker->GetCurrentFrame();
   mvCurrentKeys = currentFrame.mvKeys;
   N = mvCurrentKeys.size();
-  mvbMap = vector<bool>(N,false);
+  mvbMap = vector<bool>(N, false);
 
   if (pTracker->GetLastState() == Tracking::NOT_INITIALIZED)  {
     mvIniKeys=pTracker->GetInitialFrame().mvKeys;
     mvIniMatches=pTracker->GetInitialMatches();
   } else if (pTracker->GetLastState() == Tracking::OK) {
-    for (int i=0;i<N;i++) {
+    for (int i = 0; i < N; i++) {
       MapPoint* pMP = currentFrame.mvpMapPoints[i];
       if (pMP) {
         if (!currentFrame.mvbOutlier[i])
@@ -145,7 +145,7 @@ void FrameDrawer::Update(Tracking *pTracker) {
       }
     }
   }
-  mState=static_cast<int>(pTracker->GetLastState());
+  mState = static_cast<int>(pTracker->GetLastState());
 
   // Save initial plane positions
   if (showGrid)
@@ -163,8 +163,8 @@ void FrameDrawer::GetInitialPlane(Tracking *pTracker) {
   Eigen::Matrix<double, 3, 4> planeRT = pTracker->GetPlaneRT();
 
   ARPoints_.clear();
-  for (double i=rmin; i<=rmax; i+=step) {
-    for (double j=rmin; j<=rmax; j+=step) {
+  for (double i=rmin; i <= rmax; i += step) {
+    for (double j = rmin; j <= rmax; j += step) {
       p1 << i, j, 0.0;
       p2 << i+step, j, 0.0;
       if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
@@ -197,12 +197,12 @@ void FrameDrawer::GetInitialPlane(Tracking *pTracker) {
 }
 
 bool FrameDrawer::Project(const Frame &frame, const Eigen::Matrix<double, 3, 4> &planeRT, const Eigen::Vector3d &p3d, Eigen::Vector2d &p2d) {
-  Eigen::Matrix3d Rcw = frame.GetPose().block<3,3>(0,0);
-  Eigen::Vector3d tcw = frame.GetPose().block<3,1>(0,3);
+  Eigen::Matrix3d Rcw = frame.GetPose().block<3, 3>(0, 0);
+  Eigen::Vector3d tcw = frame.GetPose().block<3, 1>(0, 3);
 
   Eigen::Vector3d p, pc;
 
-  p = planeRT.block<3,3>(0,0)*p3d + planeRT.block<3,1>(0,3);
+  p = planeRT.block<3, 3>(0, 0)*p3d + planeRT.block<3, 1>(0, 3);
   pc = Rcw*p+tcw;
 
   const float invzc = 1.0/pc(2);

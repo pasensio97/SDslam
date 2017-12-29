@@ -194,7 +194,7 @@ class Frame {
   Eigen::Matrix3d mRcw;
   Eigen::Vector3d mtcw;
   Eigen::Matrix3d mRwc;
-  Eigen::Vector3d mOw;  //==mtwc
+  Eigen::Vector3d mOw;  //  == mtwc
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

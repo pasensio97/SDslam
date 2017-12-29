@@ -71,7 +71,7 @@ bool PatternDetector::GetRT(const Frame &frame, const vector<cv::Point2d>& pixel
 
   // Save features inside chessboard
   points_.clear();
-  for (size_t i=0, iend=frame.mvKeys.size(); i<iend; i++) {
+  for (size_t i = 0, iend=frame.mvKeys.size(); i < iend; i++) {
     if (IsInsideRectangle(pixels, frame.mvKeys[i].pt))
       points_.push_back(std::make_pair(i, Eigen::Vector3d::Zero()));
   }
@@ -85,7 +85,7 @@ bool PatternDetector::GetRT(const Frame &frame, const vector<cv::Point2d>& pixel
   Get3DPoints(frame, pixels, points_);
 
   // Solve PnP
-  for (size_t i=0, iend=points_.size(); i<iend; i++) {
+  for (size_t i = 0, iend=points_.size(); i < iend; i++) {
     Eigen::Vector3d p = points_[i].second;
     int idx = points_[i].first;
     
@@ -102,8 +102,8 @@ bool PatternDetector::GetRT(const Frame &frame, const vector<cv::Point2d>& pixel
 
   Eigen::Matrix4d RT_aux;
   RT_aux.setIdentity();
-  RT_aux.block<3,3>(0,0) = Converter::toMatrix3d(cvR);
-  RT_aux.block<3,1>(0,3) = Converter::toVector3d(cvT);
+  RT_aux.block<3, 3>(0, 0) = Converter::toMatrix3d(cvR);
+  RT_aux.block<3, 1>(0, 3) = Converter::toVector3d(cvT);
 
   // Absolute position
   RT = RT_aux.inverse();
@@ -147,7 +147,7 @@ void PatternDetector::Get3DPoints(const Frame &frame, const vector<cv::Point2d>&
   Eigen::Matrix3d H = Converter::toMatrix3d(Hcv);
 
   // Get 3d position for each selected 2d point
-  for (auto i=points.begin(); i!=points.end(); i++) {
+  for (auto i=points.begin(); i != points.end(); i++) {
     int idx = i->first;
     p2d << frame.mvKeys[idx].pt.x, frame.mvKeys[idx].pt.y, 1.0;
     p3d = H*p2d;

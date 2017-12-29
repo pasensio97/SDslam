@@ -61,7 +61,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
 
   // Save valid points seen in last frame
   counter = 0;
-  for (int i=0; i<LastFrame.N && counter<max_points; i++) {
+  for (int i = 0; i<LastFrame.N && counter<max_points; i++) {
     MapPoint* pMP = LastFrame.mvpMapPoints[i];
     if (!pMP || LastFrame.mvbOutlier[i])
       continue;
@@ -86,7 +86,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
   Eigen::Matrix4d current_se3 = CurrentFrame.GetPose() * LastFrame.GetPoseInverse();
   Eigen::Matrix4d last_pose = LastFrame.GetPose();
 
-  for (int level=max_level_; level >= min_level_; level--) {
+  for (int level = max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
 
     scale = CurrentFrame.mvInvScaleFactors[level];
@@ -127,7 +127,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   // Save valid points seen in last keyframe
   const set<MapPoint*> mappoints = LastKF->GetMapPoints();
   counter = 0;
-  for (auto it=mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
+  for (auto it = mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
     MapPoint* pMP = *it;
     Eigen::Vector3d p = pMP->GetWorldPos();
     points_.push_back(p);
@@ -149,7 +149,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   Eigen::Matrix4d current_se3 = CurrentFrame.GetPose() * LastKF->GetPoseInverse();
   Eigen::Matrix4d last_pose = LastKF->GetPose();
 
-  for (int level=max_level_; level >= min_level_; level--) {
+  for (int level = max_level_; level >= min_level_; level--) {
     jacobian_cache_.setZero();
 
     scale = CurrentFrame.mvInvScaleFactors[level];
@@ -191,7 +191,7 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
   // Save valid points seen in last keyframe
   const set<MapPoint*> mappoints = LastKF->GetMapPoints();
   counter = 0;
-  for (auto it=mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
+  for (auto it = mappoints.begin(); it != mappoints.end() && counter<max_points; it++) {
     MapPoint* pMP = *it;
     Eigen::Vector3d p = pMP->GetWorldPos();
     points_.push_back(p);
@@ -290,8 +290,8 @@ double ImageAlign::ComputeResiduals(const cv::Mat &src, const cv::Mat &last_img,
     PrecomputePatches(last_img, last_pose, scale);
 
   Eigen::Matrix4d pose = se3 * last_pose;
-  Eigen::Matrix3d R = pose.block<3,3>(0,0);
-  Eigen::Vector3d T = pose.block<3,1>(0,3);
+  Eigen::Matrix3d R = pose.block<3, 3>(0, 0);
+  Eigen::Vector3d T = pose.block<3, 1>(0, 3);
 
   float chi2 = 0.0;
   size_t counter = 0;
@@ -358,8 +358,8 @@ void ImageAlign::PrecomputePatches(const cv::Mat &src, const Eigen::Matrix4d &po
   patch_area = patch_size_*patch_size_;
   border = half_patch+1;
 
-  Eigen::Matrix3d R = pose.block<3,3>(0,0);
-  Eigen::Vector3d T = pose.block<3,1>(0,3);
+  Eigen::Matrix3d R = pose.block<3, 3>(0, 0);
+  Eigen::Vector3d T = pose.block<3, 1>(0, 3);
 
   size_t counter = 0;
   Eigen::Matrix<double, 2, 6> frame_jac;
@@ -423,7 +423,7 @@ bool ImageAlign::Project(const Eigen::Matrix3d &R, const Eigen::Vector3d &T,
   Eigen::Vector3d x3Dc = R*p+T;
 
   const double invzc = 1.0/x3Dc(2);
-  if (invzc<0)
+  if (invzc < 0)
     return false;
 
   res(0) = cam_fx_*x3Dc(0)*invzc+cam_cx_;
@@ -459,7 +459,7 @@ double ImageAlign::AbsMax(const Eigen::VectorXd &v) {
   size = v.size();
   max = -1;
 
-  for (int i=0; i < size; i++) {
+  for (int i = 0; i < size; i++) {
     abs = fabs(v(i));
     if (abs > max) {
       max = abs;
@@ -491,8 +491,8 @@ Eigen::Matrix4d ImageAlign::Exp(const Eigen::Matrix<double, 6, 1> &update) {
   Eigen::Vector3d t = V*upsilon;
   Eigen::Matrix3d rot = q.toRotationMatrix();
   Eigen::Matrix4d res = Eigen::Matrix4d::Identity();
-  res.block<3,3>(0,0) = rot;
-  res.block<3,1>(0,3) = t;
+  res.block<3, 3>(0, 0) = rot;
+  res.block<3, 1>(0, 3) = t;
   return res;
 }
 

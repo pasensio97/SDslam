@@ -76,7 +76,7 @@ namespace g2o {
      * @param level: is the level (in multilevel optimization)
      * @returns false if somethings goes wrong
      */
-    virtual bool initializeOptimization(HyperGraph::VertexSet& vset, int level=0);
+    virtual bool initializeOptimization(HyperGraph::VertexSet& vset, int level = 0);
 
     /**
      * Initializes the structures for optimizing the whole graph.
@@ -85,7 +85,7 @@ namespace g2o {
      * @param level: is the level (in multilevel optimization)
      * @returns false if somethings goes wrong
      */
-    virtual bool initializeOptimization(int level=0);
+    virtual bool initializeOptimization(int level = 0);
 
     /**
      * HACK updating the internal structures for online processing

@@ -44,20 +44,20 @@ BlockSolver<Traits>::BlockSolver(LinearSolverType* linearSolver) :
   _linearSolver(linearSolver)
 {
   // workspace
-  _Hpp=0;
-  _Hll=0;
-  _Hpl=0;
+  _Hpp = 0;
+  _Hll = 0;
+  _Hpl = 0;
   _HplCCS = 0;
   _HschurTransposedCCS = 0;
-  _Hschur=0;
-  _DInvSchur=0;
-  _coefficients=0;
+  _Hschur = 0;
+  _DInvSchur = 0;
+  _coefficients = 0;
   _bschur = 0;
-  _xSize=0;
-  _numPoses=0;
-  _numLandmarks=0;
-  _sizePoses=0;
-  _sizeLandmarks=0;
+  _xSize = 0;
+  _numPoses = 0;
+  _numLandmarks = 0;
+  _sizePoses = 0;
+  _sizeLandmarks = 0;
   _doSchur=true;
 }
 
@@ -96,11 +96,11 @@ void BlockSolver<Traits>::deallocate()
 {
   if (_Hpp){
     delete _Hpp;
-    _Hpp=0;
+    _Hpp = 0;
   }
   if (_Hll){
     delete _Hll;
-    _Hll=0;
+    _Hll = 0;
   }
   if (_Hpl){
     delete _Hpl;
@@ -108,11 +108,11 @@ void BlockSolver<Traits>::deallocate()
   }
   if (_Hschur){
     delete _Hschur;
-    _Hschur=0;
+    _Hschur = 0;
   }
   if (_DInvSchur){
     delete _DInvSchur;
-    _DInvSchur=0;
+    _DInvSchur = 0;
   }
   if (_coefficients) {
     delete[] _coefficients;
@@ -145,10 +145,10 @@ bool BlockSolver<Traits>::buildStructure(bool zeroBlocks)
   assert(_optimizer);
 
   size_t sparseDim = 0;
-  _numPoses=0;
-  _numLandmarks=0;
-  _sizePoses=0;
-  _sizeLandmarks=0;
+  _numPoses = 0;
+  _numLandmarks = 0;
+  _sizePoses = 0;
+  _sizeLandmarks = 0;
   int* blockPoseIndices = new int[_optimizer->indexMapping().size()];
   int* blockLandmarkIndices = new int[_optimizer->indexMapping().size()];
 
@@ -238,12 +238,12 @@ bool BlockSolver<Traits>::buildStructure(bool zeroBlocks)
           e->mapHessianMemory(m->data(), viIdx, vjIdx, false);
         } else { 
           if (v1->marginalized()){ 
-            PoseLandmarkMatrixType* m = _Hpl->block(v2->hessianIndex(),v1->hessianIndex()-_numPoses, true);
+            PoseLandmarkMatrixType* m = _Hpl->block(v2->hessianIndex(), v1->hessianIndex()-_numPoses, true);
             if (zeroBlocks)
               m->setZero();
             e->mapHessianMemory(m->data(), viIdx, vjIdx, true); // transpose the block before writing to it
           } else {
-            PoseLandmarkMatrixType* m = _Hpl->block(v1->hessianIndex(),v2->hessianIndex()-_numPoses, true);
+            PoseLandmarkMatrixType* m = _Hpl->block(v1->hessianIndex(), v2->hessianIndex()-_numPoses, true);
             if (zeroBlocks)
               m->setZero();
             e->mapHessianMemory(m->data(), viIdx, vjIdx, false); // directly the block
@@ -264,13 +264,13 @@ bool BlockSolver<Traits>::buildStructure(bool zeroBlocks)
     if (v->marginalized()){
       const HyperGraph::EdgeSet& vedges=v->edges();
       for (HyperGraph::EdgeSet::const_iterator it1=vedges.begin(); it1!=vedges.end(); ++it1){
-        for (size_t i=0; i<(*it1)->vertices().size(); ++i)
+        for (size_t i = 0; i < (*it1)->vertices().size(); ++i)
         {
           OptimizableGraph::Vertex* v1= (OptimizableGraph::Vertex*) (*it1)->vertex(i);
           if (v1->hessianIndex()==-1 || v1==v)
             continue;
           for  (HyperGraph::EdgeSet::const_iterator it2=vedges.begin(); it2!=vedges.end(); ++it2){
-            for (size_t j=0; j<(*it2)->vertices().size(); ++j)
+            for (size_t j = 0; j < (*it2)->vertices().size(); ++j)
             {
               OptimizableGraph::Vertex* v2= (OptimizableGraph::Vertex*) (*it2)->vertex(j);
               if (v2->hessianIndex()==-1 || v2==v)
@@ -389,7 +389,7 @@ bool BlockSolver<Traits>::solve(){
     Dinv = D->inverse();
 
     LandmarkVectorType  db(D->rows());
-    for (int j=0; j<D->rows(); ++j) {
+    for (int j = 0; j < D->rows(); ++j) {
       db[j]=_b[_Hll->rowBaseOfBlock(landmarkIndex) + _sizePoses + j];
     }
     db=Dinv*db;
@@ -424,7 +424,7 @@ bool BlockSolver<Traits>::solve(){
         while (targetColumnIt->row < i2 /*&& targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end()*/)
           ++targetColumnIt;
         assert(targetColumnIt != _HschurTransposedCCS->blockCols()[i1].end() && targetColumnIt->row == i2 && "invalid iterator, something wrong with the matrix structure");
-        PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1,i2);
+        PoseMatrixType* Hi1i2 = targetColumnIt->block;//_Hschur->block(i1, i2);
         assert(Hi1i2);
         (*Hi1i2).noalias() -= BDinv*Bj->transpose();
       }
@@ -434,7 +434,7 @@ bool BlockSolver<Traits>::solve(){
 
   // _bschur = _b for calling solver, and not touching _b
   memcpy(_bschur, _b, _sizePoses * sizeof(double));
-  for (int i=0; i<_sizePoses; ++i){
+  for (int i = 0; i < _sizePoses; ++i){
     _bschur[i]-=_coefficients[i];
   }
 
@@ -466,7 +466,7 @@ bool BlockSolver<Traits>::solve(){
   double* bl=_b+_sizePoses;
 
   // cp = -xp
-  for (int i=0; i<_sizePoses; ++i)
+  for (int i = 0; i < _sizePoses; ++i)
     cp[i]=-xp[i];
 
   // cl = bl
@@ -477,9 +477,9 @@ bool BlockSolver<Traits>::solve(){
   _HplCCS->rightMultiply(cl, cp);
 
   // xl = Dinv * cl
-  memset(xl,0, _sizeLandmarks*sizeof(double));
-  _DInvSchur->multiply(xl,cl);
-  //_DInvSchur->rightMultiply(xl,cl);
+  memset(xl, 0, _sizeLandmarks*sizeof(double));
+  _DInvSchur->multiply(xl, cl);
+  //_DInvSchur->rightMultiply(xl, cl);
   //cerr << "Solve [landmark delta] = " <<  get_monotonic_time()-t << endl;
 
   return true;
@@ -571,7 +571,7 @@ bool BlockSolver<Traits>::setLambda(double lambda, bool backup)
 # pragma omp parallel for default (shared) if (_numPoses > 100)
 # endif
   for (int i = 0; i < _numPoses; ++i) {
-    PoseMatrixType *b=_Hpp->block(i,i);
+    PoseMatrixType *b=_Hpp->block(i, i);
     if (backup)
       _diagonalBackupPose[i] = b->diagonal();
     b->diagonal().array() += lambda;
@@ -580,7 +580,7 @@ bool BlockSolver<Traits>::setLambda(double lambda, bool backup)
 # pragma omp parallel for default (shared) if (_numLandmarks > 100)
 # endif
   for (int i = 0; i < _numLandmarks; ++i) {
-    LandmarkMatrixType *b=_Hll->block(i,i);
+    LandmarkMatrixType *b=_Hll->block(i, i);
     if (backup)
       _diagonalBackupLandmark[i] = b->diagonal();
     b->diagonal().array() += lambda;
@@ -594,11 +594,11 @@ void BlockSolver<Traits>::restoreDiagonal()
   assert((int) _diagonalBackupPose.size() == _numPoses && "Mismatch in dimensions");
   assert((int) _diagonalBackupLandmark.size() == _numLandmarks && "Mismatch in dimensions");
   for (int i = 0; i < _numPoses; ++i) {
-    PoseMatrixType *b=_Hpp->block(i,i);
+    PoseMatrixType *b=_Hpp->block(i, i);
     b->diagonal() = _diagonalBackupPose[i];
   }
   for (int i = 0; i < _numLandmarks; ++i) {
-    LandmarkMatrixType *b=_Hll->block(i,i);
+    LandmarkMatrixType *b=_Hll->block(i, i);
     b->diagonal() = _diagonalBackupLandmark[i];
   }
 }

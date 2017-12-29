@@ -42,7 +42,7 @@ bool BaseUnaryEdge<D, E, VertexXiType>::allVerticesFixed() const
 template <int D, typename E, typename VertexXiType>
 void BaseUnaryEdge<D, E, VertexXiType>::constructQuadraticForm()
 {
-  VertexXiType* from=static_cast<VertexXiType*>(_vertices[0]);
+  VertexXiType* from = static_cast<VertexXiType*>(_vertices[0]);
 
   // chain rule to get the Jacobian of the nodes in the manifold domain
   const JacobianXiOplusType& A = jacobianOplusXi();

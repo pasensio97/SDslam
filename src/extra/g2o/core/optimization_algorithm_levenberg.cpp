@@ -96,7 +96,7 @@ namespace g2o {
       _nBad = 0;
     }
 
-    double rho=0;
+    double rho = 0;
     int& qmax = _levenbergIterations;
     qmax = 0;
     do {
@@ -124,15 +124,15 @@ namespace g2o {
       tempChi = _optimizer->activeRobustChi2();
 
       if (! ok2)
-        tempChi=std::numeric_limits<double>::max();
+        tempChi = std::numeric_limits<double>::max();
 
       rho = (currentChi-tempChi);
       double scale = computeScale();
       scale += 1e-3; // make sure it's non-zero :)
       rho /=  scale;
 
-      if (rho>0 && g2o_isfinite(tempChi)){ // last step was good
-        double alpha = 1.-pow((2*rho-1),3);
+      if (rho > 0 && g2o_isfinite(tempChi)){ // last step was good
+        double alpha = 1.-pow((2*rho-1), 3);
         // crop lambda between minimum and maximum factors
         alpha = (std::min)(alpha, _goodStepUpperScale);
         double scaleFactor = (std::max)(_goodStepLowerScale, alpha);
@@ -146,16 +146,16 @@ namespace g2o {
         _optimizer->pop(); // restore the last state before trying to optimize
       }
       qmax++;
-    } while (rho<0 && qmax < _maxTrialsAfterFailure->value() && ! _optimizer->terminate());
+    } while (rho < 0 && qmax < _maxTrialsAfterFailure->value() && ! _optimizer->terminate());
 
-    if (qmax == _maxTrialsAfterFailure->value() || rho==0)
+    if (qmax == _maxTrialsAfterFailure->value() || rho == 0)
       return Terminate;
 
     //Stop criterium (Raul)
     if((iniChi-currentChi)*1e3<iniChi)
         _nBad++;
     else
-        _nBad=0;
+        _nBad = 0;
 
     if(_nBad>=3)
         return Terminate;
@@ -167,13 +167,13 @@ namespace g2o {
   {
     if (_userLambdaInit->value() > 0)
       return _userLambdaInit->value();
-    double maxDiagonal=0.;
+    double maxDiagonal = 0.;
     for (size_t k = 0; k < _optimizer->indexMapping().size(); k++) {
       OptimizableGraph::Vertex* v = _optimizer->indexMapping()[k];
       assert(v);
       int dim = v->dimension();
       for (int j = 0; j < dim; ++j){
-        maxDiagonal = std::max(fabs(v->hessian(j,j)),maxDiagonal);
+        maxDiagonal = std::max(fabs(v->hessian(j, j)), maxDiagonal);
       }
     }
     return _tau*maxDiagonal;
@@ -182,7 +182,7 @@ namespace g2o {
   double OptimizationAlgorithmLevenberg::computeScale() const
   {
     double scale = 0.;
-    for (size_t j=0; j < _solver->vectorSize(); j++){
+    for (size_t j = 0; j < _solver->vectorSize(); j++){
       scale += _solver->x()[j] * (_currentLambda * _solver->x()[j] + _solver->b()[j]);
     }
     return scale;

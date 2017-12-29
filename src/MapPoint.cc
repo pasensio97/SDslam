@@ -32,7 +32,7 @@ using std::vector;
 
 namespace SD_SLAM {
 
-long unsigned int MapPoint::nNextId=0;
+long unsigned int MapPoint::nNextId = 0;
 mutex MapPoint::mGlobalMutex;
 
 MapPoint::MapPoint(const Eigen::Vector3d &Pos, KeyFrame *pRefKF, Map* pMap):
@@ -50,7 +50,7 @@ MapPoint::MapPoint(const Eigen::Vector3d &Pos, KeyFrame *pRefKF, Map* pMap):
 
 MapPoint::MapPoint(const Eigen::Vector3d &Pos, Map* pMap, Frame* pFrame, const int &idxF):
   mnFirstKFid(-1), mnFirstFrame(pFrame->mnId), nObs(0), mnTrackReferenceForFrame(0), mnLastFrameSeen(0),
-  mnBALocalForKF(0), mnFuseCandidateForKF(0),mnLoopPointForKF(0), mnCorrectedByKF(0),
+  mnBALocalForKF(0), mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0),
   mnCorrectedReference(0), mnBAGlobalForKF(0), mpRefKF(static_cast<KeyFrame*>(NULL)), mnVisible(1),
   mnFound(1), mbBad(false), mpReplaced(NULL), mpMap(pMap) {
   mWorldPos = Pos;
@@ -101,7 +101,7 @@ void MapPoint::AddObservation(KeyFrame* pKF, size_t idx) {
     return;
   mObservations[pKF]=idx;
 
-  if (pKF->mvuRight[idx]>=0)
+  if (pKF->mvuRight[idx] >= 0)
     nObs+=2;
   else
     nObs++;
@@ -113,7 +113,7 @@ void MapPoint::EraseObservation(KeyFrame* pKF) {
     unique_lock<mutex> lock(mMutexFeatures);
     if (mObservations.count(pKF)) {
       int idx = mObservations[pKF];
-      if (pKF->mvuRight[idx]>=0)
+      if (pKF->mvuRight[idx] >= 0)
         nObs-=2;
       else
         nObs--;
@@ -121,7 +121,7 @@ void MapPoint::EraseObservation(KeyFrame* pKF) {
       mObservations.erase(pKF);
 
       if (mpRefKF==pKF)
-        mpRefKF=mObservations.begin()->first;
+        mpRefKF = mObservations.begin()->first;
 
       // If only 2 observations or less, discard point
       if (nObs<=2)
@@ -144,7 +144,7 @@ int MapPoint::Observations() {
 }
 
 void MapPoint::SetBadFlag() {
-  map<KeyFrame*,size_t> obs;
+  map<KeyFrame*, size_t> obs;
   {
     unique_lock<mutex> lock1(mMutexFeatures);
     unique_lock<mutex> lock2(mMutexPos);
@@ -152,7 +152,7 @@ void MapPoint::SetBadFlag() {
     obs = mObservations;
     mObservations.clear();
   }
-  for (map<KeyFrame*,size_t>::iterator mit=obs.begin(), mend=obs.end(); mit!=mend; mit++) {
+  for (map<KeyFrame*, size_t>::iterator mit=obs.begin(), mend=obs.end(); mit != mend; mit++) {
     KeyFrame* pKF = mit->first;
     pKF->EraseMapPointMatch(mit->second);
   }
@@ -171,11 +171,11 @@ void MapPoint::Replace(MapPoint* pMP) {
     return;
 
   int nvisible, nfound;
-  map<KeyFrame*,size_t> obs;
+  map<KeyFrame*, size_t> obs;
   {
     unique_lock<mutex> lock1(mMutexFeatures);
     unique_lock<mutex> lock2(mMutexPos);
-    obs=mObservations;
+    obs = mObservations;
     mObservations.clear();
     mbBad=true;
     nvisible = mnVisible;
@@ -183,13 +183,13 @@ void MapPoint::Replace(MapPoint* pMP) {
     mpReplaced = pMP;
   }
 
-  for (map<KeyFrame*,size_t>::iterator mit=obs.begin(), mend=obs.end(); mit!=mend; mit++) {
+  for (map<KeyFrame*, size_t>::iterator mit=obs.begin(), mend=obs.end(); mit != mend; mit++) {
     // Replace measurement in keyframe
     KeyFrame* pKF = mit->first;
 
     if (!pMP->IsInKeyFrame(pKF)) {
       pKF->ReplaceMapPointMatch(mit->second, pMP);
-      pMP->AddObservation(pKF,mit->second);
+      pMP->AddObservation(pKF, mit->second);
     } else {
       pKF->EraseMapPointMatch(mit->second);
     }
@@ -226,13 +226,13 @@ void MapPoint::ComputeDistinctiveDescriptors() {
   // Retrieve all observed descriptors
   vector<cv::Mat> vDescriptors;
 
-  map<KeyFrame*,size_t> observations;
+  map<KeyFrame*, size_t> observations;
 
   {
     unique_lock<mutex> lock1(mMutexFeatures);
     if (mbBad)
       return;
-    observations=mObservations;
+    observations = mObservations;
   }
 
   if (observations.empty())
@@ -240,7 +240,7 @@ void MapPoint::ComputeDistinctiveDescriptors() {
 
   vDescriptors.reserve(observations.size());
 
-  for (map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++) {
+  for (map<KeyFrame*, size_t>::iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
     KeyFrame* pKF = mit->first;
 
     if (!pKF->isBad())
@@ -254,10 +254,10 @@ void MapPoint::ComputeDistinctiveDescriptors() {
   const size_t N = vDescriptors.size();
 
   float Distances[N][N];
-  for (size_t i=0;i<N;i++) {
-    Distances[i][i]=0;
-    for (size_t j=i+1;j<N;j++) {
-      int distij = ORBmatcher::DescriptorDistance(vDescriptors[i],vDescriptors[j]);
+  for (size_t i = 0; i < N; i++) {
+    Distances[i][i] = 0;
+    for (size_t j = i+1; j < N; j++) {
+      int distij = ORBmatcher::DescriptorDistance(vDescriptors[i], vDescriptors[j]);
       Distances[i][j]=distij;
       Distances[j][i]=distij;
     }
@@ -266,9 +266,9 @@ void MapPoint::ComputeDistinctiveDescriptors() {
   // Take the descriptor with least median distance to the rest
   int BestMedian = INT_MAX;
   int BestIdx = 0;
-  for (size_t i=0;i<N;i++) {
+  for (size_t i = 0; i < N; i++) {
     vector<int> vDists(Distances[i],Distances[i]+N);
-    sort(vDists.begin(),vDists.end());
+    sort(vDists.begin(), vDists.end());
     int median = vDists[0.5*(N-1)];
 
     if (median<BestMedian) {
@@ -302,7 +302,7 @@ bool MapPoint::IsInKeyFrame(KeyFrame *pKF) {
 }
 
 void MapPoint::UpdateNormalAndDepth() {
-  map<KeyFrame*,size_t> observations;
+  map<KeyFrame*, size_t> observations;
   KeyFrame* pRefKF;
   Eigen::Vector3d Pos;
   {
@@ -310,8 +310,8 @@ void MapPoint::UpdateNormalAndDepth() {
     unique_lock<mutex> lock2(mMutexPos);
     if (mbBad)
       return;
-    observations=mObservations;
-    pRefKF=mpRefKF;
+    observations = mObservations;
+    pRefKF = mpRefKF;
     Pos = mWorldPos;
   }
 
@@ -319,8 +319,8 @@ void MapPoint::UpdateNormalAndDepth() {
     return;
 
   Eigen::Vector3d normal(0, 0, 0);
-  int n=0;
-  for (map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++) {
+  int n = 0;
+  for (map<KeyFrame*, size_t>::iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
     KeyFrame* pKF = mit->first;
     Eigen::Vector3d Owi = pKF->GetCameraCenter();
     Eigen::Vector3d normali = mWorldPos - Owi;
@@ -360,7 +360,7 @@ int MapPoint::PredictScale(const float &currentDist, KeyFrame* pKF) {
   }
 
   int nScale = ceil(log(ratio)/pKF->mfLogScaleFactor);
-  if (nScale<0)
+  if (nScale < 0)
     nScale = 0;
   else if (nScale>=pKF->mnScaleLevels)
     nScale = pKF->mnScaleLevels-1;
@@ -376,7 +376,7 @@ int MapPoint::PredictScale(const float &currentDist, Frame* pF) {
   }
 
   int nScale = ceil(log(ratio)/pF->mfLogScaleFactor);
-  if (nScale<0)
+  if (nScale < 0)
     nScale = 0;
   else if (nScale>=pF->mnScaleLevels)
     nScale = pF->mnScaleLevels-1;

@@ -71,7 +71,7 @@ namespace g2o {
         {
           assert((v.size() == 6 || v.size() == 7) && "Vector dimension does not match");
           if (v.size() == 6) {
-            for (int i=0; i<3; i++){
+            for (int i = 0; i<3; i++){
               _t[i]=v[i];
               _r.coeffs()(i)=v[i+3];
             }
@@ -80,14 +80,14 @@ namespace g2o {
               _r.normalize();
             } else {
               double w2=1.-_r.squaredNorm();
-              _r.w()= (w2<0.) ? 0. : sqrt(w2);
+              _r.w()= (w2 < 0.) ? 0. : sqrt(w2);
             }
           }
           else if (v.size() == 7) {
             int idx = 0;
-            for (int i=0; i<3; ++i, ++idx)
+            for (int i = 0; i<3; ++i, ++idx)
               _t(i) = v(idx);
-            for (int i=0; i<4; ++i, ++idx)
+            for (int i = 0; i<4; ++i, ++idx)
               _r.coeffs()(i) = v(idx);
             normalizeRotation();
           }
@@ -165,7 +165,7 @@ namespace g2o {
 
       inline void fromMinimalVector(const Vector6d& v){
         double w = 1.-v[3]*v[3]-v[4]*v[4]-v[5]*v[5];
-        if (w>0){
+        if (w > 0){
           _r=Quaterniond(sqrt(w), v[3], v[4], v[5]);
         } else {
           _r=Quaterniond(0, -v[3], -v[4], -v[5]);
@@ -178,7 +178,7 @@ namespace g2o {
       Vector6d log() const {
         Vector6d res;
         Matrix3d _R = _r.toRotationMatrix();
-        double d =  0.5*(_R(0,0)+_R(1,1)+_R(2,2)-1);
+        double d =  0.5*(_R(0, 0)+_R(1, 1)+_R(2, 2)-1);
         Vector3d omega;
         Vector3d upsilon;
 
@@ -186,10 +186,10 @@ namespace g2o {
         Vector3d dR = deltaR(_R);
         Matrix3d V_inv;
 
-        if (d>0.99999)
+        if (d > 0.99999)
         {
 
-          omega=0.5*dR;
+          omega = 0.5*dR;
           Matrix3d Omega = skew(omega);
           V_inv = Matrix3d::Identity()- 0.5*Omega + (1./12.)*(Omega*Omega);
         }
@@ -203,10 +203,10 @@ namespace g2o {
         }
 
         upsilon = V_inv*_t;
-        for (int i=0; i<3;i++){
+        for (int i = 0; i<3; i++){
           res[i]=omega[i];
         }
-        for (int i=0; i<3;i++){
+        for (int i = 0; i<3; i++){
           res[i+3]=upsilon[i];
         }
 
@@ -223,10 +223,10 @@ namespace g2o {
       static SE3Quat exp(const Vector6d & update)
       {
         Vector3d omega;
-        for (int i=0; i<3; i++)
+        for (int i = 0; i<3; i++)
           omega[i]=update[i];
         Vector3d upsilon;
-        for (int i=0; i<3; i++)
+        for (int i = 0; i<3; i++)
           upsilon[i]=update[i+3];
 
         double theta = omega.norm();
@@ -234,7 +234,7 @@ namespace g2o {
 
         Matrix3d R;
         Matrix3d V;
-        if (theta<0.00001)
+        if (theta < 0.00001)
         {
           //TODO: CHECK WHETHER THIS IS CORRECT!!!
           R = (Matrix3d::Identity() + Omega + Omega*Omega);
@@ -251,7 +251,7 @@ namespace g2o {
 
           V = (Matrix3d::Identity()
               + (1-cos(theta))/(theta*theta)*Omega
-              + (theta-sin(theta))/(pow(theta,3))*Omega2);
+              + (theta-sin(theta))/(pow(theta, 3))*Omega2);
         }
         return SE3Quat(Quaterniond(R),V*upsilon);
       }
@@ -260,25 +260,25 @@ namespace g2o {
       {
         Matrix3d R = _r.toRotationMatrix();
         Matrix<double, 6, 6> res;
-        res.block(0,0,3,3) = R;
-        res.block(3,3,3,3) = R;
-        res.block(3,0,3,3) = skew(_t)*R;
-        res.block(0,3,3,3) = Matrix3d::Zero(3,3);
+        res.block(0, 0, 3, 3) = R;
+        res.block(3, 3, 3, 3) = R;
+        res.block(3, 0, 3, 3) = skew(_t)*R;
+        res.block(0, 3, 3, 3) = Matrix3d::Zero(3, 3);
         return res;
       }
 
-      Matrix<double,4,4> to_homogeneous_matrix() const
+      Matrix<double, 4, 4> to_homogeneous_matrix() const
       {
-        Matrix<double,4,4> homogeneous_matrix;
+        Matrix<double, 4, 4> homogeneous_matrix;
         homogeneous_matrix.setIdentity();
-        homogeneous_matrix.block(0,0,3,3) = _r.toRotationMatrix();
+        homogeneous_matrix.block(0, 0, 3, 3) = _r.toRotationMatrix();
         homogeneous_matrix.col(3).head(3) = translation();
 
         return homogeneous_matrix;
       }
 
       void normalizeRotation(){
-        if (_r.w()<0){
+        if (_r.w() < 0){
           _r.coeffs() *= -1;
         }
         _r.normalize();

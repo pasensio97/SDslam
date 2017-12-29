@@ -40,17 +40,17 @@ namespace g2o {
   using namespace Eigen;
 
   template <int D, typename E, typename VertexXi>
-  class BaseUnaryEdge : public BaseEdge<D,E>
+  class BaseUnaryEdge : public BaseEdge<D, E>
   {
     public:
       static const int Dimension = BaseEdge<D, E>::Dimension;
-      typedef typename BaseEdge<D,E>::Measurement Measurement;
+      typedef typename BaseEdge<D, E>::Measurement Measurement;
       typedef VertexXi VertexXiType;
       typedef typename Matrix<double, D, VertexXiType::Dimension>::AlignedMapType JacobianXiOplusType;
-      typedef typename BaseEdge<D,E>::ErrorVector ErrorVector;
-      typedef typename BaseEdge<D,E>::InformationType InformationType;
+      typedef typename BaseEdge<D, E>::ErrorVector ErrorVector;
+      typedef typename BaseEdge<D, E>::InformationType InformationType;
 
-      BaseUnaryEdge() : BaseEdge<D,E>(),
+      BaseUnaryEdge() : BaseEdge<D, E>(),
         _jacobianOplusXi(0, D, VertexXiType::Dimension)
       {
         _vertices.resize(1);
@@ -77,15 +77,15 @@ namespace g2o {
 
       virtual void mapHessianMemory(double*, int, int, bool) {assert(0 && "BaseUnaryEdge does not map memory of the Hessian");}
 
-      using BaseEdge<D,E>::resize;
-      using BaseEdge<D,E>::computeError;
+      using BaseEdge<D, E>::resize;
+      using BaseEdge<D, E>::computeError;
 
     protected:
-      using BaseEdge<D,E>::_measurement;
-      using BaseEdge<D,E>::_information;
-      using BaseEdge<D,E>::_error;
-      using BaseEdge<D,E>::_vertices;
-      using BaseEdge<D,E>::_dimension;
+      using BaseEdge<D, E>::_measurement;
+      using BaseEdge<D, E>::_information;
+      using BaseEdge<D, E>::_error;
+      using BaseEdge<D, E>::_vertices;
+      using BaseEdge<D, E>::_dimension;
 
       JacobianXiOplusType _jacobianOplusXi;
 

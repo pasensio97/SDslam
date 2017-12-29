@@ -50,16 +50,16 @@ namespace g2o {
       static const int Dj = VertexXjType::Dimension;
 
       static const int Dimension = BaseEdge<D, E>::Dimension;
-      typedef typename BaseEdge<D,E>::Measurement Measurement;
+      typedef typename BaseEdge<D, E>::Measurement Measurement;
       typedef typename Matrix<double, D, Di>::AlignedMapType JacobianXiOplusType;
       typedef typename Matrix<double, D, Dj>::AlignedMapType JacobianXjOplusType;
-      typedef typename BaseEdge<D,E>::ErrorVector ErrorVector;
-      typedef typename BaseEdge<D,E>::InformationType InformationType;
+      typedef typename BaseEdge<D, E>::ErrorVector ErrorVector;
+      typedef typename BaseEdge<D, E>::InformationType InformationType;
 
       typedef Eigen::Map<Matrix<double, Di, Dj>, Matrix<double, Di, Dj>::Flags & PacketAccessBit ? Aligned : Unaligned > HessianBlockType;
       typedef Eigen::Map<Matrix<double, Dj, Di>, Matrix<double, Dj, Di>::Flags & PacketAccessBit ? Aligned : Unaligned > HessianBlockTransposedType;
 
-      BaseBinaryEdge() : BaseEdge<D,E>(),
+      BaseBinaryEdge() : BaseEdge<D, E>(),
       _hessianRowMajor(false),
       _hessian(0, VertexXiType::Dimension, VertexXjType::Dimension), // HACK we map to the null pointer for initializing the Maps
       _hessianTransposed(0, VertexXjType::Dimension, VertexXiType::Dimension),
@@ -92,15 +92,15 @@ namespace g2o {
 
       virtual void mapHessianMemory(double* d, int i, int j, bool rowMajor);
 
-      using BaseEdge<D,E>::resize;
-      using BaseEdge<D,E>::computeError;
+      using BaseEdge<D, E>::resize;
+      using BaseEdge<D, E>::computeError;
 
     protected:
-      using BaseEdge<D,E>::_measurement;
-      using BaseEdge<D,E>::_information;
-      using BaseEdge<D,E>::_error;
-      using BaseEdge<D,E>::_vertices;
-      using BaseEdge<D,E>::_dimension;
+      using BaseEdge<D, E>::_measurement;
+      using BaseEdge<D, E>::_information;
+      using BaseEdge<D, E>::_error;
+      using BaseEdge<D, E>::_vertices;
+      using BaseEdge<D, E>::_dimension;
 
       bool _hessianRowMajor;
       HessianBlockType _hessian;

@@ -94,8 +94,8 @@ namespace g2o {
 
   Cache* Cache::installDependency(const std::string& type_, const std::vector<int>& parameterIndices){
     ParameterVector pv(parameterIndices.size());
-    for (size_t i=0; i<parameterIndices.size(); i++){
-      if (parameterIndices[i]<0 || parameterIndices[i] >=(int)_parameters.size())
+    for (size_t i = 0; i < parameterIndices.size(); i++){
+      if (parameterIndices[i] < 0 || parameterIndices[i] >=(int)_parameters.size())
   return 0;
       pv[i]=_parameters[ parameterIndices[i] ];
     }
@@ -143,7 +143,7 @@ namespace g2o {
     c->_container = this;
     c->_parameters = key._parameters;
     if (c->resolveDependancies()){
-      insert(make_pair(key,c));
+      insert(make_pair(key, c));
       c->update();
       return c;
     } 

@@ -56,8 +56,8 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
 
   mvAllIndices.reserve(mN1);
 
-  size_t idx=0;
-  for (int i1=0; i1<mN1; i1++) {
+  size_t idx = 0;
+  for (int i1 = 0; i1<mN1; i1++) {
     if (vpMatched12[i1]) {
       MapPoint* pMP1 = vpKeyFrameMP1[i1];
       MapPoint* pMP2 = vpMatched12[i1];
@@ -71,7 +71,7 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
       int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
       int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
 
-      if (indexKF1<0 || indexKF2<0)
+      if (indexKF1 < 0 || indexKF2 < 0)
         continue;
 
       const cv::KeyPoint &kp1 = pKF1->mvKeysUn[indexKF1];
@@ -112,7 +112,7 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
 void Sim3Solver::SetRansacParameters(double probability, int minInliers, int maxIterations) {
   mRansacProb = probability;
   mRansacMinInliers = minInliers;
-  mRansacMaxIts = maxIterations;  
+  mRansacMaxIts = maxIterations;
 
   N = mvpMapPoints1.size(); // number of correspondences
 
@@ -127,17 +127,17 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers, int max
   if (mRansacMinInliers==N)
     nIterations=1;
   else
-    nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon,3)));
+    nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon, 3)));
 
-  mRansacMaxIts = std::max(1, std::min(nIterations,mRansacMaxIts));
+  mRansacMaxIts = std::max(1, std::min(nIterations, mRansacMaxIts));
 
   mnIterations = 0;
 }
 
 Eigen::Matrix4d Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers) {
   bNoMore = false;
-  vbInliers = vector<bool>(mN1,false);
-  nInliers=0;
+  vbInliers = vector<bool>(mN1, false);
+  nInliers = 0;
 
   if (N<mRansacMinInliers) {
     bNoMore = true;
@@ -173,7 +173,7 @@ Eigen::Matrix4d Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool>
 
     CheckInliers();
 
-    if (mnInliersi>=mnBestInliers) {
+    if (mnInliersi >= mnBestInliers) {
       mvbBestInliers = mvbInliersi;
       mnBestInliers = mnInliersi;
       mBestT12 = mT12i;
@@ -183,7 +183,7 @@ Eigen::Matrix4d Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool>
 
       if (mnInliersi>mRansacMinInliers) {
         nInliers = mnInliersi;
-        for (int i=0; i<N; i++)
+        for (int i = 0; i < N; i++)
           if (mvbInliersi[i])
             vbInliers[mvnIndices1[i]] = true;
         return mBestT12;
@@ -191,7 +191,7 @@ Eigen::Matrix4d Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool>
     }
   }
 
-  if (mnIterations>=mRansacMaxIts)
+  if (mnIterations >= mRansacMaxIts)
     bNoMore=true;
 
   return Eigen::Matrix4d::Zero();
@@ -199,7 +199,7 @@ Eigen::Matrix4d Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool>
 
 Eigen::Matrix4d Sim3Solver::find(vector<bool> &vbInliers12, int &nInliers) {
   bool bFlag;
-  return iterate(mRansacMaxIts,bFlag,vbInliers12,nInliers);
+  return iterate(mRansacMaxIts,bFlag, vbInliers12,nInliers);
 }
 
 void Sim3Solver::ComputeCentroid(const Eigen::Matrix3d &P, Eigen::Matrix3d &Pr, Eigen::Vector3d &C) {
@@ -208,7 +208,7 @@ void Sim3Solver::ComputeCentroid(const Eigen::Matrix3d &P, Eigen::Matrix3d &Pr, 
   C(2) = P.row(2).sum();
   C = C/P.cols();
 
-  for (int i=0; i<P.cols(); i++) {
+  for (int i = 0; i<P.cols(); i++) {
     Pr.col(i)=P.col(i)-C;
   }
 }
@@ -237,16 +237,16 @@ void Sim3Solver::ComputeSim3(const Eigen::Matrix3d &P1, const Eigen::Matrix3d &P
 
   Eigen::Matrix4d N;
 
-  N11 = M(0,0)+M(1,1)+M(2,2);
-  N12 = M(1,2)-M(2,1);
-  N13 = M(2,0)-M(0,2);
-  N14 = M(0,1)-M(1,0);
-  N22 = M(0,0)-M(1,1)-M(2,2);
-  N23 = M(0,1)+M(1,0);
-  N24 = M(2,0)+M(0,2);
-  N33 = -M(0,0)+M(1,1)-M(2,2);
-  N34 = M(1,2)+M(2,1);
-  N44 = -M(0,0)-M(1,1)+M(2,2);
+  N11 = M(0, 0)+M(1, 1)+M(2, 2);
+  N12 = M(1, 2)-M(2, 1);
+  N13 = M(2, 0)-M(0, 2);
+  N14 = M(0, 1)-M(1, 0);
+  N22 = M(0, 0)-M(1, 1)-M(2, 2);
+  N23 = M(0, 1)+M(1, 0);
+  N24 = M(2, 0)+M(0, 2);
+  N33 = -M(0, 0)+M(1, 1)-M(2, 2);
+  N34 = M(1, 2)+M(2, 1);
+  N44 = -M(0, 0)-M(1, 1)+M(2, 2);
 
   N << N11, N12, N13, N14,
        N12, N22, N23, N24,
@@ -259,15 +259,15 @@ void Sim3Solver::ComputeSim3(const Eigen::Matrix3d &P1, const Eigen::Matrix3d &P
 
   cv::eigen(Converter::toCvMat(N),eval,evec); //evec[0] is the quaternion of the desired rotation
 
-  cv::Mat vec(1,3,evec.type());
-  (evec.row(0).colRange(1,4)).copyTo(vec); //extract imaginary part of the quaternion (sin*axis)
+  cv::Mat vec(1, 3,evec.type());
+  (evec.row(0).colRange(1, 4)).copyTo(vec); //extract imaginary part of the quaternion (sin*axis)
 
   // Rotation angle. sin is the norm of the imaginary part, cos is the real part
-  double ang=atan2(norm(vec),evec.at<float>(0,0));
+  double ang=atan2(norm(vec),evec.at<float>(0, 0));
 
   vec = 2*ang*vec/norm(vec); //Angle-axis representation. quaternion angle is the half
 
-  cv::Mat mR12i_cv(3,3,CV_32F);
+  cv::Mat mR12i_cv(3, 3, CV_32F);
   cv::Rodrigues(vec, mR12i_cv); // computes the rotation matrix from angle-axis
   mR12i = Converter::toMatrix3d(mR12i_cv);
 
@@ -282,9 +282,9 @@ void Sim3Solver::ComputeSim3(const Eigen::Matrix3d &P1, const Eigen::Matrix3d &P
     Eigen::Matrix3d aux_P3 = P3.array().pow(2);
     double den = 0;
 
-    for (int i=0; i<aux_P3.rows(); i++) {
-      for (int j=0; j<aux_P3.cols(); j++) {
-        den+=aux_P3(i,j);
+    for (int i = 0; i<aux_P3.rows(); i++) {
+      for (int j = 0; j < aux_P3.cols(); j++) {
+        den+=aux_P3(i, j);
       }
     }
 
@@ -303,8 +303,8 @@ void Sim3Solver::ComputeSim3(const Eigen::Matrix3d &P1, const Eigen::Matrix3d &P
 
   Eigen::Matrix3d sR = ms12i*mR12i;
 
-  mT12i.block<3,3>(0,0) = sR;
-  mT12i.block<3,1>(0,3) = mt12i;
+  mT12i.block<3, 3>(0, 0) = sR;
+  mT12i.block<3, 1>(0, 3) = mt12i;
 
   // Step 8.2 T21
 
@@ -312,9 +312,9 @@ void Sim3Solver::ComputeSim3(const Eigen::Matrix3d &P1, const Eigen::Matrix3d &P
 
   Eigen::Matrix3d sRinv = (1.0/ms12i)*mR12i.transpose();
 
-  mT21i.block<3,3>(0,0) = sRinv;
+  mT21i.block<3, 3>(0, 0) = sRinv;
   Eigen::Vector3d tinv = -sRinv*mt12i;
-  mT21i.block<3,1>(0,3) = tinv;
+  mT21i.block<3, 1>(0, 3) = tinv;
 }
 
 
@@ -323,9 +323,9 @@ void Sim3Solver::CheckInliers() {
   Project(mvX3Dc2, vP2im1, mT12i, mK1);
   Project(mvX3Dc1, vP1im2, mT21i, mK2);
 
-  mnInliersi=0;
+  mnInliersi = 0;
 
-  for (size_t i=0; i<mvP1im1.size(); i++) {
+  for (size_t i = 0; i<mvP1im1.size(); i++) {
     Eigen::Vector2d dist1 = mvP1im1[i]-vP2im1[i];
     Eigen::Vector2d dist2 = vP1im2[i]-mvP2im2[i];
 
@@ -354,17 +354,17 @@ float Sim3Solver::GetEstimatedScale() {
 }
 
 void Sim3Solver::Project(const vector<Eigen::Vector3d> &vP3Dw, vector<Eigen::Vector2d> &vP2D, const Eigen::Matrix4d &Tcw, const Eigen::Matrix3d &K) {
-  Eigen::Matrix3d Rcw = Tcw.block<3,3>(0,0);
-  Eigen::Vector3d tcw = Tcw.block<3,1>(0,3);
-  const float fx = K(0,0);
-  const float fy = K(1,1);
-  const float cx = K(0,2);
-  const float cy = K(1,2);
+  Eigen::Matrix3d Rcw = Tcw.block<3, 3>(0, 0);
+  Eigen::Vector3d tcw = Tcw.block<3, 1>(0, 3);
+  const float fx = K(0, 0);
+  const float fy = K(1, 1);
+  const float cx = K(0, 2);
+  const float cy = K(1, 2);
 
   vP2D.clear();
   vP2D.reserve(vP3Dw.size());
 
-  for (size_t i=0, iend=vP3Dw.size(); i<iend; i++) {
+  for (size_t i = 0, iend=vP3Dw.size(); i < iend; i++) {
     Eigen::Vector3d P3Dc = Rcw*vP3Dw[i]+tcw;
     const float invz = 1/(P3Dc(2));
     const float x = P3Dc(0)*invz;
@@ -375,15 +375,15 @@ void Sim3Solver::Project(const vector<Eigen::Vector3d> &vP3Dw, vector<Eigen::Vec
 }
 
 void Sim3Solver::FromCameraToImage(const vector<Eigen::Vector3d> &vP3Dc, vector<Eigen::Vector2d> &vP2D, const Eigen::Matrix3d &K) {
-  const float fx = K(0,0);
-  const float fy = K(1,1);
-  const float cx = K(0,2);
-  const float cy = K(1,2);
+  const float fx = K(0, 0);
+  const float fy = K(1, 1);
+  const float cx = K(0, 2);
+  const float cy = K(1, 2);
 
   vP2D.clear();
   vP2D.reserve(vP3Dc.size());
 
-  for (size_t i=0, iend=vP3Dc.size(); i<iend; i++) {
+  for (size_t i = 0, iend=vP3Dc.size(); i < iend; i++) {
     const float invz = 1/(vP3Dc[i](2));
     const float x = vP3Dc[i](0)*invz;
     const float y = vP3Dc[i](1)*invz;

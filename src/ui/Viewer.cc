@@ -33,7 +33,7 @@ using std::unique_lock;
 namespace SD_SLAM {
 
 Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer):
-  mpSystem(pSystem), mpFrameDrawer(pFrameDrawer),mpMapDrawer(pMapDrawer), mbFinishRequested(false), mbFinished(true) {
+  mpSystem(pSystem), mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mbFinishRequested(false), mbFinished(true) {
 }
 
 void Viewer::Run() {
@@ -56,19 +56,19 @@ void Viewer::Run() {
   glEnable (GL_BLEND);
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(mw));
-  pangolin::Var<bool> menuFollowCamera("menu.Follow Camera",true,true);
-  pangolin::Var<bool> menuShowPoints("menu.Show Points",true,true);
-  pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames",true,true);
-  pangolin::Var<bool> menuShowGraph("menu.Show Graph",true,true);
-  pangolin::Var<bool> menuShowFrames("menu.Show Frames",true,true);
-  pangolin::Var<double> menuImageScale("menu.Image Scale",0.5,0,1,false);
-  pangolin::Var<bool> menuReset("menu.Reset",false,false);
+  pangolin::CreatePanel("menu").SetBounds(0.0, 1.0, 0.0,pangolin::Attach::Pix(mw));
+  pangolin::Var<bool> menuFollowCamera("menu.Follow Camera", true, true);
+  pangolin::Var<bool> menuShowPoints("menu.Show Points", true, true);
+  pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames", true, true);
+  pangolin::Var<bool> menuShowGraph("menu.Show Graph", true, true);
+  pangolin::Var<bool> menuShowFrames("menu.Show Frames", true, true);
+  pangolin::Var<double> menuImageScale("menu.Image Scale", 0.5, 0, 1, false);
+  pangolin::Var<bool> menuReset("menu.Reset", false, false);
 
   // Define Camera Render Object (for view / scene browsing)
   pangolin::OpenGlRenderState s_cam(
-        pangolin::ProjectionMatrix(w,h,Config::ViewpointF(),Config::ViewpointF(),w/2,h/2,0.1,1000),
-        pangolin::ModelViewLookAt(Config::ViewpointX(),Config::ViewpointY(),Config::ViewpointZ(), 0,0,0,0.0,-1.0, 0.0)
+        pangolin::ProjectionMatrix(w, h, Config::ViewpointF(), Config::ViewpointF(), w/2, h/2, 0.1, 1000),
+        pangolin::ModelViewLookAt(Config::ViewpointX(), Config::ViewpointY(), Config::ViewpointZ(), 0, 0, 0, 0.0,-1.0, 0.0)
         );
 
   // Add named OpenGL viewport to window and provide 3D Handler
@@ -83,7 +83,7 @@ void Viewer::Run() {
   pangolin::View& d_video = pangolin::Display("Frame").SetAspect(iw/(float)ih)
       .SetBounds(pangolin::Attach::Pix(ib), pangolin::Attach::Pix(ib+ih*menuImageScale),
                  pangolin::Attach::Pix(mw+ib), pangolin::Attach::Pix(mw+ib+iw*menuImageScale));
-  pangolin::GlTexture textVideo(iw,ih,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
+  pangolin::GlTexture textVideo(iw, ih,GL_RGB, false, 0,GL_RGB,GL_UNSIGNED_BYTE);
 
   bool bFollow = true;
 
@@ -96,7 +96,7 @@ void Viewer::Run() {
       s_cam.Follow(Twc);
     } else if (menuFollowCamera && !bFollow) {
       s_cam.SetModelViewMatrix(
-        pangolin::ModelViewLookAt(Config::ViewpointX(),Config::ViewpointY(),Config::ViewpointZ(), 0,0,0,0.0,-1.0, 0.0));
+        pangolin::ModelViewLookAt(Config::ViewpointX(), Config::ViewpointY(), Config::ViewpointZ(), 0, 0, 0, 0.0,-1.0, 0.0));
       s_cam.Follow(Twc);
       bFollow = true;
     } else if (!menuFollowCamera && bFollow) {
@@ -104,10 +104,10 @@ void Viewer::Run() {
     }
 
     d_cam.Activate(s_cam);
-    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     mpMapDrawer->DrawCurrentCamera(Twc);
     if (menuShowKeyFrames || menuShowGraph)
-      mpMapDrawer->DrawKeyFrames(menuShowKeyFrames,menuShowGraph);
+      mpMapDrawer->DrawKeyFrames(menuShowKeyFrames, menuShowGraph);
     if (menuShowPoints)
       mpMapDrawer->DrawMapPoints();
 
@@ -119,7 +119,7 @@ void Viewer::Run() {
       d_video.SetBounds(pangolin::Attach::Pix(ib), pangolin::Attach::Pix(ib+ih*menuImageScale),
                         pangolin::Attach::Pix(mw+ib), pangolin::Attach::Pix(mw+ib+iw*menuImageScale));
       d_video.Activate();
-      glColor4f(1.0f,1.0f,1.0f,1.0f);
+      glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
       textVideo.RenderToViewportFlipY();
     }
 

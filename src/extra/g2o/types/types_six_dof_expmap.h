@@ -25,9 +25,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Modified by Raúl Mur Artal (2014)
-// Added EdgeSE3ProjectXYZ (project using focal_length in x,y directions)
+// Added EdgeSE3ProjectXYZ (project using focal_length in x, y directions)
 // Modified by Raúl Mur Artal (2016)
-// Added EdgeStereoSE3ProjectXYZ (project using focal_length in x,y directions)
+// Added EdgeStereoSE3ProjectXYZ (project using focal_length in x, y directions)
 // Added EdgeSE3ProjectXYZOnlyPose (unary edge to optimize only the camera pose)
 // Added EdgeStereoSE3ProjectXYZOnlyPose (unary edge to optimize only the camera pose)
 
@@ -97,7 +97,7 @@ public:
   bool isDepthPositive() {
     const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);
     const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);
-    return (v1->estimate().map(v2->estimate()))(2)>0.0;
+    return (v1->estimate().map(v2->estimate()))(2) > 0.0;
   }
     
 
@@ -129,7 +129,7 @@ public:
   bool isDepthPositive() {
     const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[1]);
     const VertexSBAPointXYZ* v2 = static_cast<const VertexSBAPointXYZ*>(_vertices[0]);
-    return (v1->estimate().map(v2->estimate()))(2)>0.0;
+    return (v1->estimate().map(v2->estimate()))(2) > 0.0;
   }
 
 
@@ -158,7 +158,7 @@ public:
 
   bool isDepthPositive() {
     const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[0]);
-    return (v1->estimate().map(Xw))(2)>0.0;
+    return (v1->estimate().map(Xw))(2) > 0.0;
   }
 
 
@@ -189,7 +189,7 @@ public:
 
   bool isDepthPositive() {
     const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[0]);
-    return (v1->estimate().map(Xw))(2)>0.0;
+    return (v1->estimate().map(Xw))(2) > 0.0;
   }
 
 

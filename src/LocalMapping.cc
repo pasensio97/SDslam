@@ -136,7 +136,7 @@ void LocalMapping::ProcessNewKeyFrame() {
   // Associate MapPoints to the new keyframe and update normal and descriptor
   const vector<MapPoint*> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-  for (size_t i=0; i<vpMapPointMatches.size(); i++) {
+  for (size_t i = 0; i < vpMapPointMatches.size(); i++) {
     MapPoint* pMP = vpMapPointMatches[i];
     if (pMP) {
       if (!pMP->isBad()) {
@@ -149,7 +149,7 @@ void LocalMapping::ProcessNewKeyFrame() {
         }
       }
     }
-  }  
+  }
 
   // Update links in the Covisibility Graph
   mpCurrentKeyFrame->UpdateConnections();
@@ -170,11 +170,11 @@ void LocalMapping::MapPointCulling() {
     nThObs = 3;
   const int cnThObs = nThObs;
 
-  while (lit!=mlpRecentAddedMapPoints.end()) {
+  while (lit != mlpRecentAddedMapPoints.end()) {
     MapPoint* pMP = *lit;
     if (pMP->isBad()) {
       lit = mlpRecentAddedMapPoints.erase(lit);
-    } else if (pMP->GetFoundRatio()<0.25f ) {
+    } else if (pMP->GetFoundRatio() < 0.25f ) {
       pMP->SetBadFlag();
       lit = mlpRecentAddedMapPoints.erase(lit);
     } else if (((int)nCurrentKFid-(int)pMP->mnFirstKFid)>=2 && pMP->Observations()<=cnThObs) {
@@ -194,14 +194,14 @@ void LocalMapping::CreateNewMapPoints() {
     nn=20;
   const vector<KeyFrame*> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
-  ORBmatcher matcher(0.6,false);
+  ORBmatcher matcher(0.6, false);
 
   Eigen::Matrix3d Rcw1 = mpCurrentKeyFrame->GetRotation();
   Eigen::Matrix3d Rwc1 = Rcw1.transpose();
   Eigen::Vector3d tcw1 = mpCurrentKeyFrame->GetTranslation();
-  Eigen::Matrix<double,3,4> Tcw1;
-  Tcw1.block<3,3>(0,0) = Rcw1;
-  Tcw1.block<3,1>(0,3) = tcw1;
+  Eigen::Matrix<double, 3, 4> Tcw1;
+  Tcw1.block<3, 3>(0, 0) = Rcw1;
+  Tcw1.block<3, 1>(0, 3) = tcw1;
   Eigen::Vector3d Ow1 = mpCurrentKeyFrame->GetCameraCenter();
 
   const float &fx1 = mpCurrentKeyFrame->fx;
@@ -213,11 +213,11 @@ void LocalMapping::CreateNewMapPoints() {
 
   const float ratioFactor = 1.5f*mpCurrentKeyFrame->mfScaleFactor;
 
-  int nnew=0;
+  int nnew = 0;
 
   // Search matches with epipolar restriction and triangulate
-  for (size_t i=0; i<vpNeighKFs.size(); i++) {
-    if (i>0 && CheckNewKeyFrames())
+  for (size_t i = 0; i < vpNeighKFs.size(); i++) {
+    if (i > 0 && CheckNewKeyFrames())
       return;
 
     KeyFrame* pKF2 = vpNeighKFs[i];
@@ -234,7 +234,7 @@ void LocalMapping::CreateNewMapPoints() {
       const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
       const float ratioBaselineDepth = baseline/medianDepthKF2;
 
-      if (ratioBaselineDepth<0.01)
+      if (ratioBaselineDepth < 0.01)
         continue;
     }
 
@@ -242,15 +242,15 @@ void LocalMapping::CreateNewMapPoints() {
     Eigen::Matrix3d F12 = ComputeF12(mpCurrentKeyFrame, pKF2);
 
     // Search matches that fullfil epipolar constraint
-    vector<std::pair<size_t,size_t> > vMatchedIndices;
-    matcher.SearchForTriangulation(mpCurrentKeyFrame, pKF2, F12,vMatchedIndices);
+    vector<std::pair<size_t, size_t> > vMatchedIndices;
+    matcher.SearchForTriangulation(mpCurrentKeyFrame, pKF2, F12, vMatchedIndices);
 
     Eigen::Matrix3d Rcw2 = pKF2->GetRotation();
     Eigen::Matrix3d Rwc2 = Rcw2.transpose();
     Eigen::Vector3d tcw2 = pKF2->GetTranslation();
-    Eigen::Matrix<double,3,4> Tcw2;
-    Tcw2.block<3,3>(0,0) = Rcw2;
-    Tcw2.block<3,1>(0,3) = tcw2;
+    Eigen::Matrix<double, 3, 4> Tcw2;
+    Tcw2.block<3, 3>(0, 0) = Rcw2;
+    Tcw2.block<3, 1>(0, 3) = tcw2;
 
     const float &fx2 = pKF2->fx;
     const float &fy2 = pKF2->fy;
@@ -261,17 +261,17 @@ void LocalMapping::CreateNewMapPoints() {
 
     // Triangulate each match
     const int nmatches = vMatchedIndices.size();
-    for (int ikp=0; ikp<nmatches; ikp++) {
+    for (int ikp = 0; ikp<nmatches; ikp++) {
       const int &idx1 = vMatchedIndices[ikp].first;
       const int &idx2 = vMatchedIndices[ikp].second;
 
       const cv::KeyPoint &kp1 = mpCurrentKeyFrame->mvKeysUn[idx1];
-      const float kp1_ur=mpCurrentKeyFrame->mvuRight[idx1];
-      bool bStereo1 = kp1_ur>=0;
+      const float kp1_ur = mpCurrentKeyFrame->mvuRight[idx1];
+      bool bStereo1 = kp1_ur >= 0;
 
       const cv::KeyPoint &kp2 = pKF2->mvKeysUn[idx2];
       const float kp2_ur = pKF2->mvuRight[idx2];
-      bool bStereo2 = kp2_ur>=0;
+      bool bStereo2 = kp2_ur >= 0;
 
       // Check parallax between rays
       Eigen::Vector3d xn1((kp1.pt.x-cx1)*invfx1, (kp1.pt.y-cy1)*invfy1, 1.0);
@@ -286,14 +286,14 @@ void LocalMapping::CreateNewMapPoints() {
       float cosParallaxStereo2 = cosParallaxStereo;
 
       if (bStereo1)
-        cosParallaxStereo1 = cos(2*atan2(mpCurrentKeyFrame->mb/2,mpCurrentKeyFrame->mvDepth[idx1]));
+        cosParallaxStereo1 = cos(2*atan2(mpCurrentKeyFrame->mb/2, mpCurrentKeyFrame->mvDepth[idx1]));
       else if (bStereo2)
         cosParallaxStereo2 = cos(2*atan2(pKF2->mb/2,pKF2->mvDepth[idx2]));
 
-      cosParallaxStereo = std::min(cosParallaxStereo1,cosParallaxStereo2);
+      cosParallaxStereo = std::min(cosParallaxStereo1, cosParallaxStereo2);
 
       Eigen::Vector3d x3D;
-      if (cosParallaxRays<cosParallaxStereo && cosParallaxRays>0 && (bStereo1 || bStereo2 || cosParallaxRays<0.9998)) {
+      if (cosParallaxRays<cosParallaxStereo && cosParallaxRays > 0 && (bStereo1 || bStereo2 || cosParallaxRays < 0.9998)) {
         // Linear Triangulation Method
         Eigen::Matrix4d A;
         A.row(0) = xn1(0)*Tcw1.row(2)-Tcw1.row(0);
@@ -301,18 +301,18 @@ void LocalMapping::CreateNewMapPoints() {
         A.row(2) = xn2(0)*Tcw2.row(2)-Tcw2.row(0);
         A.row(3) = xn2(1)*Tcw2.row(2)-Tcw2.row(1);
 
-        cv::Mat A_cv(4,4,CV_32F);
-        cv::Mat w,u,vt;
+        cv::Mat A_cv(4, 4, CV_32F);
+        cv::Mat w, u, vt;
         A_cv = Converter::toCvMat(A);
-        cv::SVD::compute(A_cv,w,u,vt,cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
+        cv::SVD::compute(A_cv, w, u, vt, cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
 
         cv::Mat x3D_cv = vt.row(3).t();
 
-        if (x3D_cv.at<float>(3)==0)
+        if (x3D_cv.at<float>(3) == 0)
           continue;
 
         // Euclidean coordinates
-        x3D_cv = x3D_cv.rowRange(0,3)/x3D_cv.at<float>(3);
+        x3D_cv = x3D_cv.rowRange(0, 3)/x3D_cv.at<float>(3);
         x3D = Converter::toVector3d(x3D_cv);
 
       } else if (bStereo1 && cosParallaxStereo1<cosParallaxStereo2) {
@@ -326,11 +326,11 @@ void LocalMapping::CreateNewMapPoints() {
 
       //Check triangulation in front of cameras
       float z1 = Rcw1.row(2).dot(x3Dt)+tcw1(2);
-      if (z1<=0)
+      if (z1 <= 0)
         continue;
 
       float z2 = Rcw2.row(2).dot(x3Dt)+tcw2(2);
-      if (z2<=0)
+      if (z2 <= 0)
         continue;
 
       //Check reprojection error in first keyframe
@@ -387,7 +387,7 @@ void LocalMapping::CreateNewMapPoints() {
       Eigen::Vector3d normal2 = x3D-Ow2;
       float dist2 = normal2.norm();
 
-      if (dist1==0 || dist2==0)
+      if (dist1 == 0 || dist2 == 0)
         continue;
 
       const float ratioDist = dist2/dist1;
@@ -401,11 +401,11 @@ void LocalMapping::CreateNewMapPoints() {
       // Triangulation is succesfull
       MapPoint* pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap);
 
-      pMP->AddObservation(mpCurrentKeyFrame,idx1);      
-      pMP->AddObservation(pKF2,idx2);
+      pMP->AddObservation(mpCurrentKeyFrame, idx1);
+      pMP->AddObservation(pKF2, idx2);
 
-      mpCurrentKeyFrame->AddMapPoint(pMP,idx1);
-      pKF2->AddMapPoint(pMP,idx2);
+      mpCurrentKeyFrame->AddMapPoint(pMP, idx1);
+      pKF2->AddMapPoint(pMP, idx2);
 
       pMP->ComputeDistinctiveDescriptors();
 
@@ -437,7 +437,7 @@ void LocalMapping::SearchInNeighbors() {
     const vector<KeyFrame*> vpSecondNeighKFs = pKFi->GetBestCovisibilityKeyFrames(5);
     for (vector<KeyFrame*>::const_iterator vit2=vpSecondNeighKFs.begin(), vend2=vpSecondNeighKFs.end(); vit2!=vend2; vit2++) {
       KeyFrame* pKFi2 = *vit2;
-      if (pKFi2->isBad() || pKFi2->mnFuseTargetForKF==mpCurrentKeyFrame->mnId || pKFi2->mnId==mpCurrentKeyFrame->mnId)
+      if (pKFi2->isBad() || pKFi2->mnFuseTargetForKF == mpCurrentKeyFrame->mnId || pKFi2->mnId == mpCurrentKeyFrame->mnId)
         continue;
       vpTargetKFs.push_back(pKFi2);
     }
@@ -477,7 +477,7 @@ void LocalMapping::SearchInNeighbors() {
 
   // Update points
   vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
-  for (size_t i=0, iend=vpMapPointMatches.size(); i<iend; i++) {
+  for (size_t i = 0, iend=vpMapPointMatches.size(); i < iend; i++) {
     MapPoint* pMP=vpMapPointMatches[i];
     if (pMP) {
       if (!pMP->isBad()) {
@@ -545,7 +545,7 @@ void LocalMapping::Release() {
     return;
   mbStopped = false;
   mbStopRequested = false;
-  for (list<KeyFrame*>::iterator lit = mlNewKeyFrames.begin(), lend=mlNewKeyFrames.end(); lit!=lend; lit++)
+  for (list<KeyFrame*>::iterator lit = mlNewKeyFrames.begin(), lend = mlNewKeyFrames.end(); lit!=lend; lit++)
     delete *lit;
   mlNewKeyFrames.clear();
 
@@ -586,20 +586,20 @@ void LocalMapping::KeyFrameCulling() {
 
   for (vector<KeyFrame*>::iterator vit=vpLocalKeyFrames.begin(), vend=vpLocalKeyFrames.end(); vit!=vend; vit++) {
     KeyFrame* pKF = *vit;
-    if (pKF->mnId==0)
+    if (pKF->mnId == 0)
       continue;
     const vector<MapPoint*> vpMapPoints = pKF->GetMapPointMatches();
 
     int nObs = 3;
     const int thObs=nObs;
-    int nRedundantObservations=0;
-    int nMPs=0;
-    for (size_t i=0, iend=vpMapPoints.size(); i<iend; i++) {
+    int nRedundantObservations = 0;
+    int nMPs = 0;
+    for (size_t i = 0, iend=vpMapPoints.size(); i < iend; i++) {
       MapPoint* pMP = vpMapPoints[i];
       if (pMP) {
         if (!pMP->isBad()) {
           if (!mbMonocular) {
-            if (pKF->mvDepth[i]>pKF->mThDepth || pKF->mvDepth[i]<0)
+            if (pKF->mvDepth[i]>pKF->mThDepth || pKF->mvDepth[i] < 0)
               continue;
           }
 
@@ -607,14 +607,14 @@ void LocalMapping::KeyFrameCulling() {
           if (pMP->Observations()>thObs) {
             const int &scaleLevel = pKF->mvKeysUn[i].octave;
             const map<KeyFrame*, size_t> observations = pMP->GetObservations();
-            int nObs=0;
-            for (map<KeyFrame*, size_t>::const_iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++) {
+            int nObs = 0;
+            for (map<KeyFrame*, size_t>::const_iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
               KeyFrame* pKFi = mit->first;
-              if (pKFi==pKF)
+              if (pKFi == pKF)
                 continue;
               const int &scaleLeveli = pKFi->mvKeysUn[mit->second].octave;
 
-              if (scaleLeveli<=scaleLevel+1) {
+              if (scaleLeveli <= scaleLevel+1) {
                 nObs++;
                 if (nObs>=thObs)
                   break;
@@ -626,9 +626,9 @@ void LocalMapping::KeyFrameCulling() {
           }
         }
       }
-    }  
+    }
 
-    if (nRedundantObservations>0.9*nMPs)
+    if (nRedundantObservations > 0.9*nMPs)
       pKF->SetBadFlag();
   }
 }
@@ -676,7 +676,7 @@ bool LocalMapping::CheckFinish() {
 
 void LocalMapping::SetFinish() {
   unique_lock<mutex> lock(mMutexFinish);
-  mbFinished = true;  
+  mbFinished = true;
   unique_lock<mutex> lock2(mMutexStop);
   mbStopped = true;
 }

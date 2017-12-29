@@ -161,7 +161,7 @@ namespace g2o {
   bool OptimizableGraph::Edge::setParameterId(int argNum, int paramId){
     if ((int)_parameters.size()<=argNum)
       return false;
-    if (argNum<0)
+    if (argNum < 0)
       return false;
     *_parameters[argNum] = 0;
     _parameterIds[argNum] = paramId;
@@ -176,7 +176,7 @@ namespace g2o {
     
     assert (_parameters.size() == _parameterIds.size());
     //cerr << __PRETTY_FUNCTION__ << ": encountered " << _parameters.size() << " parameters" << endl;
-    for (size_t i=0; i<_parameters.size(); i++){
+    for (size_t i = 0; i < _parameters.size(); i++){
       int index = _parameterIds[i];
       *_parameters[i] = graph()->parameter(index);
       if (typeid(**_parameters[i]).name()!=_parameterTypes[i]){
@@ -456,7 +456,7 @@ bool OptimizableGraph::load(istream& is, bool createEdges)
         currentLine >> id1 >> id2;
         Vertex* from = vertex(id1);
         Vertex* to = vertex(id2);
-        int doInit=0;
+        int doInit = 0;
         if ((!from || !to) ) {
           if (! createEdges) {
             cerr << __PRETTY_FUNCTION__ << ": Unable to find vertices for edge " << token << " " << id1 << " <-> " << id2 << endl;
@@ -703,7 +703,7 @@ void OptimizableGraph::addGraph(OptimizableGraph* g){
 }
 
 int OptimizableGraph::maxDimension() const{
-  int maxDim=0;
+  int maxDim = 0;
   for (HyperGraph::VertexIDMap::const_iterator it=vertices().begin(); it!=vertices().end(); ++it){
     const OptimizableGraph::Vertex* v= static_cast< const OptimizableGraph::Vertex*>(it->second);
     maxDim = (std::max)(maxDim, v->dimension());
@@ -900,7 +900,7 @@ bool OptimizableGraph::verifyInformationMatrices(bool verbose) const
 
 bool OptimizableGraph::initMultiThreading()
 {
-# if (defined G2O_OPENMP) && EIGEN_VERSION_AT_LEAST(3,1,0)
+# if (defined G2O_OPENMP) && EIGEN_VERSION_AT_LEAST(3, 1, 0)
   Eigen::initParallel();
 # endif
   return true;

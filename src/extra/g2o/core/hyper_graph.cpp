@@ -78,7 +78,7 @@ namespace g2o {
     Vertex* vn=vertex(v->id());
     if (vn)
       return false;
-    _vertices.insert( std::make_pair(v->id(),v) );
+    _vertices.insert( std::make_pair(v->id(), v) );
     return true;
   }
 

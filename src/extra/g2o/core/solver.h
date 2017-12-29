@@ -116,8 +116,8 @@ namespace g2o {
       virtual bool supportsSchur() {return false;}
 
       //! should the solver perform the schur complement or not
-      virtual bool schur()=0;
-      virtual void setSchur(bool s)=0;
+      virtual bool schur() = 0;
+      virtual void setSchur(bool s) = 0;
 
       size_t additionalVectorSpace() const { return _additionalVectorSpace;}
       void setAdditionalVectorSpace(size_t s);

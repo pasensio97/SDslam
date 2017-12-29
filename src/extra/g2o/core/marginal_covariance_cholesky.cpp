@@ -163,18 +163,18 @@ void MarginalCovarianceCholesky::computeCovariance(SparseBlockMatrix<MatrixXd>& 
   for (size_t i = 0; i < blockIndices.size(); ++i) {
     int blockRow=blockIndices[i].first;    
     int blockCol=blockIndices[i].second;
-    assert(blockRow>=0);
+    assert(blockRow >= 0);
     assert(blockRow < (int)rowBlockIndices.size());
-    assert(blockCol>=0);
+    assert(blockCol >= 0);
     assert(blockCol < (int)rowBlockIndices.size());
 
-    int rowBase=spinv.rowBaseOfBlock(blockRow);
-    int colBase=spinv.colBaseOfBlock(blockCol);
+    int rowBase = spinv.rowBaseOfBlock(blockRow);
+    int colBase = spinv.colBaseOfBlock(blockCol);
     
-    MatrixXd *block=spinv.block(blockRow, blockCol, true);
+    MatrixXd *block = spinv.block(blockRow, blockCol, true);
     assert(block);
-    for (int iRow=0; iRow<block->rows(); ++iRow)
-      for (int iCol=0; iCol<block->cols(); ++iCol){
+    for (int iRow = 0; iRow<block->rows(); ++iRow)
+      for (int iCol = 0; iCol<block->cols(); ++iCol){
   int rr=rowBase+iRow;
   int cc=colBase+iCol;
         int r = _perm ? _perm[rr] : rr; // apply permutation
@@ -198,13 +198,13 @@ void MarginalCovarianceCholesky::computeCovariance(SparseBlockMatrix<MatrixXd>& 
   for (size_t i = 0; i < blockIndices.size(); ++i) {
     int blockRow=blockIndices[i].first;    
     int blockCol=blockIndices[i].second;
-    int rowBase=spinv.rowBaseOfBlock(blockRow);
-    int colBase=spinv.colBaseOfBlock(blockCol);
+    int rowBase = spinv.rowBaseOfBlock(blockRow);
+    int colBase = spinv.colBaseOfBlock(blockCol);
     
-    MatrixXd *block=spinv.block(blockRow, blockCol);
+    MatrixXd *block = spinv.block(blockRow, blockCol);
     assert(block);
-    for (int iRow=0; iRow<block->rows(); ++iRow)
-      for (int iCol=0; iCol<block->cols(); ++iCol){
+    for (int iRow = 0; iRow<block->rows(); ++iRow)
+      for (int iCol = 0; iCol<block->cols(); ++iCol){
   int rr=rowBase+iRow;
   int cc=colBase+iCol;
         int r = _perm ? _perm[rr] : rr; // apply permutation

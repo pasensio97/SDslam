@@ -148,12 +148,12 @@ void BaseMultiEdge<D, E>::mapHessianMemory(double* d, int i, int j, bool rowMajo
 template <int D, typename E>
 void BaseMultiEdge<D, E>::resize(size_t size)
 {
-  BaseEdge<D,E>::resize(size);
+  BaseEdge<D, E>::resize(size);
   int n = (int)_vertices.size();
   int maxIdx = (n * (n-1))/2;
   assert(maxIdx >= 0);
   _hessian.resize(maxIdx);
-  _jacobianOplus.resize(size, JacobianType(0,0,0));
+  _jacobianOplus.resize(size, JacobianType(0, 0, 0));
 }
 
 template <int D, typename E>

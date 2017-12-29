@@ -41,9 +41,9 @@ namespace g2o {
   using namespace Eigen;
 
   /**
- * \brief Sim3 Vertex, (x,y,z,qw,qx,qy,qz)
+ * \brief Sim3 Vertex, (x, y, z, qw, qx, qy, qz)
  * the parameterization for the increments constructed is a 7d vector
- * (x,y,z,qx,qy,qz) (note that we leave out the w part of the quaternion.
+ * (x, y, z, qx, qy, qz) (note that we leave out the w part of the quaternion.
  */
   class VertexSim3Expmap : public BaseVertex<7, Sim3>
   {

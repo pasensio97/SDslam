@@ -57,12 +57,12 @@ public:
     }
 
     Sim3(const Quaterniond & r, const Vector3d & t, double s)
-      : r(r),t(t),s(s)
+      : r(r), t(t), s(s)
     {
     }
 
     Sim3(const Matrix3d & R, const Vector3d & t, double s)
-      : r(Quaterniond(R)),t(t),s(s)
+      : r(Quaterniond(R)), t(t), s(s)
     {
     }
 
@@ -71,11 +71,11 @@ public:
     {
 
       Vector3d omega;
-      for (int i=0; i<3; i++)
+      for (int i = 0; i<3; i++)
         omega[i]=update[i];
 
       Vector3d upsilon;
-      for (int i=0; i<3; i++)
+      for (int i = 0; i<3; i++)
         upsilon[i]=update[i+3];
 
       double sigma = update[6];
@@ -88,7 +88,7 @@ public:
       Matrix3d R;
 
       double eps = 0.00001;
-      double A,B,C;
+      double A, B, C;
       if (fabs(sigma)<eps)
       {
         C = 1;
@@ -122,8 +122,8 @@ public:
 
 
 
-          double a=s*sin(theta);
-          double b=s*cos(theta);
+          double a = s*sin(theta);
+          double b = s*cos(theta);
           double theta2= theta*theta;
           double sigma2= sigma*sigma;
 
@@ -158,20 +158,20 @@ public:
 
 
       Matrix3d R = r.toRotationMatrix();
-      double d =  0.5*(R(0,0)+R(1,1)+R(2,2)-1);
+      double d =  0.5*(R(0, 0)+R(1, 1)+R(2, 2)-1);
 
       Matrix3d Omega;
 
       double eps = 0.00001;
       Matrix3d I = Matrix3d::Identity();
 
-      double A,B,C;
+      double A, B, C;
       if (fabs(sigma)<eps)
       {
         C = 1;
         if (d>1-eps)
         {
-          omega=0.5*deltaR(R);
+          omega = 0.5*deltaR(R);
           Omega = skew(omega);
           A = 1./2.;
           B = 1./6.;
@@ -193,7 +193,7 @@ public:
         {
 
           double sigma2 = sigma*sigma;
-          omega=0.5*deltaR(R);
+          omega = 0.5*deltaR(R);
           Omega = skew(omega);
           A = ((sigma-1)*s+1)/(sigma2);
           B = ((0.5*sigma2-sigma+1)*s)/(sigma2*sigma);
@@ -204,8 +204,8 @@ public:
           omega = theta/(2*sqrt(1-d*d))*deltaR(R);
           Omega = skew(omega);
           double theta2 = theta*theta;
-          double a=s*sin(theta);
-          double b=s*cos(theta);
+          double a = s*sin(theta);
+          double b = s*cos(theta);
           double c=theta2 + sigma*sigma;
           A = (a*sigma+ (1-b)*theta)/(theta*c);
           B = (C-((b-1)*sigma+a*theta)/(c))*1./(theta2);
@@ -217,10 +217,10 @@ public:
       upsilon = W.lu().solve(t);
 
 
-      for (int i=0; i<3; i++)
+      for (int i = 0; i<3; i++)
         res[i] = omega[i];
 
-       for (int i=0; i<3; i++)
+       for (int i = 0; i<3; i++)
         res[i+3] = upsilon[i];
 
       res[6] = sigma;
@@ -266,8 +266,8 @@ public:
     Sim3 operator *(const Sim3& other) const {
       Sim3 ret;
       ret.r = r*other.r;
-      ret.t=s*(r*other.t)+t;
-      ret.s=s*other.s;
+      ret.t = s*(r*other.t)+t;
+      ret.s = s*other.s;
       return ret;
     }
 

@@ -39,7 +39,7 @@ namespace g2o {
   bool VertexSBAPointXYZ::read(std::istream& is)
   {
     Vector3d lv;
-    for (int i=0; i<3; i++)
+    for (int i = 0; i<3; i++)
       is >> _estimate[i];
     return true;
   }
@@ -47,7 +47,7 @@ namespace g2o {
   bool VertexSBAPointXYZ::write(std::ostream& os) const
   {
     Vector3d lv=estimate();
-    for (int i=0; i<3; i++){
+    for (int i = 0; i<3; i++){
       os << lv[i] << " ";
     }
     return os.good();

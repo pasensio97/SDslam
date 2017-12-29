@@ -33,7 +33,7 @@ namespace SD_SLAM {
 
 // THIS IS THE INITIALIZER FOR MONOCULAR SLAM. NOT USED IN THE STEREO OR RGBD CASE.
 class Initializer {
-  typedef std::pair<int,int> Match;
+  typedef std::pair<int, int> Match;
 
  public:
   // Fix the reference frame
@@ -61,7 +61,7 @@ class Initializer {
   bool ReconstructH(std::vector<bool> &vbMatchesInliers, cv::Mat &H21, const Eigen::Matrix3d &K,
             Eigen::Matrix3d &R21, Eigen::Vector3d &t21, std::vector<cv::Point3f> &vP3D, std::vector<bool> &vbTriangulated, float minParallax, int minTriangulated);
 
-  void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix<double,3,4> &P1, const Eigen::Matrix<double,3,4> &P2, Eigen::Vector3d &x3D);
+  void Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix<double, 3, 4> &P1, const Eigen::Matrix<double, 3, 4> &P2, Eigen::Vector3d &x3D);
 
   void Normalize(const std::vector<cv::KeyPoint> &vKeys, std::vector<cv::Point2f> &vNormalizedPoints, cv::Mat &T);
 

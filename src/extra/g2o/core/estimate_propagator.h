@@ -151,8 +151,8 @@ namespace g2o {
       void propagate(OptimizableGraph::Vertex* v, 
           const EstimatePropagator::PropagateCost& cost, 
           const EstimatePropagator::PropagateAction& action = PropagateAction(),
-          double maxDistance=std::numeric_limits<double>::max(), 
-          double maxEdgeCost=std::numeric_limits<double>::max());
+          double maxDistance = std::numeric_limits<double>::max(), 
+          double maxEdgeCost = std::numeric_limits<double>::max());
 
       /**
        * same as above but starting to propagate from a set of vertices instead of just a single one.
@@ -160,8 +160,8 @@ namespace g2o {
       void propagate(OptimizableGraph::VertexSet& vset, 
           const EstimatePropagator::PropagateCost& cost, 
           const EstimatePropagator::PropagateAction& action = PropagateAction(),
-          double maxDistance=std::numeric_limits<double>::max(), 
-          double maxEdgeCost=std::numeric_limits<double>::max());
+          double maxDistance = std::numeric_limits<double>::max(), 
+          double maxEdgeCost = std::numeric_limits<double>::max());
 
     protected:
       void reset();

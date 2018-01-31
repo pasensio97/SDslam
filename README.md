@@ -58,6 +58,12 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 
 2. Change `X.yaml` to EuRoC.yaml.
 
+## Initializatin with pattern
+
+A pattern can be emploid to create the initial map using real scale. The pattern detected is the same chessboard used for camera calibration, located inside `Examples/Calibration` folder.
+
+To use a pattern, set `UsePattern: 1` in yaml configuration file.
+
 # 5. RGB-D Example
 
 ## TUM Dataset

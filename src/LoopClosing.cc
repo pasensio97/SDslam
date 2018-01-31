@@ -493,7 +493,6 @@ void LoopClosing::CorrectLoop() {
   // Fuse duplications.
   SearchAndFuse(CorrectedSim3);
 
-
   // After the MapPoint fusion, new links in the covisibility graph will appear attaching both sides of the loop
   map<KeyFrame*, set<KeyFrame*> > LoopConnections;
 

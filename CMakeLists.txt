@@ -89,6 +89,11 @@ LIST(APPEND SOURCEFILES
   src/Config.cc
   src/PatternDetector.cc
 
+  # Sensors
+  src/sensors/EKF.cc
+  src/sensors/Sensor.cc
+  src/sensors/ConstantVelocity.cc
+
   # Extra
   src/extra/utils.cc
 )

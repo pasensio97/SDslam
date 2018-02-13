@@ -19,13 +19,15 @@
 
 #include "EKF.h"
 
+using std::vector;
+
 namespace SD_SLAM {
 
 EKF::EKF(Sensor *sensor) : timer_(false) {
   sensor_ = sensor;
-  it_time_ = 0;
+  it_time_ = 0.0;
 
-  int size_s = sensor_->GetStateSize();
+  const int size_s = sensor_->GetStateSize();
 
   X_.resize(size_s, 1);
   X_.setZero();
@@ -60,19 +62,18 @@ Eigen::Matrix4d EKF::Predict() {
   return sensor_->GetPose(X_);
 }
 
-void EKF::Update(const Eigen::Matrix4d &pose) {
+void EKF::Update(const Eigen::Matrix4d &pose, const vector<double> &params) {
   Eigen::VectorXd Y;
   Eigen::MatrixXd S, K;
 
-
+  // Set measurements vector
+  Eigen::VectorXd Z = sensor_->Z(pose, params, it_time_);
 
   if (!updated_) {
-    // Set initial pose
-    Eigen::VectorXd Z = sensor_->PoseToVector(pose);
-    sensor_->Init(X_, Z);
+    // Set initial state
+    sensor_->InitState(X_, Z);
   } else {
     // Get matrices before update
-    Eigen::VectorXd Z = sensor_->PoseToVector(pose);
     Eigen::VectorXd H = sensor_->H(X_, it_time_);
     Eigen::MatrixXd jH = sensor_->jH(X_, it_time_);
     Eigen::MatrixXd R = sensor_->R(X_, it_time_);

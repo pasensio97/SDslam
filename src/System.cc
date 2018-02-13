@@ -43,6 +43,8 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
     LOGD("Input sensor was set to Monocular");
   } else if (mSensor==RGBD) {
     LOGD("Input sensor was set to RGB-D");
+  } else if (mSensor==MONOCULAR_IMU) {
+    LOGD("Input sensor was set to Monocular-IMU");
   }
 
   // Create the Map
@@ -52,13 +54,13 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
   mpTracker = new Tracking(this, mpMap, mSensor);
 
   // Initialize the Local Mapping thread and launch
-  mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
+  mpLocalMapper = new LocalMapping(mpMap, mSensor!=RGBD);
   mptLocalMapping = new std::thread(&SD_SLAM::LocalMapping::Run, mpLocalMapper);
 
   // Initialize the Loop Closing thread and launch
   if (loopClosing) {
     LOGD("Loop closing activated");
-    mpLoopCloser = new LoopClosing(mpMap, mSensor!=MONOCULAR);
+    mpLoopCloser = new LoopClosing(mpMap, mSensor==RGBD);
     mptLoopClosing = new std::thread(&SD_SLAM::LoopClosing::Run, mpLoopCloser);
   } else {
     LOGD("Loop closing not activated");
@@ -130,6 +132,41 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
 
   Timer total(true);
 
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im);
+
+  total.Stop();
+  LOGD("Tracking time is %.2fms", total.GetMsTime());
+
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0, 3), Tcw(1, 3), Tcw(2, 3));
+
+  unique_lock<mutex> lock2(mMutexState);
+  mTrackingState = mpTracker->GetState();
+  mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
+  mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
+
+  return Tcw;
+}
+
+Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &measurements) {
+  LOGD("Track monocular image with other sensor measurements");
+
+  if (mSensor!=MONOCULAR_IMU) {
+    LOGE("Called TrackFusion but input sensor was not set to Monocular-IMU");
+    exit(-1);
+  }
+
+  // Check reset
+  {
+    unique_lock<mutex> lock(mMutexReset);
+    if (mbReset) {
+      mpTracker->Reset();
+      mbReset = false;
+    }
+  }
+
+  Timer total(true);
+
+  mpTracker->SetMeasurements(measurements);
   Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im);
 
   total.Stop();

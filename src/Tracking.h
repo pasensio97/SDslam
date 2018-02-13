@@ -73,6 +73,10 @@ class Tracking {
     mpLoopClosing = pLoopClosing;
   }
 
+  inline void SetMeasurements(const std::vector<double> &measurements) {
+    measurements_ = measurements;
+  }
+
   inline eTrackingState GetState() { return mState; }
   inline eTrackingState GetLastState() { return mLastProcessedState; }
 
@@ -180,6 +184,7 @@ class Tracking {
 
   // Sensor model
   EKF* motion_model_;
+  std::vector<double> measurements_;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
@@ -200,6 +205,9 @@ class Tracking {
   // Initial plane RT
   bool usePattern;
   Eigen::Matrix<double, 3, 4> initialRT;
+
+  // Image align
+  bool align_image_;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

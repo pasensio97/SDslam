@@ -39,10 +39,6 @@ Sensor::Sensor() {
 Sensor::~Sensor() {
 }
 
-void Sensor::Init(Eigen::VectorXd &X, const Eigen::VectorXd &pose) {
-  X.segment<7>(0) = pose;
-}
-
 Eigen::Matrix4d Sensor::GetPose(const Eigen::VectorXd &X) {
   Eigen::Matrix4d pose;
 
@@ -60,7 +56,7 @@ Eigen::Matrix4d Sensor::GetPose(const Eigen::VectorXd &X) {
 }
 
 Eigen::VectorXd Sensor::PoseToVector(const Eigen::Matrix4d &pose) {
-  Eigen::VectorXd v(measurement_size_);
+  Eigen::VectorXd v(7);
 
   Eigen::Matrix3d rot = pose.block<3, 3>(0, 0);
   Eigen::Quaterniond q(rot);
@@ -127,7 +123,7 @@ Eigen::Matrix4d Sensor::QuaternionJacobianRight(const Eigen::Quaterniond &q) {
   return m;
 }
 
-Eigen::Matrix<double, 4, 3> Sensor::dw_by_dq(const Eigen::Quaterniond &q, const Eigen::Vector3d &w, double time) {
+Eigen::Matrix<double, 4, 3> Sensor::dq_by_dw(const Eigen::Quaterniond &q, const Eigen::Vector3d &w, double time) {
   double modw = w.norm();
   double beta = modw * time / 2.0;
   Eigen::Matrix<double, 4, 3> res;

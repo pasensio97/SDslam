@@ -41,11 +41,11 @@ class Sensor {
   // Get input pose and convert to position and quaternion
   Eigen::VectorXd PoseToVector(const Eigen::Matrix4d &pose);
 
-  // Set initial pose
-  void Init(Eigen::VectorXd &X, const Eigen::VectorXd &pose);
-
   // Init sensor with default values
   virtual void Init(Eigen::VectorXd &X, Eigen::MatrixXd &P) = 0;
+
+  // Set initial state
+  virtual void InitState(Eigen::VectorXd &X, const Eigen::VectorXd &Z) = 0;
 
   // Predict state
   virtual void F(Eigen::VectorXd &X, double time) = 0;
@@ -57,6 +57,9 @@ class Sensor {
   virtual Eigen::MatrixXd Q(const Eigen::VectorXd &X, double time) = 0;
 
   // Get measurement
+  virtual Eigen::VectorXd Z(const Eigen::Matrix4d &pose, const std::vector<double> &params, double time) = 0;
+
+  // Get predicted measurement
   virtual Eigen::VectorXd H(const Eigen::VectorXd &X, double time) = 0;
 
   // Measurement jacobian
@@ -77,7 +80,7 @@ class Sensor {
   Eigen::Matrix4d QuaternionJacobianRight(const Eigen::Quaterniond &q);
 
   // Jacobian dw/dq
-  Eigen::Matrix<double, 4, 3> dw_by_dq(const Eigen::Quaterniond &q, const Eigen::Vector3d &w, double time);
+  Eigen::Matrix<double, 4, 3> dq_by_dw(const Eigen::Quaterniond &q, const Eigen::Vector3d &w, double time);
 
   // Covariance
   static const double COV_X_2;

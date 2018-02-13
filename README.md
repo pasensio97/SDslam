@@ -58,7 +58,7 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 
 2. Change `X.yaml` to EuRoC.yaml.
 
-## Initializatin with pattern
+## Initialization with pattern
 
 A pattern can be emploid to create the initial map using real scale. The pattern detected is the same chessboard used for camera calibration, located inside `Examples/Calibration` folder.
 
@@ -81,6 +81,20 @@ To use a pattern, set `UsePattern: 1` in yaml configuration file.
   ```
   ./Examples/RGB-D/rgbd Examples/RGB-D/TUMX.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE
   ```
+
+# 6. Monocular and IMU Fusion Example
+
+Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with each image filename. IMU data has to be stored in a csv file where each line has a timestamp and 6 measurements (3 from gyroscope and 3 from accelerometer).
+
+  ```
+  ./Examples/Fusion/monocular_imu Examples/Monocular/X.yaml PATH_TO_SEQUENCE_FOLDER IMU_DATA_FILE.csv
+  ```
+
+## EuRoC Dataset
+
+1. Download a sequence (ASL format) from http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets
+
+2. Change `X.yaml` to EuRoC.yaml.
  
 # 7. Processing your own sequences
 

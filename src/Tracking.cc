@@ -33,6 +33,7 @@
 #include "Config.h"
 #include "extra/log.h"
 #include "sensors/ConstantVelocity.h"
+#include "sensors/IMU.h"
 
 using namespace std;
 
@@ -96,7 +97,7 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
 
   mpORBextractorLeft = new ORBextractor(nFeatures, fScaleFactor,nLevels, fThFAST);
 
-  if (sensor==System::MONOCULAR)
+  if (sensor!=System::RGBD)
     mpIniORBextractor = new ORBextractor(2*nFeatures, fScaleFactor,nLevels, fThFAST);
 
   cout << endl  << "ORB Extractor Parameters: " << endl;
@@ -118,6 +119,7 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
 
   threshold_ = 8;
   usePattern = Config::UsePattern();
+  align_image_ = true;
 
   if (usePattern)
     std::cout << "Use pattern for initialization" << std::endl;
@@ -126,7 +128,11 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mpLocalMapper = nullptr;
 
   // Set motion model
-  Sensor * sensor_model = new ConstantVelocity();
+  Sensor * sensor_model;
+  if (sensor == System::MONOCULAR_IMU)
+    sensor_model = new IMU();
+  else
+    sensor_model = new ConstantVelocity();
   motion_model_ = new EKF(sensor_model);
 }
 
@@ -229,7 +235,7 @@ void Tracking::Track() {
 
       // Update motion sensor
       if (!mLastFrame.GetPose().isZero())
-        motion_model_->Update(mCurrentFrame.GetPose());
+        motion_model_->Update(mCurrentFrame.GetPose(), measurements_);
       else
         motion_model_->Restart();
 
@@ -725,22 +731,24 @@ bool Tracking::TrackReferenceKeyFrame() {
   mCurrentFrame.SetPose(mLastFrame.GetPose());
 
   // Align current and last image
-  ImageAlign image_align;
-  if (!image_align.ComputePose(mCurrentFrame, mpReferenceKF)) {
-    LOGE("Image align failed");
-    return false;
+  if (align_image_) {
+    ImageAlign image_align;
+    if (!image_align.ComputePose(mCurrentFrame, mpReferenceKF)) {
+      LOGE("Image align failed");
+      return false;
+    }
   }
 
   fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
 
   // Project points seen in reference keyframe
-  int nmatches = matcher.SearchByProjection(mCurrentFrame, mpReferenceKF, threshold_, mSensor==System::MONOCULAR);
+  int nmatches = matcher.SearchByProjection(mCurrentFrame, mpReferenceKF, threshold_, mSensor!=System::RGBD);
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
     LOGD("Not enough matches, double threshold");
     fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
-    nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor==System::MONOCULAR);
+    nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
   }
 
   if (nmatches<20)
@@ -790,22 +798,24 @@ bool Tracking::TrackWithMotionModel() {
   LOGD("Predicted: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
 
   // Align current and last image
-  ImageAlign image_align;
-  if (!image_align.ComputePose(mCurrentFrame, mLastFrame)) {
-    LOGE("Image align failed");
-    return false;
+  if (align_image_) {
+    ImageAlign image_align;
+    if (!image_align.ComputePose(mCurrentFrame, mLastFrame)) {
+      LOGE("Image align failed");
+      return false;
+    }
   }
 
   fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
 
   // Project points seen in previous frame
-  int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, threshold_, mSensor==System::MONOCULAR);
+  int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, threshold_, mSensor!=System::RGBD);
 
   // If few matches, uses a wider window search
   if (nmatches<20) {
     LOGD("Not enough matches, double threshold");
     fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
-    nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor==System::MONOCULAR);
+    nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
   }
 
   if (nmatches<20)
@@ -894,7 +904,7 @@ bool Tracking::NeedNewKeyFrame() {
   // Check how many "close" points are being tracked and how many could be potentially created.
   int nNonTrackedClose = 0;
   int nTrackedClose= 0;
-  if (mSensor!=System::MONOCULAR) {
+  if (mSensor==System::RGBD) {
     for (int i  = 0; i<mCurrentFrame.N; i++) {
       if (mCurrentFrame.mvDepth[i] > 0 && mCurrentFrame.mvDepth[i]<mThDepth) {
         if (mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
@@ -912,7 +922,7 @@ bool Tracking::NeedNewKeyFrame() {
   if (nKFs<2)
     thRefRatio = 0.4f;
 
-  if (mSensor==System::MONOCULAR)
+  if (mSensor!=System::RGBD)
     thRefRatio = 0.9f;
 
   // Condition 1a: More than "MaxFrames" have passed from last keyframe insertion
@@ -920,7 +930,7 @@ bool Tracking::NeedNewKeyFrame() {
   // Condition 1b: More than "MinFrames" have passed and Local Mapping is idle
   const bool c1b = (mCurrentFrame.mnId >= mnLastKeyFrameId+mMinFrames && bLocalMappingIdle);
   //Condition 1c: tracking is weak
-  const bool c1c =  mSensor!=System::MONOCULAR && (mnMatchesInliers<nRefMatches*0.25 || bNeedToInsertClose) ;
+  const bool c1c =  mSensor==System::RGBD && (mnMatchesInliers<nRefMatches*0.25 || bNeedToInsertClose) ;
   // Condition 2: Few tracked points compared to reference keyframe. Lots of visual odometry compared to map matches.
   const bool c2 = ((mnMatchesInliers<nRefMatches*thRefRatio|| bNeedToInsertClose) && mnMatchesInliers>15);
 
@@ -932,7 +942,7 @@ bool Tracking::NeedNewKeyFrame() {
     } else {
       mpLocalMapper->InterruptBA();
 
-      if (mSensor!=System::MONOCULAR) {
+      if (mSensor==System::RGBD) {
         if (mpLocalMapper->KeyframesInQueue()<3)
           return true;
         else
@@ -953,7 +963,7 @@ void Tracking::CreateNewKeyFrame() {
   mpReferenceKF = pKF;
   mCurrentFrame.mpReferenceKF = pKF;
 
-  if (mSensor!=System::MONOCULAR) {
+  if (mSensor==System::RGBD) {
     mCurrentFrame.UpdatePoseMatrices();
 
     // We sort points by the measured depth by the stereo/RGBD sensor.
@@ -1199,7 +1209,7 @@ bool Tracking::Relocalization() {
     fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
 
     // Project points seen in previous frame
-    nmatches = matcher.SearchByProjection(mCurrentFrame, kf, threshold_, mSensor==System::MONOCULAR);
+    nmatches = matcher.SearchByProjection(mCurrentFrame, kf, threshold_, mSensor!=System::RGBD);
     if (nmatches < 20)
       continue;
 

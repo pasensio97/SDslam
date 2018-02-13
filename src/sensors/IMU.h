@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef SD_SLAM_CONSTANT_VELOCITY_H_
-#define SD_SLAM_CONSTANT_VELOCITY_H_
+#ifndef SD_SLAM_IMU_H_
+#define SD_SLAM_IMU_H_
 
 #include <iostream>
 #include <vector>
@@ -26,10 +26,10 @@
 
 namespace SD_SLAM {
 
-class ConstantVelocity : public Sensor {
+class IMU : public Sensor {
  public:
-  ConstantVelocity();
-  ~ConstantVelocity();
+  IMU();
+  ~IMU();
 
   void Init(Eigen::VectorXd &X, Eigen::MatrixXd &P);
   void InitState(Eigen::VectorXd &X, const Eigen::VectorXd &Z);
@@ -42,8 +42,25 @@ class ConstantVelocity : public Sensor {
   Eigen::VectorXd H(const Eigen::VectorXd &X, double time);
   Eigen::MatrixXd jH(const Eigen::VectorXd &X, double time);
   Eigen::MatrixXd R(const Eigen::VectorXd &X, double time);
+
+ private:
+  // Calculate gravity from IMU
+  void UpdateGravity(const Eigen::Vector3d &a, double time);
+
+  // Gravity parameters
+  Eigen::Vector3d gravity_;
+
+  // Covariance
+  static const double COV_A_2;
+
+  // Noise
+  static const double SIGMA_GYRO;
+  static const double SIGMA_ACC;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM
 
-#endif  // SD_SLAM_CONSTANT_VELOCITY_H_
+#endif  // SD_SLAM_IMU_H_

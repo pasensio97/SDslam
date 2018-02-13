@@ -38,7 +38,7 @@ class EKF {
   Eigen::Matrix4d Predict();
 
   // Update EKF
-  void Update(const Eigen::Matrix4d &pose);
+  void Update(const Eigen::Matrix4d &pose, const std::vector<double> &params);
 
   // Restart filter
   void Restart();

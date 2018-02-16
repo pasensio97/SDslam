@@ -1,6 +1,6 @@
 /**
  *
- *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
+ *  Copyright (C) 2017-2018 Eduardo Perdices <eperdices at gsyc dot es>
  *
  *  The following code is a derivative work of the code from the ORB-SLAM2 project,
  *  which is licensed under the GNU Public License, version 3. This code therefore
@@ -38,6 +38,7 @@
 #include "Initializer.h"
 #include "PatternDetector.h"
 #include "System.h"
+#include "sensors/EKF.h"
 
 namespace SD_SLAM {
 
@@ -70,6 +71,10 @@ class Tracking {
 
   inline void SetLoopClosing(LoopClosing* pLoopClosing) {
     mpLoopClosing = pLoopClosing;
+  }
+
+  inline void SetMeasurements(const std::vector<double> &measurements) {
+    measurements_ = measurements;
   }
 
   inline eTrackingState GetState() { return mState; }
@@ -177,8 +182,9 @@ class Tracking {
   unsigned int mnLastKeyFrameId;
   unsigned int mnLastRelocFrameId;
 
-  // Motion Model
-  Eigen::Matrix4d mVelocity;
+  // Sensor model
+  EKF* motion_model_;
+  std::vector<double> measurements_;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
@@ -199,6 +205,9 @@ class Tracking {
   // Initial plane RT
   bool usePattern;
   Eigen::Matrix<double, 3, 4> initialRT;
+
+  // Image align
+  bool align_image_;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

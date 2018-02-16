@@ -45,7 +45,8 @@ class System {
   // Input sensor
   enum eSensor{
     MONOCULAR = 0,
-    RGBD = 1
+    RGBD = 1,
+    MONOCULAR_IMU = 2
   };
 
  public:
@@ -56,15 +57,21 @@ class System {
   inline Tracking * GetTracker() { return mpTracker; }
 
   // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
-  // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
+  // Input image: Grayscale (CV_8U).
   // Input depthmap: Float (CV_32F).
   // Returns the camera pose (empty if tracking fails).
   Eigen::Matrix4d TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap);
 
   // Proccess the given monocular frame
-  // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
+  // Input images: Grayscale (CV_8U).
   // Returns the camera pose (empty if tracking fails).
   Eigen::Matrix4d TrackMonocular(const cv::Mat &im);
+
+  // Proccess the given monocular frame and sensor measurements
+  // Input images: Grayscale (CV_8U).
+  // Input measurements: Float (CV_32F).
+  // Returns the camera pose (empty if tracking fails).
+  Eigen::Matrix4d TrackFusion(const cv::Mat &im, const std::vector<double> &measurements);
 
   // Returns true if there have been a big map change (loop closure, global BA)
   // since last call to this function

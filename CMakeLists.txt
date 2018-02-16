@@ -89,6 +89,12 @@ LIST(APPEND SOURCEFILES
   src/Config.cc
   src/PatternDetector.cc
 
+  # Sensors
+  src/sensors/EKF.cc
+  src/sensors/Sensor.cc
+  src/sensors/ConstantVelocity.cc
+  src/sensors/IMU.cc
+
   # Extra
   src/extra/utils.cc
 )
@@ -213,6 +219,12 @@ if(NOT USE_ANDROID)
   add_executable(rgbd
   Examples/RGB-D/rgbd.cc)
   target_link_libraries(rgbd ${PROJECT_NAME})
+
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Fusion)
+
+  add_executable(monocular_imu
+  Examples/Fusion/monocular_imu.cc)
+  target_link_libraries(monocular_imu ${PROJECT_NAME})
 
   # Calibration
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Calibration)

@@ -66,7 +66,7 @@ cv::Mat FrameDrawer::DrawFrame() {
     }
   }
 
-  if (im.channels()<3) //this should be always true
+  if (im.channels()<3)
     cvtColor(im, im, CV_GRAY2BGR);
 
   //Draw
@@ -92,14 +92,13 @@ cv::Mat FrameDrawer::DrawFrame() {
     }
   }
 
-  cv::Mat imWithInfo;
-  DrawTextInfo(im, state, imWithInfo);
+  DrawTextInfo(im, state);
 
-  return imWithInfo;
+  return im;
 }
 
 
-void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
+void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState) {
   std::stringstream s;
   if (nState==Tracking::NO_IMAGES_YET)
     s << " WAITING FOR IMAGES";
@@ -112,15 +111,14 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
   } else if (nState==Tracking::LOST) {
     s << " TRACK LOST. TRYING TO RELOCALIZE ";
   } else if (nState==Tracking::SYSTEM_NOT_READY) {
-    s << " LOADING ORB VOCABULARY. PLEASE WAIT...";
+    s << " STARTING...";
   }
 
   int baseline = 0;
   cv::Size textSize = cv::getTextSize(s.str(), cv::FONT_HERSHEY_PLAIN, 1, 1,&baseline);
 
-  im.copyTo(imText);
-  imText.rowRange(imText.rows-(textSize.height+10), imText.rows) = cv::Mat::zeros(textSize.height+10, im.cols, im.type());
-  cv::putText(imText, s.str(), cv::Point(5, imText.rows-5), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1, 8);
+  im.rowRange(im.rows-(textSize.height+10), im.rows) = cv::Mat::zeros(textSize.height+10, im.cols, im.type());
+  cv::putText(im, s.str(), cv::Point(5, im.rows-5), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1, 8);
 }
 
 void FrameDrawer::Update(Tracking *pTracker) {

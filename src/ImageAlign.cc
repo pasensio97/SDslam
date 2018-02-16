@@ -98,6 +98,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
 
   total.Stop();
   LOGD("Align time is %.2fms", total.GetMsTime());
+  LOGD("Aligned: [%.4f, %.4f, %.4f]", pose(0, 3), pose(1, 3), pose(2, 3));
 
   return true;
 }
@@ -168,6 +169,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
   if (!fast) {
     total.Stop();
     LOGD("Align time is %.2fms", total.GetMsTime());
+    LOGD("Aligned: [%.4f, %.4f, %.4f]", pose(0, 3), pose(1, 3), pose(2, 3));
   }
 
   return true;

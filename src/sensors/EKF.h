@@ -1,4 +1,5 @@
-/*
+/**
+ *
  *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,48 +17,47 @@
  *
  */
 
-#ifndef SD_SLAM_TIMER_H_
-#define SD_SLAM_TIMER_H_
+#ifndef SD_SLAM_EKF_H_
+#define SD_SLAM_EKF_H_
 
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/time.h>
+#include <iostream>
+#include <Eigen/Dense>
+#include "Sensor.h"
+#include "extra/timer.h"
 
 namespace SD_SLAM {
 
-class Timer {
+class EKF {
  public:
-  explicit Timer(bool autostart) : time_(0.0) {
-    if (autostart)
-      Start();
-  }
+  EKF(Sensor *sensor);
+  ~EKF();
 
-  inline double GetTime() {
-    return time_;
-  }
+  inline bool Started() { return updated_; }
 
-  inline double GetMsTime() {
-    return time_*1000.0;
-  }
+  // Predict EKF and return 3D Pose
+  Eigen::Matrix4d Predict();
 
-  inline void Start() {
-    gettimeofday(&start_time_, NULL);
-  }
+  // Update EKF
+  void Update(const Eigen::Matrix4d &pose, const std::vector<double> &params);
 
-  inline void Stop() {
-    timeval end_time;
-    gettimeofday(&end_time, NULL);
-    long seconds  = end_time.tv_sec  - start_time_.tv_sec;
-    long useconds = end_time.tv_usec - start_time_.tv_usec;
-    time_ = ((seconds) + useconds*0.000001);
-  }
+  // Restart filter
+  void Restart();
 
  private:
-  timeval start_time_;
-  double time_;
+  Sensor* sensor_;    // Motion sensor
+
+  bool updated_;      // True if EKF has been updated at least once
+  Timer timer_;       // Measure time since last iteration
+  double it_time_;    // Time (s) since last iteration
+
+  // State and covariance
+  Eigen::VectorXd X_;
+  Eigen::MatrixXd P_;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM
 
-
-#endif  // SD_SLAM_TIMER_H_
+#endif  // SD_SLAM_EKF_H_

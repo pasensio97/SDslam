@@ -47,6 +47,10 @@ void Viewer::Run() {
   mw = 175;
   ib = 10;
 
+  // Force even width
+  if (iw % 2 != 0)
+    iw -= 1;
+
   pangolin::CreateWindowAndBind("SD-SLAM", w, h);
 
   // 3D Mouse handler requires depth testing to be enabled
@@ -113,8 +117,11 @@ void Viewer::Run() {
 
     // Get frame and show
     if (menuShowFrames) {
-      cv::Mat im = mpFrameDrawer->DrawFrame();
-      textVideo.Upload(im.data,GL_RGB,GL_UNSIGNED_BYTE);
+      cv::Mat im, subim;
+      im = mpFrameDrawer->DrawFrame();
+
+      im(cv::Rect(0, 0, iw, ih)).copyTo(subim); // In case width is smaller
+      textVideo.Upload(subim.data, GL_RGB, GL_UNSIGNED_BYTE);
 
       d_video.SetBounds(pangolin::Attach::Pix(ib), pangolin::Attach::Pix(ib+ih*menuImageScale),
                         pangolin::Attach::Pix(mw+ib), pangolin::Attach::Pix(mw+ib+iw*menuImageScale));

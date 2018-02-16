@@ -48,7 +48,7 @@ class FrameDrawer {
   cv::Mat DrawFrame();
 
  protected:
-  void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
+  void DrawTextInfo(cv::Mat &im, int nState);
 
   void GetInitialPlane(Tracking *pTracker);
 

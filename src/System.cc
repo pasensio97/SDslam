@@ -219,9 +219,8 @@ void System::Shutdown() {
 }
 
 void System::SaveTrajectory(const std::string &filename) {
-  bool first, first2;
   int counter;
-  std::string output = "{\n";
+  std::string output = "%YAML:1.0\n";
 
   std::cout << "Saving trajectory to " << filename << " ..." << std::endl;
 
@@ -232,8 +231,7 @@ void System::SaveTrajectory(const std::string &filename) {
   f.open(filename.c_str());
 
   // Save keyframes
-  output += "  \"keyframes\": [";
-  first = true;
+  output += "keyframes:\n";
 
   for(size_t i=0; i<vpKFs.size(); i++) {
     KeyFrame* pKF = vpKFs[i];
@@ -244,22 +242,20 @@ void System::SaveTrajectory(const std::string &filename) {
     Eigen::Quaterniond q(pKF->GetRotation());
     Eigen::Vector3d t = pKF->GetTranslation();
 
-    if (!first)
-      output += ", ";
-    first = false;
-
-    output += "{\n";
-    output += "    \"id\": " + std::to_string(pKF->mnId) + ",\n";
-    output += "    \"filename\": \"" + pKF->mFilename + "\",\n";
-    output += "    \"pose\": [" + std::to_string(q.w()) + ", " + std::to_string(q.x()) + ", " + std::to_string(q.y()) + ", " + std::to_string(q.z());
-    output += ", " + std::to_string(t(0)) + ", " + std::to_string(t(1)) + ", " + std::to_string(t(2)) + "]\n";
-    output += "  }";
+    output += "  - id: " + std::to_string(pKF->mnId) + "\n";
+    output += "    filename: " + pKF->mFilename + "\n";
+    output += "    pose:\n";
+    output += "      - " + std::to_string(q.w()) + "\n";
+    output += "      - " + std::to_string(q.x()) + "\n";
+    output += "      - " + std::to_string(q.y()) + "\n";
+    output += "      - " + std::to_string(q.z()) + "\n";
+    output += "      - " + std::to_string(t(0)) + "\n";
+    output += "      - " + std::to_string(t(1)) + "\n";
+    output += "      - " + std::to_string(t(2)) + "\n";
   }
-  output += "], \n";
 
   // Save map points
-  output += "  \"points\": [";
-  first = true;
+  output += "points:\n";
   counter = 0;
 
   const vector<MapPoint*> &vpMPs = mpMap->GetAllMapPoints();
@@ -268,40 +264,28 @@ void System::SaveTrajectory(const std::string &filename) {
       continue;
     Eigen::Vector3d pos = vpMPs[i]->GetWorldPos();
 
-    if (!first)
-      output += ", ";
-    first = false;
-
-    output += "{\n";
-    output += "    \"id\": " + std::to_string(counter) + ",\n";
-    output += "    \"pose\": [" + std::to_string(pos(0)) + ", " + std::to_string(pos(1)) + ", " + std::to_string(pos(2)) + "],\n";
-    output += "    \"observations\": [";
+    output += "  - id: " + std::to_string(counter) + "\n";
+    output += "    pose:\n";
+    output += "      - " + std::to_string(pos(0)) + "\n";
+    output += "      - " + std::to_string(pos(1)) + "\n";
+    output += "      - " + std::to_string(pos(2)) + "\n";
+    output += "    observations:\n";
 
     // Observations
     std::map<KeyFrame*, size_t> observations = vpMPs[i]->GetObservations();
-    first2 = true;
 
     for (std::map<KeyFrame*, size_t>::iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
-
-      if (!first2)
-        output += ", ";
-      first2 = false;
-
       KeyFrame* kf = mit->first;
       const cv::KeyPoint &kp = kf->mvKeys[mit->second];
 
-      output += "{\n";
-      output += "      \"kf\": " + std::to_string(kf->mnId) + ",\n";
-      output += "      \"point\": [" + std::to_string(kp.pt.x) + ", " + std::to_string(kp.pt.y) + "]\n";
-      output += "    }";
+      output += "      - kf: " + std::to_string(kf->mnId) + "\n";
+      output += "        point:\n";
+      output += "          - "+ std::to_string(kp.pt.x) + "\n";
+      output += "          - "+ std::to_string(kp.pt.y) + "\n";
     }
-    output += "]\n";
-    output += "  }";
 
     counter++;
   }
-  output += "]\n";
-  output += "}";
 
   f << output;
   f.close();

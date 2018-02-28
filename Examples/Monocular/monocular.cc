@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
   SLAM.Shutdown();
 
   // Save data
-  SLAM.SaveTrajectory("trajectory.json");
+  SLAM.SaveTrajectory("trajectory.yaml");
 
 #ifdef PANGOLIN
   if (useViewer) {

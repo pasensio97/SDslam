@@ -60,18 +60,18 @@ class System {
   // Input image: Grayscale (CV_8U).
   // Input depthmap: Float (CV_32F).
   // Returns the camera pose (empty if tracking fails).
-  Eigen::Matrix4d TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap);
+  Eigen::Matrix4d TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const std::string filename = "");
 
   // Proccess the given monocular frame
   // Input images: Grayscale (CV_8U).
   // Returns the camera pose (empty if tracking fails).
-  Eigen::Matrix4d TrackMonocular(const cv::Mat &im);
+  Eigen::Matrix4d TrackMonocular(const cv::Mat &im, const std::string filename = "");
 
   // Proccess the given monocular frame and sensor measurements
   // Input images: Grayscale (CV_8U).
   // Input measurements: Float (CV_32F).
   // Returns the camera pose (empty if tracking fails).
-  Eigen::Matrix4d TrackFusion(const cv::Mat &im, const std::vector<double> &measurements);
+  Eigen::Matrix4d TrackFusion(const cv::Mat &im, const std::vector<double> &measurements, const std::string filename = "");
 
   // Returns true if there have been a big map change (loop closure, global BA)
   // since last call to this function
@@ -90,6 +90,9 @@ class System {
   int GetTrackingState();
   std::vector<MapPoint*> GetTrackedMapPoints();
   std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
+
+  // Save trajectory calculated
+  void SaveTrajectory(const std::string &filename);
 
  private:
   // Input sensor

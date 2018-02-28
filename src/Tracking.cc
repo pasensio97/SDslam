@@ -136,7 +136,7 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   motion_model_ = new EKF(sensor_model);
 }
 
-Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD) {
+Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const std::string filename) {
   mImGray = imRGB;
   cv::Mat imDepth = imD;
 
@@ -149,6 +149,7 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD
     imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
 
   mCurrentFrame = Frame(mImGray, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+  mCurrentFrame.mFilename = filename;
 
   Track();
 
@@ -156,7 +157,7 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD
 }
 
 
-Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im) {
+Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::string filename) {
   mImGray = im;
 
   if (mImGray.channels() != 1) {
@@ -168,6 +169,8 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im) {
     mCurrentFrame = Frame(mImGray, mpIniORBextractor, mK, mDistCoef, mbf, mThDepth);
   else
     mCurrentFrame = Frame(mImGray, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+
+  mCurrentFrame.mFilename = filename;
 
   Track();
 

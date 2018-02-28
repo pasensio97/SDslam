@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
   bool useViewer = true;
   bool live = false;
   double freq = 1.0/30.0;
+  std::string src = "";
 
   if(argc != 3) {
       cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
@@ -114,8 +115,9 @@ int main(int argc, char **argv) {
       cv::cvtColor(frame, im, CV_RGB2GRAY);
     } else {
       // Read image from file
-      cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenames[ni] << endl;
-      im = cv::imread(string(argv[2])+"/"+vFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);
+      src = string(argv[2])+"/"+vFilenames[ni];
+      cout << "[INFO] Reading Frame " << src << endl;
+      im = cv::imread(src, CV_LOAD_IMAGE_GRAYSCALE);
 
       if(im.empty()) {
         cerr << endl << "[ERROR] Failed to load image at: "  << string(argv[2]) << "/" << vFilenames[ni] << endl;
@@ -126,7 +128,7 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackMonocular(im);
+    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, src);
 
     // Set data to UI
 #ifdef PANGOLIN
@@ -151,6 +153,9 @@ int main(int argc, char **argv) {
 
   // Stop all threads
   SLAM.Shutdown();
+
+  // Save data
+  SLAM.SaveTrajectory("trajectory.json");
 
 #ifdef PANGOLIN
   if (useViewer) {

@@ -176,7 +176,11 @@ class Frame {
 
   static bool mbInitialComputations;
 
+  // Image pyramid
   std::vector<cv::Mat> mvImagePyramid;
+
+  // Source filename (if exists)
+  std::string mFilename;
 
  private:
   // Undistort keypoints given OpenCV distortion parameters.

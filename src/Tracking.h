@@ -62,8 +62,8 @@ class Tracking {
   Tracking(System* pSys, Map* pMap, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
-  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD);
-  Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im);
+  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const std::string filename);
+  Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
 
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
     mpLocalMapper = pLocalMapper;

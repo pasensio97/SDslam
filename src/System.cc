@@ -80,7 +80,7 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
   }
 }
 
-Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
+Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const std::string filename) {
   LOGD("Track RGBD image");
 
   if (mSensor!=RGBD) {
@@ -99,7 +99,7 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
 
   Timer total(true);
 
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageRGBD(im,depthmap);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageRGBD(im, depthmap, filename);
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
@@ -113,7 +113,7 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap) {
   return Tcw;
 }
 
-Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
+Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const std::string filename) {
   LOGD("Track monocular image");
 
   if (mSensor!=MONOCULAR) {
@@ -132,7 +132,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
 
   Timer total(true);
 
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im, filename);
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
@@ -147,7 +147,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im) {
   return Tcw;
 }
 
-Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &measurements) {
+Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &measurements, const std::string filename) {
   LOGD("Track monocular image with other sensor measurements");
 
   if (mSensor!=MONOCULAR_IMU) {
@@ -167,7 +167,7 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
   Timer total(true);
 
   mpTracker->SetMeasurements(measurements);
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageMonocular(im, filename);
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
@@ -216,6 +216,96 @@ void System::Shutdown() {
   mptLocalMapping->join();
   if (mptLoopClosing)
     mptLoopClosing->join();
+}
+
+void System::SaveTrajectory(const std::string &filename) {
+  bool first, first2;
+  int counter;
+  std::string output = "{\n";
+
+  std::cout << "Saving trajectory to " << filename << " ..." << std::endl;
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+
+  // Save keyframes
+  output += "  \"keyframes\": [";
+  first = true;
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    Eigen::Quaterniond q(pKF->GetRotation());
+    Eigen::Vector3d t = pKF->GetTranslation();
+
+    if (!first)
+      output += ", ";
+    first = false;
+
+    output += "{\n";
+    output += "    \"id\": " + std::to_string(pKF->mnId) + ",\n";
+    output += "    \"filename\": \"" + pKF->mFilename + "\",\n";
+    output += "    \"pose\": [" + std::to_string(q.w()) + ", " + std::to_string(q.x()) + ", " + std::to_string(q.y()) + ", " + std::to_string(q.z());
+    output += ", " + std::to_string(t(0)) + ", " + std::to_string(t(1)) + ", " + std::to_string(t(2)) + "]\n";
+    output += "  }";
+  }
+  output += "], \n";
+
+  // Save map points
+  output += "  \"points\": [";
+  first = true;
+  counter = 0;
+
+  const vector<MapPoint*> &vpMPs = mpMap->GetAllMapPoints();
+  for (size_t i = 0, iend=vpMPs.size(); i < iend; i++) {
+    if (vpMPs[i]->isBad())
+      continue;
+    Eigen::Vector3d pos = vpMPs[i]->GetWorldPos();
+
+    if (!first)
+      output += ", ";
+    first = false;
+
+    output += "{\n";
+    output += "    \"id\": " + std::to_string(counter) + ",\n";
+    output += "    \"pose\": [" + std::to_string(pos(0)) + ", " + std::to_string(pos(1)) + ", " + std::to_string(pos(2)) + "],\n";
+    output += "    \"observations\": [";
+
+    // Observations
+    std::map<KeyFrame*, size_t> observations = vpMPs[i]->GetObservations();
+    first2 = true;
+
+    for (std::map<KeyFrame*, size_t>::iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
+
+      if (!first2)
+        output += ", ";
+      first2 = false;
+
+      KeyFrame* kf = mit->first;
+      const cv::KeyPoint &kp = kf->mvKeys[mit->second];
+
+      output += "{\n";
+      output += "      \"kf\": " + std::to_string(kf->mnId) + ",\n";
+      output += "      \"point\": [" + std::to_string(kp.pt.x) + ", " + std::to_string(kp.pt.y) + "]\n";
+      output += "    }";
+    }
+    output += "]\n";
+    output += "  }";
+
+    counter++;
+  }
+  output += "]\n";
+  output += "}";
+
+  f << output;
+  f.close();
+  std::cout << "Trajectory saved!" << std::endl;
 }
 
 int System::GetTrackingState() {

@@ -40,7 +40,7 @@ This will create **libSD_SLAM.so**  at *lib* folder and the executables **monocu
 
 # 4. Monocular Examples
 
-Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with each image filename. 
+Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named `files.txt` with each image filename. 
 
 ```
 ./Examples/Monocular/monocular Examples/Monocular/X.yaml PATH_TO_SEQUENCE_FOLDER
@@ -57,6 +57,14 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 1. Download a sequence (ASL format) from http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets
 
 2. Change `X.yaml` to EuRoC.yaml.
+
+## Live Camera
+
+You can use a USB camera to run SD-SLAM with live images. Change `N` to the proper `/dev/videoN` value where your camera is connected.
+
+```
+./Examples/Monocular/monocular Examples/Monocular/X.yaml N
+```
 
 ## Initialization with pattern
 

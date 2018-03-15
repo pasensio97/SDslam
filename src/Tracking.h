@@ -30,6 +30,7 @@
 #include <list>
 #include <vector>
 #include <opencv2/core/core.hpp>
+#include <Eigen/Dense>
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
@@ -62,7 +63,7 @@ class Tracking {
   Tracking(System* pSys, Map* pMap, const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
-  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const std::string filename);
+  Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
 
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
@@ -82,10 +83,8 @@ class Tracking {
 
   inline Frame& GetCurrentFrame() { return mCurrentFrame; }
   inline Frame& GetInitialFrame() { return mInitialFrame; }
-  inline cv::Mat& GetImage() { return mImGray; }
 
   inline std::vector<int> GetInitialMatches() { return mvIniMatches; }
-  inline Eigen::Matrix<double, 3, 4> GetPlaneRT() { return initialRT; }
 
   void Reset();
 
@@ -102,8 +101,6 @@ class Tracking {
 
   // Initialization with pattern
   void PatternInitialization();
-
-  void CalcPlaneAligner(const std::vector<MapPoint*> &points);
 
   void CheckReplacedInLastFrame();
   bool TrackReferenceKeyFrame();
@@ -135,7 +132,6 @@ class Tracking {
 
   // Current Frame
   Frame mCurrentFrame;
-  cv::Mat mImGray;
 
   // ORB
   ORBextractor* mpORBextractorLeft;
@@ -202,9 +198,7 @@ class Tracking {
   std::list<KeyFrame*> mlpReferences;
   std::list<bool> mlbLost;
 
-  // Initial plane RT
   bool usePattern;
-  Eigen::Matrix<double, 3, 4> initialRT;
 
   // Image align
   bool align_image_;

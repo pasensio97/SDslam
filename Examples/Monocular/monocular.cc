@@ -40,7 +40,7 @@ void LoadImages(const string &strFile, vector<string> &vFilenames);
 
 int main(int argc, char **argv) {
   vector<string> vFilenames;
-  cv::Mat im;
+  cv::Mat im_rgb, im;
   cv::VideoCapture * cap = nullptr;
   int nImages, ni = 0;
   bool useViewer = true;
@@ -110,9 +110,8 @@ int main(int argc, char **argv) {
   // Main loop
   while (ni<nImages) {
     if (live) {
-      cv::Mat frame;
-      *cap >> frame;
-      cv::cvtColor(frame, im, CV_RGB2GRAY);
+      *cap >> im_rgb;
+      cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
     } else {
       // Read image from file
       src = string(argv[2])+"/"+vFilenames[ni];
@@ -132,7 +131,7 @@ int main(int argc, char **argv) {
 
     // Set data to UI
 #ifdef PANGOLIN
-    fdrawer->Update(tracker);
+    fdrawer->Update(im, pose, tracker);
     mdrawer->SetCurrentCameraPose(pose);
 #endif
 

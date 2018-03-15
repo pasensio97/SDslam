@@ -1,6 +1,6 @@
 /**
  *
- *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
+ *  Copyright (C) 2017-2018 Eduardo Perdices <eperdices at gsyc dot es>
  *
  *  The following code is a derivative work of the code from the ORB-SLAM2 project,
  *  which is licensed under the GNU Public License, version 3. This code therefore
@@ -28,9 +28,12 @@
 #include <mutex>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <pangolin/pangolin.h>
+#include <Eigen/Dense>
 #include "Tracking.h"
 #include "MapPoint.h"
 #include "Map.h"
+#include "ui/Plane.h"
 
 namespace SD_SLAM {
 
@@ -42,33 +45,58 @@ class FrameDrawer {
   FrameDrawer(Map* pMap);
 
   // Update info from the last processed frame.
-  void Update(Tracking *pTracker);
+  void Update(const cv::Mat &im, const Eigen::Matrix4d &pose, Tracking *pTracker);
 
   // Draw last processed frame.
   cv::Mat DrawFrame();
 
+  void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
+
+  // Check created planes
+  void CheckPlanes(bool recompute);
+
+  // Configure image distortion
+  inline void SetUndistort(bool value) { undistort = value; }
+
+  // Add new plane
+  inline void AddPlane() { addPlane = true; }
+
+  // Clear planes
+  inline void ClearAR() { clearAR = true; }
+
  protected:
   void DrawTextInfo(cv::Mat &im, int nState);
 
-  void GetInitialPlane(Tracking *pTracker);
+  Plane* DetectPlane(const Eigen::Matrix4d &pose, const std::vector<MapPoint*> &vMPs, const int iterations=50);
 
-  bool Project(const Frame &frame, const Eigen::Matrix<double, 3, 4> &planeRT, const Eigen::Vector3d &p3d, Eigen::Vector2d &p2d);
+  void DrawCube(const float &size, const float x=0, const float y=0, const float z=0);
+  void DrawPlane(int ndivs, float ndivsize);
+  void DrawPlane(Plane* pPlane, int ndivs, float ndivsize);
 
-  // Info of the frame to be drawn
+  // Last processed frame data
   cv::Mat mIm;
-  int N;
+  Eigen::Matrix4d mPose;
+  int mState;
   std::vector<cv::KeyPoint> mvCurrentKeys;
   std::vector<bool> mvbMap;
+  std::vector<MapPoint*> mvMPs;
+
   int mnTracked;
+
+  // Initial points
   std::vector<cv::KeyPoint> mvIniKeys;
   std::vector<int> mvIniMatches;
-  int mState;
 
+  std::vector<Plane*> vpPlane;
+  bool addPlane;
+  bool clearAR;
+
+  bool undistort;
   Map* mpMap;
-
   std::mutex mMutex;
 
-  std::vector<cv::Point> ARPoints_;
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

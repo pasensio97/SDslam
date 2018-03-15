@@ -423,4 +423,9 @@ Eigen::Vector3d Frame::UnprojectStereo(const int &i) {
   }
 }
 
+void Frame::Undistort(const cv::Mat& im, cv::Mat& im_out) {
+  cv::Mat mK_cv = Converter::toCvMat(mK);
+  cv::undistort(im, im_out, mK_cv, mDistCoef);
+}
+
 }  // namespace SD_SLAM

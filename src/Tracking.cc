@@ -136,19 +136,18 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   motion_model_ = new EKF(sensor_model);
 }
 
-Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const std::string filename) {
-  mImGray = imRGB;
+Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename) {
   cv::Mat imDepth = imD;
 
-  if (mImGray.channels() != 1) {
+  if (im.channels() != 1) {
     LOGE("[ERROR] Image must be in gray scale");
     return Eigen::Matrix4d::Zero();
   }
 
-  if ((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
+  if ((fabs(mDepthMapFactor-1.0f) > 1e-5) || imD.type() != CV_32F)
     imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
 
-  mCurrentFrame = Frame(mImGray, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+  mCurrentFrame = Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
   mCurrentFrame.mFilename = filename;
 
   Track();
@@ -158,17 +157,15 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD
 
 
 Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::string filename) {
-  mImGray = im;
-
-  if (mImGray.channels() != 1) {
+  if (im.channels() != 1) {
     LOGE("Image must be in gray scale");
     return Eigen::Matrix4d::Zero();
   }
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
-    mCurrentFrame = Frame(mImGray, mpIniORBextractor, mK, mDistCoef, mbf, mThDepth);
+    mCurrentFrame = Frame(im, mpIniORBextractor, mK, mDistCoef, mbf, mThDepth);
   else
-    mCurrentFrame = Frame(mImGray, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+    mCurrentFrame = Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 
   mCurrentFrame.mFilename = filename;
 
@@ -231,7 +228,7 @@ void Tracking::Track() {
     if (bOK)
       mState = OK;
     else
-      mState=LOST;
+      mState = LOST;
 
     // If tracking were good, check if we insert a keyframe
     if (bOK) {
@@ -331,9 +328,6 @@ void Tracking::StereoInitialization() {
 
     LOGD("New map created with %lu points", mpMap->MapPointsInMap());
 
-    // Calculate dominant plane
-    CalcPlaneAligner(pKFini->GetMapPointMatches());
-
     mpLocalMapper->InsertKeyFrame(pKFini);
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
@@ -350,7 +344,7 @@ void Tracking::StereoInitialization() {
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
-    mState=OK;
+    mState = OK;
   }
 }
 
@@ -487,9 +481,6 @@ void Tracking::CreateInitialMapMonocular() {
     }
   }
 
-  // Calculate dominant plane
-  CalcPlaneAligner(vpAllMapPoints);
-
   mpLocalMapper->InsertKeyFrame(pKFini);
   mpLocalMapper->InsertKeyFrame(pKFcur);
 
@@ -509,7 +500,7 @@ void Tracking::CreateInitialMapMonocular() {
 
   mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
-  mState=OK;
+  mState = OK;
 }
 
 void Tracking::PatternInitialization() {
@@ -555,9 +546,6 @@ void Tracking::PatternInitialization() {
 
     LOGD("New map created from pattern with %lu points", mpMap->MapPointsInMap());
 
-    // Calculate dominant plane
-    CalcPlaneAligner(pKFini->GetMapPointMatches());
-
     mpLocalMapper->InsertKeyFrame(pKFini);
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
@@ -574,143 +562,8 @@ void Tracking::PatternInitialization() {
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
-    mState=OK;
+    mState = OK;
   }
-}
-
-void Tracking::CalcPlaneAligner(const vector<MapPoint*> &points) {
-  int ind1, ind2, ind3;
-
-  // Select valid points
-  vector<Eigen::Vector3d> vpoints;
-  for (size_t i = 0; i<points.size(); i++) {
-    if (points[i]) {
-      MapPoint* pMP = points[i];
-      vpoints.push_back(pMP->GetWorldPos());
-    }
-  }
-
-  int nPoints = vpoints.size();
-
-  int nit = 0, nits = 100;
-  Eigen::Vector3d vbestmean(0, 0, 0);
-  Eigen::Vector3d vbestnormal(0, 0, 0);
-  double bestdist = 9999999999999999.9;
-
-  // Search best plane with RANSAC
-  while (nit < nits) {
-    ind1 = rand() % nPoints;
-    ind2 = ind1;
-    ind3 = ind1;
-    while (ind2 == ind1)
-      ind2 = rand() % nPoints;
-    while (ind3 == ind1 || ind3 == ind2)
-      ind3 = rand() % nPoints;
-
-    Eigen::Vector3d p1 = vpoints[ind1];
-    Eigen::Vector3d p2 = vpoints[ind2];
-    Eigen::Vector3d p3 = vpoints[ind3];
-
-    Eigen::Vector3d vmean = 0.33333333 * (p1 + p2 + p2);
-    Eigen::Vector3d vdiff1 = p3 - p1;
-    Eigen::Vector3d vdiff2 = p2 - p1;
-    Eigen::Vector3d vnormal = vdiff1.cross(vdiff2);
-
-    if (vnormal.dot(vnormal) == 0) {
-      nit++;
-      continue;
-    }
-    vnormal.normalize();
-
-    double dSumError = 0.0;
-    int valids = 0;
-    for (auto it=vpoints.begin(); it != vpoints.end(); it++) {
-      Eigen::Vector3d vdiff = *it - vmean;
-      double dDistSq = vdiff.dot(vdiff);
-      if (dDistSq == 0.0)
-        continue;
-      double dNormDist = fabs(vdiff.dot(vnormal));
-
-      if (dNormDist > 0.05)
-        dNormDist = 0.05;
-      else
-        valids++;
-      dSumError += dNormDist;
-    }
-    if (dSumError < bestdist) {
-      bestdist = dSumError;
-      vbestmean = vmean;
-      vbestnormal = vnormal;
-
-      // Update max iterations
-      double epsilon = static_cast<double>(valids) / static_cast<double>(nPoints);
-      double k = log(1.0 - 0.999)/log(1.0 - epsilon);
-      double std = sqrt(1.0 - epsilon)/epsilon;
-      nits = std::min(nits, static_cast<int>(k+2.0*std + 1.0));
-    }
-    nit++;
-  }
-
-  // Done the ransacs, now collect the supposed inlier set
-  vector<Eigen::Vector3d> inliers;
-  for (auto it=vpoints.begin(); it != vpoints.end(); it++) {
-    Eigen::Vector3d vdiff = *it - vbestmean;
-    double dDistSq = vdiff.dot(vdiff);
-    if (dDistSq == 0.0)
-      continue;
-    double dNormDist = fabs(vdiff.dot(vbestnormal));
-
-    if (dNormDist < 0.05) {
-      inliers.push_back(*it);
-    }
-  }
-
-  cout << "[INFO] Main plane has " << inliers.size() << " inliers out of " << nPoints << endl;
-
-  // With these inliers, calculate mean and cov
-  Eigen::Vector3d vmeaninliers = Eigen::Vector3d::Zero();
-  for (vector<Eigen::Vector3d>::iterator it=inliers.begin(); it != inliers.end(); it++)
-    vmeaninliers += *it;
-  vmeaninliers *= (1.0 / inliers.size());
-
-  Eigen::Matrix3d mcov = Eigen::Matrix3d::Zero();
-  for (vector<Eigen::Vector3d>::iterator it=inliers.begin(); it != inliers.end(); it++) {
-    Eigen::Vector3d vdiff = *it - vmeaninliers;
-    mcov += vdiff * vdiff.transpose();
-  }
-
-  // Find the principal component with the minimal variance: this is the plane normal
-  Eigen::EigenSolver<Eigen::MatrixXd> solver(mcov);
-  Eigen::VectorXcd vcomplex = solver.eigenvectors().col(2);
-  Eigen::Vector3d vnormal;
-  vnormal(0) = vcomplex(0).real();
-  vnormal(1) = vcomplex(1).real();
-  vnormal(2) = vcomplex(2).real();
-
-  // Use the version of the normal which points towards the cam center
-  if (vnormal(2) > 0)
-    vnormal *= -1.0;
-
-  Eigen::Matrix3d m3Rot = Eigen::Matrix3d::Identity();
-  m3Rot.block(2, 0, 1, 3) = vnormal.transpose();
-  Eigen::Vector3d fila0 = m3Rot.block(0, 0, 1, 3).transpose();
-  Eigen::Vector3d aux = fila0 - vnormal * (fila0.dot(vnormal));
-  aux.normalize();
-  fila0 = aux;
-  m3Rot.block(0, 0, 1, 3) = fila0.transpose();
-
-  Eigen::Vector3d fila2 = m3Rot.block(2, 0, 1, 3).transpose();
-  m3Rot.block(1, 0, 1, 3) = (fila2.cross(fila0)).transpose();
-
-  // Save RT
-  Eigen::Matrix<double, 3, 4> RT;
-  RT.block<3, 3>(0, 0) = m3Rot;
-  Eigen::Vector3d v3RMean = m3Rot * vmeaninliers;
-  RT.block<3, 1>(0, 3) = -v3RMean;
-
-  // Invert RT
-  initialRT.block<3, 3>(0, 0) = RT.block<3, 3>(0, 0).inverse();
-  initialRT.block<3, 1>(0, 3) = -(initialRT.block<3, 3>(0, 0) * RT.block<3, 1>(0, 3));
 }
 
 void Tracking::CheckReplacedInLastFrame() {

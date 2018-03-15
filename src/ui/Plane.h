@@ -1,6 +1,6 @@
 /**
  *
- *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
+ *  Copyright (C) 2018 Eduardo Perdices <eperdices at gsyc dot es>
  *
  *  The following code is a derivative work of the code from the ORB-SLAM2 project,
  *  which is licensed under the GNU Public License, version 3. This code therefore
@@ -22,51 +22,42 @@
  *
  */
 
-#ifndef SD_SLAM_VIEWER_H
-#define SD_SLAM_VIEWER_H
+#ifndef SD_SLAM_PLANE_H
+#define SD_SLAM_PLANE_H
 
-#include <mutex>
-#include <string>
-#include <vector>
-#include "FrameDrawer.h"
-#include "MapDrawer.h"
-#include "Tracking.h"
-#include "System.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <pangolin/pangolin.h>
+#include <Eigen/Dense>
+#include "MapPoint.h"
 
 namespace SD_SLAM {
 
-class Tracking;
-class FrameDrawer;
-class MapDrawer;
-class System;
-
-class Viewer {
+class Plane {
  public:
-  Viewer(System* pSystem, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer);
+  Plane(const std::vector<MapPoint*> &vMPs, const Eigen::Matrix4d &pose);
 
-  // Main thread function. Draw points, keyframes, the current camera pose and the last processed
-  // frame. Drawing is refreshed according to the camera fps. We use Pangolin.
-  void Run();
+  void Recompute();
 
-  void RequestFinish();
+  //normal
+  cv::Mat n;
+  //origin
+  Eigen::Vector3d o;
+  //arbitrary orientation along normal
+  float rang;
+  //transformation from world to the plane
+  cv::Mat Tpw;
+  pangolin::OpenGlMatrix glTpw;
+  //MapPoints that define the plane
+  std::vector<MapPoint*> mvMPs;
+  //camera pose when the plane was first observed (to compute normal direction)
+  Eigen::Matrix4d mPose;
+  Eigen::Vector3d XC;
 
-  bool isFinished();
-
- private:
-  System* mpSystem;
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
-  Tracking* mpTracker;
-
-  bool CheckFinish();
-  void SetFinish();
-  bool mbFinishRequested;
-  bool mbFinished;
-  std::mutex mMutexFinish;
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM
 
-
-#endif  // SD_SLAM_VIEWER_H
-
+#endif  // SD_SLAM_PLANE_H

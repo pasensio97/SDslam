@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(SD_SLAM)
 option(USE_ANDROID "Android Cross Compilation" OFF)
 set(USE_PANGOLIN ON)
-set(DEBUG OFF)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
@@ -30,10 +29,6 @@ else()
 
   if(USE_PANGOLIN)
     ADD_DEFINITIONS(-DPANGOLIN)
-  endif()
-
-  if(DEBUG)
-    ADD_DEFINITIONS(-ggdb)
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
@@ -105,6 +100,7 @@ if(NOT USE_ANDROID AND USE_PANGOLIN)
     src/ui/FrameDrawer.cc
     src/ui/MapDrawer.cc
     src/ui/Viewer.cc
+    src/ui/Plane.cc
   )
 endif()
 
@@ -197,14 +193,15 @@ LIST(APPEND SOURCEFILES
 add_library(${PROJECT_NAME} SHARED ${SOURCEFILES})
 
 if(USE_ANDROID)
-  target_link_libraries(${PROJECT_NAME} lib_opencv log)
+  LIST(APPEND REQUIRED_LIBRARIES lib_opencv log)
 else()
+  LIST(APPEND REQUIRED_LIBRARIES ${OpenCV_LIBS})
   if(USE_PANGOLIN)
-    target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${Pangolin_LIBRARIES})
-  else()
-    target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+    LIST(APPEND REQUIRED_LIBRARIES ${Pangolin_LIBRARIES})
   endif()
 endif()
+
+target_link_libraries(${PROJECT_NAME} ${REQUIRED_LIBRARIES})
 
 if(NOT USE_ANDROID)
   # Build examples

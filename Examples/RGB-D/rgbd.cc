@@ -100,8 +100,8 @@ int main(int argc, char **argv) {
   while (ni<nImages) {
     // Read image and depthmap from file
     cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenamesRGB[ni] << endl;
-    im = cv::imread(string(argv[2])+"/"+vFilenamesRGB[ni],CV_LOAD_IMAGE_GRAYSCALE);
-    imD = cv::imread(string(argv[2])+"/"+vFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
+    im = cv::imread(string(argv[2])+"/"+vFilenamesRGB[ni], CV_LOAD_IMAGE_GRAYSCALE);
+    imD = cv::imread(string(argv[2])+"/"+vFilenamesD[ni], CV_LOAD_IMAGE_UNCHANGED);
 
     if(im.empty()) {
       cerr << endl << "[ERROR] Failed to load image at: " << string(argv[2]) << "/" << vFilenamesRGB[ni] << endl;
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 
     // Set data to UI
 #ifdef PANGOLIN
-    fdrawer->Update(tracker);
+    fdrawer->Update(im, pose, tracker);
     mdrawer->SetCurrentCameraPose(pose);
 #endif
 

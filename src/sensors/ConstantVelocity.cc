@@ -142,7 +142,7 @@ Eigen::MatrixXd ConstantVelocity::Q(const Eigen::VectorXd &X, double time) {
 Eigen::VectorXd ConstantVelocity::Z(const Eigen::Matrix4d &pose, const vector<double> &params, double time) {
   Eigen::VectorXd Z(measurement_size_);
 
-  assert(7 + params.size() == measurement_size_);
+  assert(7 + static_cast<int>(params.size()) == measurement_size_);
 
   Z.segment<7>(0) = PoseToVector(pose);
 

@@ -162,7 +162,7 @@ Eigen::MatrixXd IMU::Q(const Eigen::VectorXd &X, double time) {
 Eigen::VectorXd IMU::Z(const Eigen::Matrix4d &pose, const vector<double> &params, double time) {
   Eigen::VectorXd Z(measurement_size_);
 
-  assert(7 + params.size() == measurement_size_);
+  assert(7 + static_cast<int>(params.size()) == measurement_size_);
 
   Eigen::Vector3d w(params[0], params[1], params[2]);
   Eigen::Vector3d a(params[3], params[4], params[5]);

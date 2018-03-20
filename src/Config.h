@@ -91,6 +91,8 @@ class Config {
   static double ViewpointZ() { return GetInstance().kViewpointZ_; }
   static double ViewpointF() { return GetInstance().kViewpointF_; }
 
+  static std::string Topic() { return GetInstance().kTopic_; }
+
  private:
   Config();
 
@@ -118,6 +120,9 @@ class Config {
   double kViewpointY_;
   double kViewpointZ_;
   double kViewpointF_;
+
+  // ROS
+  std::string kTopic_;
 };
 
 }  // namespace SD_SLAM

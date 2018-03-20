@@ -139,10 +139,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
 Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename) {
   cv::Mat imDepth = imD;
 
-  if (im.channels() != 1) {
-    LOGE("[ERROR] Image must be in gray scale");
-    return Eigen::Matrix4d::Zero();
-  }
+  // Image must be in gray scale
+  assert(im.channels() == 1);
 
   if ((fabs(mDepthMapFactor-1.0f) > 1e-5) || imD.type() != CV_32F)
     imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
@@ -157,10 +155,8 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, c
 
 
 Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::string filename) {
-  if (im.channels() != 1) {
-    LOGE("Image must be in gray scale");
-    return Eigen::Matrix4d::Zero();
-  }
+  // Image must be in gray scale
+  assert(im.channels() == 1);
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
     mCurrentFrame = Frame(im, mpIniORBextractor, mK, mDistCoef, mbf, mThDepth);

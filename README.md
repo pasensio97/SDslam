@@ -120,7 +120,30 @@ Inside `PATH_TO_IMAGES_FOLDER` there must be a file named ''files.txt'' with eac
 
 You can check if the intrinsic parameters calculated are accurate checking the rectified images stored in `PATH_TO_IMAGES_FOLDER`.
 
+# 8. ROS Examples
 
-# 8. Android Compilation
+### Building the node
+1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SD-SLAM:
+
+  ```
+  echo "export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:PATH/SD-SLAM/Examples/ROS" >> ~/.bashrc
+  ```
+  
+2. Execute `build_ros.sh` script:
+
+  ```
+  chmod +x build_ros.sh
+  ./build_ros.sh
+  ```
+  
+### Running Monocular Node
+
+Monocular node reads input from topic `/camera/image_raw`. You will need to provide the settings file (see examples above).
+
+  ```
+  rosrun SD-SLAM Monocular Examples/ROS/SD-SLAM/ROS.yaml
+  ```
+
+# 9. Android Compilation
 Read: https://github.com/taka-no-me/android-cmake
 

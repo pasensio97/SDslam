@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
   std::string src = "";
 
   if(argc != 3) {
-      cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
-      return 1;
+    cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
+    return 1;
   }
 
   // Read parameters

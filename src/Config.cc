@@ -60,6 +60,8 @@ Config::Config() {
   kViewpointY_ = -0.7;
   kViewpointZ_ = -1.8;
   kViewpointF_ = 500.0;
+
+  kTopic_ = "/camera/image_raw";
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -113,6 +115,9 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Viewer.ViewpointY"].isNamed()) fs["Viewer.ViewpointY"] >> kViewpointY_;
   if (fs["Viewer.ViewpointZ"].isNamed()) fs["Viewer.ViewpointZ"] >> kViewpointZ_;
   if (fs["Viewer.ViewpointF"].isNamed()) fs["Viewer.ViewpointF"] >> kViewpointF_;
+
+  // ROS
+  if (fs["ROS.Topic"].isNamed()) fs["ROS.Topic"] >> kTopic_;
 
   fs.release();
 

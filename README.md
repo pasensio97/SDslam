@@ -126,7 +126,7 @@ You can check if the intrinsic parameters calculated are accurate checking the r
 1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SD-SLAM:
 
   ```
-  echo "export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:PATH/SD-SLAM/Examples/ROS" >> ~/.bashrc
+  echo "export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:PATH/SD-SLAM/Examples/ROS" >> ~/.bashrc
   ```
   
 2. Execute `build_ros.sh` script:

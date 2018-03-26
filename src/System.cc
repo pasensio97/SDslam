@@ -230,6 +230,18 @@ void System::SaveTrajectory(const std::string &filename) {
   std::ofstream f;
   f.open(filename.c_str());
 
+  // Save camera parameters
+  output += "camera:\n";
+  output += "  fx: " + std::to_string(Config::fx()) + "\n";
+  output += "  fy: " + std::to_string(Config::fy()) + "\n";
+  output += "  cx: " + std::to_string(Config::cx()) + "\n";
+  output += "  cy: " + std::to_string(Config::cy()) + "\n";
+  output += "  k1: " + std::to_string(Config::k1()) + "\n";
+  output += "  k2: " + std::to_string(Config::k2()) + "\n";
+  output += "  p1: " + std::to_string(Config::p1()) + "\n";
+  output += "  p2: " + std::to_string(Config::p2()) + "\n";
+  output += "  k3: " + std::to_string(Config::k3()) + "\n";
+
   // Save keyframes
   output += "keyframes:\n";
 
@@ -279,7 +291,7 @@ void System::SaveTrajectory(const std::string &filename) {
       const cv::KeyPoint &kp = kf->mvKeys[mit->second];
 
       output += "      - kf: " + std::to_string(kf->mnId) + "\n";
-      output += "        point:\n";
+      output += "        pixel:\n";
       output += "          - "+ std::to_string(kp.pt.x) + "\n";
       output += "          - "+ std::to_string(kp.pt.y) + "\n";
     }

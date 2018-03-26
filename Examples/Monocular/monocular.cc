@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, src);
+    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, vFilenames[ni]);
 
     // Set data to UI
 #ifdef PANGOLIN

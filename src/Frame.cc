@@ -49,7 +49,7 @@ Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
   mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
   mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor), mvScaleFactors(frame.mvScaleFactors),
   mvInvScaleFactors(frame.mvInvScaleFactors), mvLevelSigma2(frame.mvLevelSigma2),
-  mvInvLevelSigma2(frame.mvInvLevelSigma2) {
+  mvInvLevelSigma2(frame.mvInvLevelSigma2), mFilename(frame.mFilename) {
   for (int i = 0; i < FRAME_GRID_COLS; i++)
     for (int j = 0; j < FRAME_GRID_ROWS; j++)
       mGrid[i][j] = frame.mGrid[i][j];
@@ -421,6 +421,11 @@ Eigen::Vector3d Frame::UnprojectStereo(const int &i) {
   } else {
     return Eigen::Vector3d::Zero();
   }
+}
+
+void Frame::Undistort(const cv::Mat& im, cv::Mat& im_out) {
+  cv::Mat mK_cv = Converter::toCvMat(mK);
+  cv::undistort(im, im_out, mK_cv, mDistCoef);
 }
 
 }  // namespace SD_SLAM

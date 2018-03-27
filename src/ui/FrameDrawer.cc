@@ -1,6 +1,6 @@
 /**
  *
- *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
+ *  Copyright (C) 2017-2018 Eduardo Perdices <eperdices at gsyc dot es>
  *
  *  The following code is a derivative work of the code from the ORB-SLAM2 project,
  *  which is licensed under the GNU Public License, version 3. This code therefore
@@ -24,15 +24,20 @@
 
 #include "FrameDrawer.h"
 #include "Config.h"
+#include "extra/utils.h"
 
 using std::vector;
 using std::mutex;
+using std::unique_lock;
 
 namespace SD_SLAM {
 
 FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap) {
-  mState=Tracking::SYSTEM_NOT_READY;
+  mState = Tracking::SYSTEM_NOT_READY;
   mIm = cv::Mat(Config::Height(), Config::Width(), CV_8UC3, cv::Scalar(0, 0, 0));
+  undistort = false;
+  addPlane = false;
+  clearAR = false;
 }
 
 cv::Mat FrameDrawer::DrawFrame() {
@@ -42,26 +47,24 @@ cv::Mat FrameDrawer::DrawFrame() {
   vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
   vector<bool> vbMap; // Tracked MapPoints in current frame
   int state; // Tracking state
-  std::vector<cv::Point> ARPoints; // Initial plane
 
   //Copy variables within scoped mutex
   {
-    std::unique_lock<mutex> lock(mMutex);
+    unique_lock<mutex> lock(mMutex);
     state = mState;
-    if (mState==Tracking::SYSTEM_NOT_READY)
-      mState=Tracking::NO_IMAGES_YET;
+    if (mState == Tracking::SYSTEM_NOT_READY)
+      mState = Tracking::NO_IMAGES_YET;
 
     mIm.copyTo(im);
 
-    if (mState==Tracking::NOT_INITIALIZED) {
+    if (mState == Tracking::NOT_INITIALIZED) {
       vCurrentKeys = mvCurrentKeys;
       vIniKeys = mvIniKeys;
       vMatches = mvIniMatches;
-    } else if (mState==Tracking::OK) {
+    } else if (mState == Tracking::OK) {
       vCurrentKeys = mvCurrentKeys;
       vbMap = mvbMap;
-      ARPoints = ARPoints_;
-    } else if (mState==Tracking::LOST) {
+    } else if (mState == Tracking::LOST) {
       vCurrentKeys = mvCurrentKeys;
     }
   }
@@ -76,10 +79,6 @@ cv::Mat FrameDrawer::DrawFrame() {
         cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt, cv::Scalar(0, 255, 0), 2);
     }    
   } else if (state==Tracking::OK) { //TRACKING
-    // Show plane grid
-    for (auto it=ARPoints.begin(); it!=ARPoints.end(); it+=2)
-      cv::line(im, *it, *(it+1), cv::Scalar(150, 150, 150), 2);
-
     mnTracked = 0;
     const float r = 3;
     const int n = vCurrentKeys.size();
@@ -121,101 +120,275 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState) {
   cv::putText(im, s.str(), cv::Point(5, im.rows-5), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1, 8);
 }
 
-void FrameDrawer::Update(Tracking *pTracker) {
-  bool showGrid = false;
-
+void FrameDrawer::Update(const cv::Mat &im, const Eigen::Matrix4d &pose, Tracking *pTracker) {
   std::unique_lock<mutex> lock(mMutex);
-  pTracker->GetImage().copyTo(mIm);
+  mPose = pose;
+
   Frame &currentFrame = pTracker->GetCurrentFrame();
-  mvCurrentKeys = currentFrame.mvKeys;
-  N = mvCurrentKeys.size();
-  mvbMap = vector<bool>(N, false);
+  if (undistort)
+    currentFrame.Undistort(im, mIm);
+  else
+    im.copyTo(mIm);
+  if (undistort)
+    mvCurrentKeys = currentFrame.mvKeysUn;
+  else
+    mvCurrentKeys = currentFrame.mvKeys;
+  int n = mvCurrentKeys.size();
+  mvbMap = vector<bool>(n, false);
+  mvMPs.clear();
 
   if (pTracker->GetLastState() == Tracking::NOT_INITIALIZED)  {
-    mvIniKeys=pTracker->GetInitialFrame().mvKeys;
-    mvIniMatches=pTracker->GetInitialMatches();
+    if (undistort)
+      mvIniKeys = pTracker->GetInitialFrame().mvKeysUn;
+    else
+      mvIniKeys = pTracker->GetInitialFrame().mvKeys;
+    mvIniMatches = pTracker->GetInitialMatches();
   } else if (pTracker->GetLastState() == Tracking::OK) {
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < n; i++) {
       MapPoint* pMP = currentFrame.mvpMapPoints[i];
       if (pMP) {
+        // Save points seen
         if (!currentFrame.mvbOutlier[i])
-          mvbMap[i]=true;
+          mvbMap[i] = true;
+
+        // Save best observed points
+        if(pMP->Observations() > 5)
+          mvMPs.push_back(pMP);
       }
     }
   }
   mState = static_cast<int>(pTracker->GetLastState());
-
-  // Save initial plane positions
-  if (showGrid)
-    GetInitialPlane(pTracker);
 }
 
-void FrameDrawer::GetInitialPlane(Tracking *pTracker) {
-  double rmin = -0.5;
-  double rmax = 0.5;
-  double step = 0.1;
-  Eigen::Vector3d p1, p2;
-  Eigen::Vector2d p1i, p2i;
+void FrameDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M) {
+  if (!mPose.isZero()) {
+    Eigen::Matrix3d Rwc;
+    Eigen::Vector3d twc;
+    {
+      unique_lock<mutex> lock(mMutex);
+      Rwc = mPose.block<3, 3>(0, 0).transpose();
+      twc = -Rwc*mPose.block<3, 1>(0, 3);
+    }
 
-  Frame &currentFrame = pTracker->GetCurrentFrame();
-  Eigen::Matrix<double, 3, 4> planeRT = pTracker->GetPlaneRT();
+    M.m[0] = mPose(0, 0);
+    M.m[1] = mPose(1, 0);
+    M.m[2] = mPose(2, 0);
+    M.m[3]  = 0.0;
 
-  ARPoints_.clear();
-  for (double i=rmin; i <= rmax; i += step) {
-    for (double j = rmin; j <= rmax; j += step) {
-      p1 << i, j, 0.0;
-      p2 << i+step, j, 0.0;
-      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
-        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
-        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+    M.m[4] = mPose(0, 1);
+    M.m[5] = mPose(1, 1);
+    M.m[6] = mPose(2, 1);
+    M.m[7]  = 0.0;
+
+    M.m[8] = mPose(0, 2);
+    M.m[9] = mPose(1, 2);
+    M.m[10] = mPose(2, 2);
+    M.m[11]  = 0.0;
+
+    M.m[12] = mPose(0, 3);
+    M.m[13] = mPose(1, 3);
+    M.m[14] = mPose(2, 3);
+    M.m[15]  = 1.0;
+  } else
+    M.SetIdentity();
+}
+
+void FrameDrawer::CheckPlanes(bool recompute) {
+  int state;
+  std::vector<MapPoint*> vMPs;
+  Eigen::Matrix4d pose;
+
+  //Copy variables within scoped mutex
+  {
+    unique_lock<mutex> lock(mMutex);
+    state = mState;
+    vMPs = mvMPs;
+    pose = mPose;
+  }
+
+
+  if(state == Tracking::OK) {
+    if(clearAR) {
+      if(!vpPlane.empty()) {
+        for(size_t i=0; i<vpPlane.size(); i++) {
+          delete vpPlane[i];
+        }
+        vpPlane.clear();
+        std::cout << "[DEBUG] Remove AR objects!" << std::endl;
       }
+      clearAR = false;
+    }
 
-      p1 << i+step, j, 0.0;
-      p2 << i+step, j+step, 0.0;
-      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
-        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
-        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+    // Add new plane
+    if(addPlane) {
+      Plane* pPlane = DetectPlane(pose, vMPs ,50);
+      if(pPlane) {
+        std::cout << "[DEBUG] New plane detected!" << std::endl;
+        vpPlane.push_back(pPlane);
+      } else {
+        std::cout << "[DEBUG] No plane detected." << std::endl;
       }
+      addPlane = false;
+    }
 
-      p1 << i+step, j+step, 0.0;
-      p2 << i, j+step, 0.0;
-      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
-        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
-        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
-      }
+    if(!vpPlane.empty()) {
+      for(size_t i=0; i<vpPlane.size(); i++) {
+        Plane* pPlane = vpPlane[i];
 
-      p1 << i, j+step, 0.0;
-      p2 << i, j, 0.0;
-      if (Project(currentFrame, planeRT, p1, p1i) && Project(currentFrame, planeRT, p2, p2i)) {
-        ARPoints_.push_back(cv::Point(p1i(0), p1i(1)));
-        ARPoints_.push_back(cv::Point(p2i(0), p2i(1)));
+        if(pPlane) {
+          if(recompute) {
+            pPlane->Recompute();
+          }
+          glPushMatrix();
+          pPlane->glTpw.Multiply();
+
+          // Draw cube
+          DrawCube(0.1);
+
+          // Draw grid plane
+          DrawPlane(5, 0.1);
+
+          glPopMatrix();
+        }
       }
     }
+
+
   }
 }
 
-bool FrameDrawer::Project(const Frame &frame, const Eigen::Matrix<double, 3, 4> &planeRT, const Eigen::Vector3d &p3d, Eigen::Vector2d &p2d) {
-  Eigen::Matrix3d Rcw = frame.GetPose().block<3, 3>(0, 0);
-  Eigen::Vector3d tcw = frame.GetPose().block<3, 1>(0, 3);
+Plane* FrameDrawer::DetectPlane(const Eigen::Matrix4d &pose, const std::vector<MapPoint*> &vMPs, const int iterations) {
+  // Retrieve 3D points
+  vector<Eigen::Vector3d> vPoints;
+  vPoints.reserve(vMPs.size());
 
-  Eigen::Vector3d p, pc;
-
-  p = planeRT.block<3, 3>(0, 0)*p3d + planeRT.block<3, 1>(0, 3);
-  pc = Rcw*p+tcw;
-
-  const float invzc = 1.0/pc(2);
-
-  if (invzc >= 0) {
-    p2d(0) = frame.fx*pc(0)*invzc + frame.cx;
-    p2d(1) = frame.fy*pc(1)*invzc + frame.cy;
-
-    if (p2d(0) < -2000 || p2d(0) > 2000 || p2d(1) < -2000 || p2d(1) > 2000)
-      return false;
-
-    return true;
+  for(size_t i=0; i<vMPs.size(); i++) {
+    MapPoint* pMP = mvMPs[i];
+    vPoints.push_back(pMP->GetWorldPos());
   }
 
-  return false;
+  const int N = vPoints.size();
+
+  if(N<50)
+    return NULL;
+
+
+  // Indices for minimum set selection
+  vector<size_t> vAllIndices;
+  vAllIndices.reserve(N);
+  vector<size_t> vAvailableIndices;
+
+  for(int i=0; i<N; i++)
+    vAllIndices.push_back(i);
+
+  float bestDist = 1e10;
+  vector<float> bestvDist;
+
+  // RANSAC
+  for(int n=0; n<iterations; n++) {
+    vAvailableIndices = vAllIndices;
+
+    cv::Mat A(3,4,CV_32F);
+    A.col(3) = cv::Mat::ones(3,1,CV_32F);
+
+    // Get min set of points
+    for(short i = 0; i < 3; ++i) {
+      int randi = Random(0, vAvailableIndices.size()-1);
+      int idx = vAvailableIndices[randi];
+
+      A.at<float>(i, 0) = vPoints[idx](0);
+      A.at<float>(i, 1) = vPoints[idx](1);
+      A.at<float>(i, 2) = vPoints[idx](2);
+
+      vAvailableIndices[randi] = vAvailableIndices.back();
+      vAvailableIndices.pop_back();
+    }
+
+    cv::Mat u,w,vt;
+    cv::SVDecomp(A,w,u,vt,cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+
+    const float a = vt.at<float>(3,0);
+    const float b = vt.at<float>(3,1);
+    const float c = vt.at<float>(3,2);
+    const float d = vt.at<float>(3,3);
+
+    vector<float> vDistances(N,0);
+
+    const float f = 1.0f/sqrt(a*a+b*b+c*c+d*d);
+
+    for(int i=0; i<N; i++)
+      vDistances[i] = fabs(vPoints[i](0)*a+vPoints[i](1)*b+vPoints[i](2)*c+d)*f;
+
+    vector<float> vSorted = vDistances;
+    sort(vSorted.begin(),vSorted.end());
+
+    int nth = std::max((int)(0.2*N),20);
+    const float medianDist = vSorted[nth];
+
+    if(medianDist < bestDist) {
+      bestDist = medianDist;
+      bestvDist = vDistances;
+    }
+  }
+
+  // Compute threshold inlier/outlier
+  const float th = 1.4*bestDist;
+  vector<bool> vbInliers(N,false);
+  int nInliers = 0;
+  for(int i=0; i<N; i++) {
+    if(bestvDist[i]<th) {
+      nInliers++;
+      vbInliers[i]=true;
+    }
+  }
+
+  vector<MapPoint*> vInlierMPs(nInliers,NULL);
+  int nin = 0;
+  for(int i=0; i<N; i++) {
+    if(vbInliers[i]) {
+      vInlierMPs[nin] = vMPs[i];
+      nin++;
+    }
+  }
+
+  return new Plane(vInlierMPs, pose);
+}
+
+void FrameDrawer::DrawCube(const float &size,const float x, const float y, const float z) {
+    pangolin::OpenGlMatrix M = pangolin::OpenGlMatrix::Translate(-x,-size-y,-z);
+    glPushMatrix();
+    M.Multiply();
+    pangolin::glDrawColouredCube(-size,size);
+    glPopMatrix();
+}
+
+void FrameDrawer::DrawPlane(Plane *pPlane, int ndivs, float ndivsize) {
+    glPushMatrix();
+    pPlane->glTpw.Multiply();
+    DrawPlane(ndivs,ndivsize);
+    glPopMatrix();
+}
+
+void FrameDrawer::DrawPlane(int ndivs, float ndivsize) {
+    // Plane parallel to x-z at origin with normal -y
+    const float minx = -ndivs*ndivsize;
+    const float minz = -ndivs*ndivsize;
+    const float maxx = ndivs*ndivsize;
+    const float maxz = ndivs*ndivsize;
+
+
+    glLineWidth(2);
+    glColor3f(0.7f,0.7f,1.0f);
+    glBegin(GL_LINES);
+
+    for(int n = 0; n<=2*ndivs; n++) {
+        glVertex3f(minx+ndivsize*n,0,minz);
+        glVertex3f(minx+ndivsize*n,0,maxz);
+        glVertex3f(minx,0,minz+ndivsize*n);
+        glVertex3f(maxx,0,minz+ndivsize*n);
+    }
+
+    glEnd();
 }
 
 }  // namespace SD_SLAM

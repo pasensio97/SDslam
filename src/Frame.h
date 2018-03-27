@@ -97,6 +97,9 @@ class Frame {
   // Backprojects a keypoint (if stereo/depth info available) into 3D world coordinates.
   Eigen::Vector3d UnprojectStereo(const int &i);
 
+  // Undistort image with current camera parameters
+  void Undistort(const cv::Mat& im, cv::Mat& im_out);
+
  public:
   // Feature extractor.
   ORBextractor* mpORBextractorLeft;
@@ -176,7 +179,11 @@ class Frame {
 
   static bool mbInitialComputations;
 
+  // Image pyramid
   std::vector<cv::Mat> mvImagePyramid;
+
+  // Source filename (if exists)
+  std::string mFilename;
 
  private:
   // Undistort keypoints given OpenCV distortion parameters.

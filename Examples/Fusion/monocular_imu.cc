@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
 
     // Set data to UI
 #ifdef PANGOLIN
-    fdrawer->Update(tracker);
+    fdrawer->Update(im, pose, tracker);
     mdrawer->SetCurrentCameraPose(pose);
 #endif
 

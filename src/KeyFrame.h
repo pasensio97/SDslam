@@ -169,7 +169,11 @@ class KeyFrame {
   const int mnMaxY;
   Eigen::Matrix3d mK;
 
+  // Image pyramid
   std::vector<cv::Mat> mvImagePyramid;
+
+  // Source filename (if exists)
+  std::string mFilename;
 
   // The following variables need to be accessed trough a mutex to be thread safe.
  protected:

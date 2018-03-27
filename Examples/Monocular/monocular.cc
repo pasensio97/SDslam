@@ -40,16 +40,17 @@ void LoadImages(const string &strFile, vector<string> &vFilenames);
 
 int main(int argc, char **argv) {
   vector<string> vFilenames;
-  cv::Mat im;
+  cv::Mat im_rgb, im;
   cv::VideoCapture * cap = nullptr;
   int nImages, ni = 0;
   bool useViewer = true;
   bool live = false;
   double freq = 1.0/30.0;
+  std::string src = "";
 
   if(argc != 3) {
-      cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
-      return 1;
+    cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
+    return 1;
   }
 
   // Read parameters
@@ -109,13 +110,13 @@ int main(int argc, char **argv) {
   // Main loop
   while (ni<nImages) {
     if (live) {
-      cv::Mat frame;
-      *cap >> frame;
-      cv::cvtColor(frame, im, CV_RGB2GRAY);
+      *cap >> im_rgb;
+      cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
     } else {
       // Read image from file
-      cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenames[ni] << endl;
-      im = cv::imread(string(argv[2])+"/"+vFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);
+      src = string(argv[2])+"/"+vFilenames[ni];
+      cout << "[INFO] Reading Frame " << src << endl;
+      im = cv::imread(src, CV_LOAD_IMAGE_GRAYSCALE);
 
       if(im.empty()) {
         cerr << endl << "[ERROR] Failed to load image at: "  << string(argv[2]) << "/" << vFilenames[ni] << endl;
@@ -126,11 +127,11 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackMonocular(im);
+    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, vFilenames[ni]);
 
     // Set data to UI
 #ifdef PANGOLIN
-    fdrawer->Update(tracker);
+    fdrawer->Update(im, pose, tracker);
     mdrawer->SetCurrentCameraPose(pose);
 #endif
 
@@ -151,6 +152,9 @@ int main(int argc, char **argv) {
 
   // Stop all threads
   SLAM.Shutdown();
+
+  // Save data
+  SLAM.SaveTrajectory("trajectory.yaml");
 
 #ifdef PANGOLIN
   if (useViewer) {

@@ -192,7 +192,6 @@ void Tracking::Track() {
     if (mState!=OK)
       return;
   } else {
-
     // System is initialized. Track Frame.
     bool bOK;
 
@@ -580,31 +579,36 @@ bool Tracking::TrackReferenceKeyFrame() {
   ORBmatcher matcher(0.7, true);
 
   // Set same pose
-  mCurrentFrame.SetPose(mLastFrame.GetPose());
+  Eigen::Matrix4d last_pose = mLastFrame.GetPose();
+  mCurrentFrame.SetPose(last_pose);
+
+  LOGD("Last pose: [%.4f, %.4f, %.4f]", last_pose(0, 3), last_pose(1, 3), last_pose(2, 3));
 
   // Align current and last image
   if (align_image_) {
     ImageAlign image_align;
     if (!image_align.ComputePose(mCurrentFrame, mpReferenceKF)) {
       LOGE("Image align failed");
-      return false;
+      mCurrentFrame.SetPose(last_pose);
     }
   }
 
-  fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
-
   // Project points seen in reference keyframe
+  fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
   int nmatches = matcher.SearchByProjection(mCurrentFrame, mpReferenceKF, threshold_, mSensor!=System::RGBD);
 
-  // If few matches, uses a wider window search
+  // If few matches, ignores alignment and uses a wider window search
   if (nmatches<20) {
-    LOGD("Not enough matches, double threshold");
+    LOGD("Not enough matches [%d], double threshold", nmatches);
+    mCurrentFrame.SetPose(last_pose);
     fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
   }
 
-  if (nmatches<20)
+  if (nmatches<20) {
+    LOGD("Not enough matches [%d], tracking failed", nmatches);
     return false;
+  }
 
   // Optimize frame pose with all matches
   Optimizer::PoseOptimization(&mCurrentFrame);
@@ -626,7 +630,12 @@ bool Tracking::TrackReferenceKeyFrame() {
     }
   }
 
-  return nmatchesMap>=10;
+  if (nmatchesMap<10) {
+    LOGD("Not enough inliers [%d], tracking failed", nmatchesMap);
+    return false;
+  }
+
+  return true;
 }
 
 void Tracking::UpdateLastFrame() {
@@ -644,34 +653,36 @@ bool Tracking::TrackWithMotionModel() {
   UpdateLastFrame();
 
   // Predict initial pose with motion model
-  Eigen::Matrix4d predicted_pose = motion_model_->Predict();
+  Eigen::Matrix4d predicted_pose = motion_model_->Predict(mLastFrame.GetPose());
   mCurrentFrame.SetPose(predicted_pose);
 
-  LOGD("Predicted: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
+  LOGD("Predicted pose: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
 
   // Align current and last image
   if (align_image_) {
     ImageAlign image_align;
     if (!image_align.ComputePose(mCurrentFrame, mLastFrame)) {
       LOGE("Image align failed");
-      return false;
+      mCurrentFrame.SetPose(predicted_pose);
     }
   }
 
-  fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
-
   // Project points seen in previous frame
+  fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
   int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, threshold_, mSensor!=System::RGBD);
 
-  // If few matches, uses a wider window search
+  // If few matches, ignores alignment and uses a wider window search
   if (nmatches<20) {
-    LOGD("Not enough matches, double threshold");
+    LOGD("Not enough matches [%d], double threshold", nmatches);
+    mCurrentFrame.SetPose(predicted_pose);
     fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
   }
 
-  if (nmatches<20)
+  if (nmatches<20) {
+    LOGD("Not enough matches [%d], tracking failed", nmatches);
     return false;
+  }
 
   // Optimize frame pose with all matches
   Optimizer::PoseOptimization(&mCurrentFrame);
@@ -693,7 +704,12 @@ bool Tracking::TrackWithMotionModel() {
     }
   }
 
-  return nmatchesMap>=10;
+  if (nmatchesMap<10) {
+    LOGD("Not enough inliers [%d], tracking failed", nmatchesMap);
+    return false;
+  }
+
+  return true;
 }
 
 bool Tracking::TrackLocalMap() {
@@ -720,14 +736,12 @@ bool Tracking::TrackLocalMap() {
   }
 
   // Decide if the tracking was succesful
-  // More restrictive if there was a relocalization recently
-  if (mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
+  if (mnMatchesInliers<30) {
+    LOGD("Not enough points tracked [%d], tracking failed", mnMatchesInliers);
     return false;
+  }
 
-  if (mnMatchesInliers<30)
-    return false;
-  else
-    return true;
+  return true;
 }
 
 

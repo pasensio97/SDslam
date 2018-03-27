@@ -26,6 +26,8 @@
 
 namespace SD_SLAM {
 
+const double SMALL_EPS = 1e-10;
+
 class ConstantVelocity : public Sensor {
  public:
   ConstantVelocity();
@@ -33,6 +35,9 @@ class ConstantVelocity : public Sensor {
 
   void Init(Eigen::VectorXd &X, Eigen::MatrixXd &P);
   void InitState(Eigen::VectorXd &X, const Eigen::VectorXd &Z);
+
+  Eigen::Matrix4d GetPose(const Eigen::VectorXd &X);
+  Eigen::VectorXd PoseToVector(const Eigen::Matrix4d &pose);
 
   void F(Eigen::VectorXd &X, double time);
   Eigen::MatrixXd jF(const Eigen::VectorXd &X, double time);
@@ -42,6 +47,16 @@ class ConstantVelocity : public Sensor {
   Eigen::VectorXd H(const Eigen::VectorXd &X, double time);
   Eigen::MatrixXd jH(const Eigen::VectorXd &X, double time);
   Eigen::MatrixXd R(const Eigen::VectorXd &X, double time);
+
+ private:
+  Eigen::Matrix4d Exp(const Eigen::Matrix<double, 6, 1> &update);
+  Eigen::Matrix<double, 6, 1> Log(const Eigen::Matrix4d &pose);
+  Eigen::Quaterniond RotationExp(const Eigen::Vector3d &omega, double *theta);
+  Eigen::Matrix3d RotationHat(const Eigen::Vector3d &v);
+  Eigen::Vector3d RotationLog(const Eigen::Quaterniond &other, double *theta);
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

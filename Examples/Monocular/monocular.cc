@@ -38,6 +38,17 @@ using namespace std;
 
 void LoadImages(const string &strFile, vector<string> &vFilenames);
 
+void ShowPose(const Eigen::Matrix4d &pose) {
+  Eigen::Matrix4d wpose;
+  wpose.setIdentity();
+  wpose.block<3, 3>(0, 0) = pose.block<3, 3>(0, 0).transpose();
+  wpose.block<3, 1>(0, 3) = -pose.block<3, 3>(0, 0).transpose()*pose.block<3, 1>(0, 3);
+
+  Eigen::Quaterniond q(wpose.block<3, 3>(0, 0));
+  cout << "[INFO] World pose: [" << wpose(0, 3) << " " << wpose(1, 3) << " " << wpose(2, 3) << "]";
+  cout << "[" << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "]" << endl;
+}
+
 int main(int argc, char **argv) {
   vector<string> vFilenames;
   cv::Mat im_rgb, im;
@@ -128,6 +139,9 @@ int main(int argc, char **argv) {
 
     // Pass the image to the SLAM system
     Eigen::Matrix4d pose = SLAM.TrackMonocular(im, vFilenames[ni]);
+
+    // Show world pose
+    ShowPose(pose);
 
     // Set data to UI
 #ifdef PANGOLIN

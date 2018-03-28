@@ -43,7 +43,7 @@ Config::Config() {
 
   kUsePattern_ = false;
   kThDepth_ = 40.0;
-  kDepthMapFactor_ = 5000.0;
+  kDepthMapFactor_ = 1.0;
 
   kNumFeatures_ = 1000;
   kScaleFactor_ = 2.0;
@@ -61,7 +61,8 @@ Config::Config() {
   kViewpointZ_ = -1.8;
   kViewpointF_ = 500.0;
 
-  kTopic_ = "/camera/image_raw";
+  kCameraTopic_ = "/camera/rgb/image_raw";
+  kDepthTopic_ = "/camera/depth/image_raw";
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -117,7 +118,8 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Viewer.ViewpointF"].isNamed()) fs["Viewer.ViewpointF"] >> kViewpointF_;
 
   // ROS
-  if (fs["ROS.Topic"].isNamed()) fs["ROS.Topic"] >> kTopic_;
+  if (fs["ROS.CameraTopic"].isNamed()) fs["ROS.CameraTopic"] >> kCameraTopic_;
+  if (fs["ROS.DepthTopic"].isNamed()) fs["ROS.DepthTopic"] >> kDepthTopic_;
 
   fs.release();
 

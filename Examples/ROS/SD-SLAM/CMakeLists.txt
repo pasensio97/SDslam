@@ -21,6 +21,7 @@ endif()
 
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(Boost COMPONENTS system REQUIRED )
 
 include_directories(
   ${PROJECT_SOURCE_DIR}
@@ -28,11 +29,13 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/../../../src
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIR}
 )
 
 set(LIBS 
   ${OpenCV_LIBS} 
   ${Pangolin_LIBRARIES}
+  ${Boost_LIBRARIES}
   ${PROJECT_SOURCE_DIR}/../../../lib/libSD_SLAM.so
 )
 
@@ -40,8 +43,13 @@ set(LIBS
 rosbuild_add_executable(Monocular
   src/ros_monocular.cc
 )
+target_link_libraries(Monocular ${LIBS})
 
-target_link_libraries(Monocular  ${LIBS})
+# Node for RGB-D camera
+rosbuild_add_executable(RGBD
+  src/ros_rgbd.cc
+)
+target_link_libraries(RGBD ${LIBS})
 
 
 

@@ -51,5 +51,11 @@ rosbuild_add_executable(RGBD
 )
 target_link_libraries(RGBD ${LIBS})
 
+# Node for RGB-IMU fusion
+rosbuild_add_executable(Fusion
+  src/ros_fusion.cc
+)
+target_link_libraries(Fusion ${LIBS})
+
 
 

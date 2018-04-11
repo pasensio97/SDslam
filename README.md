@@ -152,6 +152,14 @@ RGBD node reads RGB images from topic `/camera/rgb/image_raw` and depth images f
   rosrun SD-SLAM RGBD Examples/ROS/SD-SLAM/ROS.yaml
   ```
 
+### Running Fusion Node
+
+Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data from topic `/imu_data`. You will need to provide a settings file (see examples above).
+
+  ```
+  rosrun SD-SLAM Fusion Examples/ROS/SD-SLAM/ROS.yaml
+  ```
+
 # 9. Android Compilation
 Read: https://github.com/taka-no-me/android-cmake
 

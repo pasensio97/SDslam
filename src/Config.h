@@ -93,6 +93,7 @@ class Config {
 
   static std::string CameraTopic() { return GetInstance().kCameraTopic_; }
   static std::string DepthTopic() { return GetInstance().kDepthTopic_; }
+  static std::string IMUTopic() { return GetInstance().kIMUTopic_; }
 
  private:
   Config();
@@ -125,6 +126,7 @@ class Config {
   // ROS
   std::string kCameraTopic_;
   std::string kDepthTopic_;
+  std::string kIMUTopic_;
 };
 
 }  // namespace SD_SLAM

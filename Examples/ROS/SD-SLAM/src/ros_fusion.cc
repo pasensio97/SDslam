@@ -25,6 +25,11 @@
 #include <opencv2/core/core.hpp>
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/Imu.h>
 #include "System.h"
 #include "Tracking.h"
 #include "Map.h"
@@ -42,29 +47,39 @@ class ImageReader {
     updated_ = false;
   }
 
-  void ReadImage(const sensor_msgs::ImageConstPtr& msg) {
+  void ReadRGBIMU(const sensor_msgs::ImageConstPtr& msgRGB, const sensor_msgs::ImuConstPtr& msgIMU) {
     // Copy the ros image message to cv::Mat.
-    cv_bridge::CvImageConstPtr cv_ptr;
+    cv_bridge::CvImageConstPtr cv_ptrRGB;
     try {
-      cv_ptr = cv_bridge::toCvShare(msg);
+      cv_ptrRGB = cv_bridge::toCvShare(msgRGB);
     } catch (cv_bridge::Exception& e) {
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
     }
 
-    ROS_INFO("Read new %dx%d image", cv_ptr->image.cols, cv_ptr->image.rows);
+    vector<double> imu;
+    imu.push_back(msgIMU->angular_velocity.x);
+    imu.push_back(msgIMU->angular_velocity.y);
+    imu.push_back(msgIMU->angular_velocity.z);
+    imu.push_back(msgIMU->linear_acceleration.x);
+    imu.push_back(msgIMU->linear_acceleration.y);
+    imu.push_back(msgIMU->linear_acceleration.z);
+
+    ROS_INFO("Read new %dx%d image", cv_ptrRGB->image.cols, cv_ptrRGB->image.rows);
 
     {
       std::unique_lock<mutex> lock(imgMutex_);
-      cv_ptr->image.copyTo(img_);
-      channels_ = img_.channels();
+      cv_ptrRGB->image.copyTo(imgRGB_);
+      channels_ = imgRGB_.channels();
+      IMU_ = imu;
       updated_ = true;
     }
   }
 
-  void GetImage(cv::Mat &img) {
+  void GetData(cv::Mat &imgRGB, vector<double> &IMU) {
     std::unique_lock<mutex> lock(imgMutex_);
-    img_.copyTo(img);
+    imgRGB_.copyTo(imgRGB);
+    IMU = IMU_;
     updated_ = false;
   }
 
@@ -78,7 +93,8 @@ class ImageReader {
 
  private:
   bool updated_;
-  cv::Mat img_;
+  cv::Mat imgRGB_;
+  vector<double> IMU_;
   int channels_;
   std::mutex imgMutex_;
 };
@@ -97,14 +113,14 @@ void ShowPose(const Eigen::Matrix4d &pose) {
 int main(int argc, char **argv) {
   vector<string> vFilenames;
   cv::Mat im_rgb, im;
+  vector<double> imu;
   bool useViewer = true;
-  std::string src = "";
 
   ros::init(argc, argv, "Monocular");
   ros::start();
 
   if(argc != 2) {
-    cerr << endl << "Usage: rosrun SD-SLAM Monocular path_to_settings" << endl;        
+    cerr << endl << "Usage: rosrun SD-SLAM RGBD path_to_settings" << endl;        
     ros::shutdown();
     return 1;
   }
@@ -118,7 +134,7 @@ int main(int argc, char **argv) {
   }
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
+  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR_IMU, true);
 
   // Create user interface
   SD_SLAM::Map * map = SLAM.GetMap();
@@ -138,22 +154,26 @@ int main(int argc, char **argv) {
   ros::NodeHandle n;
   ImageReader reader;
 
-  // Subscribe to topic
-  ros::Subscriber sub = n.subscribe(config.CameraTopic(), 1, &ImageReader::ReadImage, &reader);
+  // Subscribe to topics
+  message_filters::Subscriber<sensor_msgs::Image> rgb_sub(n, config.CameraTopic(), 1);
+  message_filters::Subscriber<sensor_msgs::Imu> imu_sub(n, config.IMUTopic(), 1);
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Imu> sync_pol;
+  message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub, imu_sub);
+  sync.registerCallback(boost::bind(&ImageReader::ReadRGBIMU, &reader, _1, _2));
 
   ros::Rate r(30);
   while (ros::ok()) {
     if (reader.HasNewImage()) {
       // Get new image
       if (reader.NumChannels() == 1) {
-        reader.GetImage(im);
+        reader.GetData(im, imu);
       } else {
-        reader.GetImage(im_rgb);
+        reader.GetData(im_rgb, imu);
         cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
       }
 
-      // Pass the image to the SLAM system
-      Eigen::Matrix4d pose = SLAM.TrackMonocular(im, src);
+      // Pass the image and IMU data to the SLAM system
+      Eigen::Matrix4d pose = SLAM.TrackFusion(im, imu);
 
       // Show world pose
       ShowPose(pose);

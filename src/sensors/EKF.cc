@@ -41,13 +41,16 @@ EKF::EKF(Sensor *sensor) : timer_(false) {
 EKF::~EKF() {
 }
 
-Eigen::Matrix4d EKF::Predict() {
+Eigen::Matrix4d EKF::Predict(const Eigen::Matrix4d &pose) {
   if (updated_) {
     timer_.Stop();
     it_time_ = timer_.GetTime();
   } else {
     it_time_ = 0.0;
   }
+
+  // Save last pose
+  sensor_->SetLastPose(pose);
 
   // Get matrices before predict
   Eigen::MatrixXd jF = sensor_->jF(X_, it_time_);

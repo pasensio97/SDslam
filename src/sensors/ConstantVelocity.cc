@@ -24,83 +24,58 @@ namespace SD_SLAM {
 using std::vector;
 
 ConstantVelocity::ConstantVelocity() : Sensor() {
-  state_size_ = 13;
-  measurement_size_ = 7;
+  state_size_ = 6;
+  measurement_size_ = 6;
 }
 
 ConstantVelocity::~ConstantVelocity() {
 }
 
 void ConstantVelocity::Init(Eigen::VectorXd &X, Eigen::MatrixXd &P) {
-  Eigen::Vector3d x;
-  Eigen::Vector4d q;
   Eigen::Vector3d v;
   Eigen::Vector3d w;
 
-  x << 0.0, 0.0, 0.0;       // 3D Position
-  q << 1.0, 0.0, 0.0, 0.0;  // Orientation quaternion
   v << 0.0, 0.0, 0.0;       // Linear velocity
   w << 0.0, 0.0, 0.0;       // Angular velocity
 
-  X.segment<3>(0) = x;
-  X.segment<4>(3) = q;
-  X.segment<3>(7) = v;
-  X.segment<3>(10) = w;
+  X.segment<3>(0) = v;
+  X.segment<3>(3) = w;
 
-  P.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * Sensor::COV_X_2;
-  P.block<4, 4>(3, 3) = Eigen::MatrixXd::Identity(4, 4) * Sensor::COV_Q_2;
-  P.block<3, 3>(7, 7) = Eigen::MatrixXd::Identity(3, 3) * Sensor::COV_V_2;
-  P.block<3, 3>(10, 10) = Eigen::MatrixXd::Identity(3, 3) * Sensor::COV_W_2;
+  P.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * Sensor::COV_V_2;
+  P.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(4, 4) * Sensor::COV_W_2;
 }
 
 void ConstantVelocity::InitState(Eigen::VectorXd &X, const Eigen::VectorXd &z) {
   X.setZero();
-  X.segment<7>(0) = z.segment<7>(0); // Save pose
+}
+
+Eigen::Matrix4d ConstantVelocity::GetPose(const Eigen::VectorXd &X) {
+  Eigen::Matrix<double, 6, 1> vel = X.segment<6>(0);
+  return Exp(vel) * last_pose_;
+}
+
+Eigen::VectorXd ConstantVelocity::PoseToVector(const Eigen::Matrix4d &pose) {
+  return Log(pose);
 }
 
 void ConstantVelocity::F(Eigen::VectorXd &X, double time) {
-  Eigen::Vector3d x = X.segment<3>(0);
-  Eigen::Vector4d q = X.segment<4>(3);
-  Eigen::Vector3d v = X.segment<3>(7);
-  Eigen::Vector3d w = X.segment<3>(10);
-
-  // x = x + x*t
-  X.segment<3>(0) = x + v*time;
-
-  // q = q X w*t
-  Eigen::Quaterniond qold(q(0), q(1), q(2), q(3));
-  Eigen::Quaterniond qnew = qold * QuaternionFromAngularVelocity(w * time);
-  q << qnew.w(), qnew.x(), qnew.y(), qnew.z();
-  X.segment<4>(3) = q;
+  Eigen::Vector3d v = X.segment<3>(0);
+  Eigen::Vector3d w = X.segment<3>(3);
 
   // v = v
-  X.segment<3>(7) = v;
+  X.segment<3>(0) = v;
 
   // w = w
-  X.segment<3>(10) = w;
+  X.segment<3>(3) = w;
 }
 
 Eigen::MatrixXd ConstantVelocity::jF(const Eigen::VectorXd &X, double time) {
   Eigen::MatrixXd jF(state_size_, state_size_);
 
-  Eigen::Vector4d q = X.segment<4>(3);
-  Eigen::Vector3d w = X.segment<3>(10);
-
   // Jacobian F
-  // dx/dx   dx/dq   dx/dv   dx/dw       I     0     I*t     0
-  // dq/dx   dq/dq   dq/dv   dq/dw       0     dq/dq 0       dq/dw
-  // dv/dx   dv/dq   dv/dv   dv/dw   =   0     0     I       0
-  // dw/dx   dw/dq   dw/dv   dw/dw       0     0     0       I
+  // dv/dv   dv/dw  =   I       0
+  // dw/dv   dw/dw      0       I
   jF.setIdentity();
-  jF.block<3, 3>(0, 7) = Eigen::MatrixXd::Identity(3, 3) * time;
-
-  // dq/dq
-  Eigen::Quaterniond qwt = QuaternionFromAngularVelocity(w * time);
-  jF.block<4, 4>(3, 3) = QuaternionJacobian(qwt);
-
-  // dq/dw
-  Eigen::Quaterniond qold(q(0), q(1), q(2), q(3));
-  jF.block<4, 3>(3, 10) = dq_by_dw(qold, w, time);
 
   return jF;
 }
@@ -109,9 +84,6 @@ Eigen::MatrixXd ConstantVelocity::Q(const Eigen::VectorXd &X, double time) {
   Eigen::MatrixXd Q(state_size_, state_size_);
   int noise_size = 6;
 
-  Eigen::Vector4d q = X.segment<4>(3);
-  Eigen::Vector3d w = X.segment<3>(10);
-
   // Noise matrix
   Eigen::MatrixXd  P_n(noise_size, noise_size);
   P_n.setZero();
@@ -119,19 +91,10 @@ Eigen::MatrixXd ConstantVelocity::Q(const Eigen::VectorXd &X, double time) {
   P_n.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(3, 3) * Sensor::SIGMA_W * Sensor::SIGMA_W * time * time;
 
   // Jacobian G
-  // dx/dv   dx/dw       I*t   0
-  // dq/dv   dq/dw       0     dq/dw
   // dv/dv   dv/dw   =   I     0
   // dw/dv   dw/dw       0     I
   Eigen::MatrixXd G(state_size_, noise_size);
-  G.setZero();
-
-  G.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * time;
-  G.block<3, 3>(7, 0) = Eigen::MatrixXd::Identity(3, 3);
-  G.block<3, 3>(10, 3) = Eigen::MatrixXd::Identity(3, 3);
-
-  Eigen::Quaterniond qold(q(0), q(1), q(2), q(3));
-  G.block<4, 3>(3, 3) = dq_by_dw(qold, w, time);
+  G.setIdentity();
 
   // Q = G * P_n * G'
   Q = G * P_n * G.transpose();
@@ -142,9 +105,18 @@ Eigen::MatrixXd ConstantVelocity::Q(const Eigen::VectorXd &X, double time) {
 Eigen::VectorXd ConstantVelocity::Z(const Eigen::Matrix4d &pose, const vector<double> &params, double time) {
   Eigen::VectorXd Z(measurement_size_);
 
-  assert(7 + static_cast<int>(params.size()) == measurement_size_);
+  assert(6 + static_cast<int>(params.size()) == measurement_size_);
 
-  Z.segment<7>(0) = PoseToVector(pose);
+  // Get last pose inverse
+  Eigen::Matrix4d last_pose_i;
+  Eigen::Matrix3d rot = last_pose_.block<3, 3>(0, 0).transpose();
+
+  last_pose_i.setIdentity();
+  last_pose_i.block<3, 3>(0, 0) = rot;
+  last_pose_i.block<3, 1>(0, 3) = -rot*last_pose_.block<3, 1>(0, 3);
+
+  Eigen::Matrix4d se3 = pose * last_pose_i;
+  Z.segment<6>(0) = PoseToVector(se3);
 
   return Z;
 }
@@ -153,14 +125,14 @@ Eigen::VectorXd ConstantVelocity::H(const Eigen::VectorXd &X, double time) {
   Eigen::VectorXd H(measurement_size_);
   H.setZero();
 
-  Eigen::Vector3d x = X.segment<3>(0);
-  Eigen::Vector4d q = X.segment<4>(3);
+  Eigen::Vector3d v = X.segment<3>(0);
+  Eigen::Vector3d w = X.segment<3>(3);
 
-  // x = x
-  H.segment<3>(0) = x;
+  // v = v
+  H.segment<3>(0) = v;
 
-  // q = q
-  H.segment<4>(3) = q;
+  // w = w
+  H.segment<3>(3) = w;
 
   return H;
 }
@@ -169,11 +141,9 @@ Eigen::MatrixXd ConstantVelocity::jH(const Eigen::VectorXd &X, double time) {
   Eigen::MatrixXd jH(measurement_size_, state_size_);
 
   // Jacobian H
-  // dx/dx   dx/dq   dx/dv   dx/dw       I     0     0     0
-  // dq/dx   dq/dq   dq/dv   dq/dw   =   0     I     0     0
-  jH.setZero();
-  jH.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3);
-  jH.block<4, 4>(3, 3) = Eigen::MatrixXd::Identity(4, 4);
+  // dv/dv   dv/dw       I     0
+  // dw/dv   dw/dw   =   0     I
+  jH.setIdentity();
 
   return jH;
 }
@@ -182,10 +152,114 @@ Eigen::MatrixXd ConstantVelocity::R(const Eigen::VectorXd &X, double time) {
   Eigen::MatrixXd R(measurement_size_, measurement_size_);
 
   R.setZero();
-  R.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * Sensor::SIGMA_X * Sensor::SIGMA_X * time * time;
-  R.block<4, 4>(3, 3) = Eigen::MatrixXd::Identity(4, 4) * Sensor::SIGMA_Q * Sensor::SIGMA_Q * time * time;
+  R.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * Sensor::SIGMA_V * Sensor::SIGMA_V * time * time;
+  R.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(4, 4) * Sensor::SIGMA_W * Sensor::SIGMA_W * time * time;
 
   return R;
+}
+
+Eigen::Matrix4d ConstantVelocity::Exp(const Eigen::Matrix<double, 6, 1> &update) {
+  Eigen::Vector3d upsilon = update.head<3>();
+  Eigen::Vector3d omega = update.tail<3>();
+  Eigen::Matrix4d pose;
+
+  double theta;
+  Eigen::Quaterniond q = RotationExp(omega, &theta);
+  Eigen::Matrix3d Omega = RotationHat(omega);
+  Eigen::Matrix3d Omega_sq = Omega*Omega;
+  Eigen::Matrix3d V;
+
+  if (theta < SMALL_EPS) {
+    V = q.toRotationMatrix();
+    // Note: That is an accurate expansion!
+  } else {
+    double theta_sq = theta*theta;
+    V = (Eigen::Matrix3d::Identity()
+         + (1-cos(theta))/(theta_sq)*Omega
+         + (theta-sin(theta))/(theta_sq*theta)*Omega_sq);
+  }
+
+  Eigen::Vector3d t = V*upsilon;
+
+  pose.setIdentity();
+  q.normalize();
+  pose.block<3, 3>(0, 0) = q.toRotationMatrix();
+  pose.block<3, 1>(0, 3) = t;
+  return pose;
+}
+
+Eigen::Matrix<double, 6, 1> ConstantVelocity::Log(const Eigen::Matrix4d &pose) {
+  Eigen::Matrix<double, 6, 1> upsilon_omega;
+  double theta;
+
+  Eigen::Matrix3d rot = pose.block<3, 3>(0, 0);
+  Eigen::Quaterniond q(rot);
+  q.normalize();
+  upsilon_omega.tail<3>() = RotationLog(q, &theta);
+
+  if (theta < SMALL_EPS) {
+    Eigen::Matrix3d Omega = RotationHat(upsilon_omega.tail<3>());
+    Eigen::Matrix3d V_inv = Eigen::Matrix3d::Identity()- 0.5*Omega + (1./12.)*(Omega*Omega);
+
+    upsilon_omega.head<3>() = V_inv*pose.block<3, 1>(0, 3);
+  } else {
+    Eigen::Matrix3d Omega = RotationHat(upsilon_omega.tail<3>());
+    Eigen::Matrix3d V_inv = (Eigen::Matrix3d::Identity() - 0.5*Omega + (1-theta/(2*tan(theta/2)))/(theta*theta)*(Omega*Omega));
+    upsilon_omega.head<3>() = V_inv*pose.block<3, 1>(0, 3);
+  }
+  return upsilon_omega;
+}
+
+Eigen::Quaterniond ConstantVelocity::RotationExp(const Eigen::Vector3d &omega, double *theta) {
+  *theta = omega.norm();
+  double half_theta = 0.5*(*theta);
+
+  double imag_factor;
+  double real_factor = cos(half_theta);
+  if ((*theta) < SMALL_EPS) {
+    double theta_sq = (*theta)*(*theta);
+    double theta_po4 = theta_sq*theta_sq;
+    imag_factor = 0.5-0.0208333*theta_sq+0.000260417*theta_po4;
+  } else {
+    double sin_half_theta = sin(half_theta);
+    imag_factor = sin_half_theta/(*theta);
+  }
+
+  return Eigen::Quaterniond(real_factor, imag_factor*omega.x(), imag_factor*omega.y(), imag_factor*omega.z());
+}
+
+Eigen::Matrix3d ConstantVelocity::RotationHat(const Eigen::Vector3d &v) {
+  Eigen::Matrix3d Omega;
+  Omega <<  0, -v(2),  v(1)
+      ,  v(2),     0, -v(0)
+      , -v(1),  v(0),     0;
+  return Omega;
+}
+
+Eigen::Vector3d ConstantVelocity::RotationLog(const Eigen::Quaterniond &other, double *theta) {
+  double n = other.vec().norm();
+  double w = other.w();
+  double squared_w = w*w;
+  double two_atan_nbyw_by_n;
+
+  if (n < SMALL_EPS) {
+    // If quaternion is normalized and n=1, then w should be 1;
+    // w=0 should never happen here!
+    assert(fabs(w) > SMALL_EPS);
+    two_atan_nbyw_by_n = 2./w - 2.*(n*n)/(w*squared_w);
+  } else  {
+    if (fabs(w) < SMALL_EPS) {
+      if (w > 0) {
+        two_atan_nbyw_by_n = M_PI/n;
+      } else {
+        two_atan_nbyw_by_n = -M_PI/n;
+      }
+    }
+    two_atan_nbyw_by_n = 2*atan(n/w)/n;
+  }
+
+  *theta = two_atan_nbyw_by_n*n;
+  return two_atan_nbyw_by_n * other.vec();
 }
 
 }  // namespace SD_SLAM

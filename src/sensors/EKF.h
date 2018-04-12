@@ -35,7 +35,7 @@ class EKF {
   inline bool Started() { return updated_; }
 
   // Predict EKF and return 3D Pose
-  Eigen::Matrix4d Predict();
+  Eigen::Matrix4d Predict(const Eigen::Matrix4d &pose);
 
   // Update EKF
   void Update(const Eigen::Matrix4d &pose, const std::vector<double> &params);

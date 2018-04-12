@@ -34,6 +34,7 @@ const double Sensor::SIGMA_W = 6.0;   // rad/s^2
 Sensor::Sensor() {
   state_size_ = 0;
   measurement_size_ = 0;
+  last_pose_.setZero();
 }
 
 Sensor::~Sensor() {

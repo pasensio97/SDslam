@@ -19,5 +19,6 @@ Camera.p2: 0.0
 Camera.k3: 0.0
 
 # ROS
-ROS.Topic: "/camera/image_raw"
-
+ROS.CameraTopic: "/camera/rgb/image_raw"
+ROS.DepthTopic: "/camera/depth/image_raw"
+ROS.IMUTopic: "/imu_data"

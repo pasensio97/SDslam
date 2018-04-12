@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackRGBD(im,imD);
+    Eigen::Matrix4d pose = SLAM.TrackRGBD(im, imD);
 
     // Set data to UI
 #ifdef PANGOLIN

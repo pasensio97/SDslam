@@ -138,10 +138,26 @@ You can check if the intrinsic parameters calculated are accurate checking the r
   
 ### Running Monocular Node
 
-Monocular node reads input from topic `/camera/image_raw`. You will need to provide the settings file (see examples above).
+Monocular node reads RGB images from topic `/camera/rgb/image_raw`. You will need to provide a settings file (see examples above).
 
   ```
   rosrun SD-SLAM Monocular Examples/ROS/SD-SLAM/ROS.yaml
+  ```
+
+### Running RGBD Node
+
+RGBD node reads RGB images from topic `/camera/rgb/image_raw` and depth images from topic `/camera/depth/image_raw`. You will need to provide a settings file (see examples above).
+
+  ```
+  rosrun SD-SLAM RGBD Examples/ROS/SD-SLAM/ROS.yaml
+  ```
+
+### Running Fusion Node
+
+Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data from topic `/imu_data`. You will need to provide a settings file (see examples above).
+
+  ```
+  rosrun SD-SLAM Fusion Examples/ROS/SD-SLAM/ROS.yaml
   ```
 
 # 9. Android Compilation

@@ -35,11 +35,15 @@ class Sensor {
   inline int GetStateSize() { return state_size_; }
   inline int GetMeasurementSize() { return measurement_size_; }
 
+  inline void SetLastPose(const Eigen::Matrix4d &pose) {
+    last_pose_ = pose;
+  }
+
   // Return current pose calculated from sensor
-  Eigen::Matrix4d GetPose(const Eigen::VectorXd &X);
+  virtual Eigen::Matrix4d GetPose(const Eigen::VectorXd &X);
 
   // Get input pose and convert to position and quaternion
-  Eigen::VectorXd PoseToVector(const Eigen::Matrix4d &pose);
+  virtual Eigen::VectorXd PoseToVector(const Eigen::Matrix4d &pose);
 
   // Init sensor with default values
   virtual void Init(Eigen::VectorXd &X, Eigen::MatrixXd &P) = 0;
@@ -69,9 +73,6 @@ class Sensor {
   virtual Eigen::MatrixXd R(const Eigen::VectorXd &X, double time) = 0;
 
  protected:
-  int state_size_;
-  int measurement_size_;
-
   // Calculate quaternion from angular velocity
   Eigen::Quaterniond QuaternionFromAngularVelocity(const Eigen::Vector3d &w);
 
@@ -81,6 +82,12 @@ class Sensor {
 
   // Jacobian dw/dq
   Eigen::Matrix<double, 4, 3> dq_by_dw(const Eigen::Quaterniond &q, const Eigen::Vector3d &w, double time);
+
+  int state_size_;
+  int measurement_size_;
+
+  // Pose information
+  Eigen::Matrix4d last_pose_;
 
   // Covariance
   static const double COV_X_2;
@@ -93,6 +100,9 @@ class Sensor {
   static const double SIGMA_Q;
   static const double SIGMA_V;
   static const double SIGMA_W;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace SD_SLAM

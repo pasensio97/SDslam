@@ -1,6 +1,6 @@
 /**
  *
- *  Copyright (C) 2017 Eduardo Perdices <eperdices at gsyc dot es>
+ *  Copyright (C) 2017-2018 Eduardo Perdices <eperdices at gsyc dot es>
  *
  *  The following code is a derivative work of the code from the ORB-SLAM2 project,
  *  which is licensed under the GNU Public License, version 3. This code therefore
@@ -24,6 +24,7 @@
 
 #include "System.h"
 #include <iomanip>
+#include <fstream>
 #include <unistd.h>
 #include "Config.h"
 #include "extra/timer.h"

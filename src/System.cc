@@ -252,11 +252,12 @@ void System::SaveTrajectory(const std::string &filename) {
     if(pKF->isBad())
       continue;
 
-    Eigen::Quaterniond q(pKF->GetRotation());
-    Eigen::Vector3d t = pKF->GetTranslation();
+    Eigen::Matrix4d pose = pKF->GetPoseInverse();
+    Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
+    Eigen::Vector3d t = pose.block<3, 1>(0, 3);
 
     output += "  - id: " + std::to_string(pKF->mnId) + "\n";
-    output += "    filename: " + pKF->mFilename + "\n";
+    output += "    filename: \"" + pKF->mFilename + "\"\n";
     output += "    pose:\n";
     output += "      - " + std::to_string(q.w()) + "\n";
     output += "      - " + std::to_string(q.x()) + "\n";

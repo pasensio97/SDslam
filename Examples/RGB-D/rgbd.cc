@@ -37,7 +37,7 @@
 
 using namespace std;
 
-void LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
+bool LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
                 vector<string> &vFilenamesD);
 
 int main(int argc, char **argv) {
@@ -62,7 +62,11 @@ int main(int argc, char **argv) {
 
   // Retrieve paths to images
   string strAssociationFilename = string(argv[3]);
-  LoadImages(strAssociationFilename, vFilenamesRGB, vFilenamesD);
+  bool ok = LoadImages(strAssociationFilename, vFilenamesRGB, vFilenamesD);
+  if (!ok) {
+    cerr << "[ERROR] Couldn't find images, does " << strAssociationFilename << " exist?" << endl;
+    return 1;
+  }
 
   // Check consistency in the number of images and depthmaps
   nImages = vFilenamesRGB.size();
@@ -150,10 +154,13 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
+bool LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
                 vector<string> &vFilenamesD) {
   ifstream fAssociation;
   fAssociation.open(strAssociationFilename.c_str());
+  if(!fAssociation.is_open())
+    return false;
+
   while(!fAssociation.eof()) {
     string s;
     getline(fAssociation, s);
@@ -170,4 +177,6 @@ void LoadImages(const string &strAssociationFilename, vector<string> &vFilenames
       vFilenamesD.push_back(sD);
     }
   }
+
+  return true;
 }

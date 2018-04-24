@@ -36,7 +36,7 @@
 
 using namespace std;
 
-void LoadImages(const string &strFile, vector<string> &vFilenames);
+bool LoadImages(const string &strFile, vector<string> &vFilenames);
 
 void ShowPose(const Eigen::Matrix4d &pose) {
   Eigen::Matrix4d wpose;
@@ -93,7 +93,12 @@ int main(int argc, char **argv) {
   } else {
     // Retrieve paths to images
     string filename = string(argv[2])+"/files.txt";
-    LoadImages(filename, vFilenames);
+    bool ok = LoadImages(filename, vFilenames);
+    if (!ok) {
+      cerr << "[ERROR] Couldn't find images, does " << filename << " exist?" << endl;
+      return 1;
+    }
+
     nImages = vFilenames.size();
     cout << "[INFO] Sequence has " << nImages << " images" << endl;
   }
@@ -183,9 +188,12 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void LoadImages(const string &strFile, vector<string> &vFilenames) {
+bool LoadImages(const string &strFile, vector<string> &vFilenames) {
   ifstream f;
   f.open(strFile.c_str());
+  if(!f.is_open())
+    return false;
+
   while(!f.eof()) {
     string s;
     getline(f, s);
@@ -197,4 +205,6 @@ void LoadImages(const string &strFile, vector<string> &vFilenames) {
       vFilenames.push_back(sRGB);
     }
   }
+
+  return true;
 }

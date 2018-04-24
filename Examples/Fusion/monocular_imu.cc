@@ -36,7 +36,7 @@
 
 using namespace std;
 
-void LoadImages(const string &strFile, vector<string> &vFilenames);
+bool LoadImages(const string &strFile, vector<string> &vFilenames);
 void LoadIMU(const string &strFile, vector<vector<double>> &values);
 void Associate(const vector<string> &vFilenames, const vector<vector<double>> &valuesIn, vector<int> &valuesIdx);
 
@@ -63,7 +63,11 @@ int main(int argc, char **argv) {
 
   // Retrieve paths to images
   string filename = string(argv[2])+"/files.txt";
-  LoadImages(filename, vFilenames);
+  bool ok = LoadImages(filename, vFilenames);
+  if (!ok) {
+    cerr << "[ERROR] Couldn't find images, does " << filename << " exist?" << endl;
+    return 1;
+  }
   nImages = vFilenames.size();
   cout << "[INFO] Sequence has " << nImages << " images" << endl;
 
@@ -156,9 +160,12 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void LoadImages(const string &strFile, vector<string> &vFilenames) {
+bool LoadImages(const string &strFile, vector<string> &vFilenames) {
   ifstream f;
   f.open(strFile.c_str());
+  if(!f.is_open())
+    return false;
+
   while(!f.eof()) {
     string s;
     getline(f, s);
@@ -170,6 +177,8 @@ void LoadImages(const string &strFile, vector<string> &vFilenames) {
       vFilenames.push_back(sRGB);
     }
   }
+
+  return true;
 }
 
 void LoadIMU(const string &strFile, vector<vector<double>> &values) {
@@ -216,7 +225,7 @@ void Associate(const vector<string> &vFilenames, const vector<vector<double>> &v
   for (auto it=vFilenames.begin(); it!=vFilenames.end(); it++) {
 
     // Get time stamp
-    size_t lastindex = (*it).find_last_of("."); 
+    size_t lastindex = (*it).find_last_of(".");
     string rawname =  (*it).substr(0, lastindex);
     string::size_type sz;
     long ts = stol(rawname,&sz);

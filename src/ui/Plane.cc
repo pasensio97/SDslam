@@ -51,6 +51,7 @@ cv::Mat ExpSO3(const cv::Mat &v) {
 
 Plane::Plane(const std::vector<MapPoint *> &vMPs, const Eigen::Matrix4d &pose): mvMPs(vMPs), mPose(pose) {
   rang = -3.14f/2+((float)rand()/RAND_MAX)*3.14f;
+  XC.setZero();
   Recompute();
 }
 
@@ -95,7 +96,7 @@ void Plane::Recompute() {
       XC = Oc-o;
   }
 
-  if((XC(0)*a+XC(1)*b+XC(2)*c)<0) {
+  if ((XC(0)*a+XC(1)*b+XC(2)*c) > 0) {
       a=-a;
       b=-b;
       c=-c;

@@ -77,7 +77,7 @@ bool PatternDetector::GetRT(const Frame &frame, const vector<cv::Point2d>& pixel
   }
 
   if (points_.size() < 50) {
-    LOGD("Pattern doesn't have enough points (%lu)", points_.size());
+    LOGD("Pattern doesn't have enough points (%lu)", static_cast<unsigned long>(points_.size()));
     return false;
   }
 

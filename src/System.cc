@@ -220,6 +220,7 @@ void System::Shutdown() {
 }
 
 void System::SaveTrajectory(const std::string &filename) {
+#ifndef ANDROID
   int counter;
   std::string output = "%YAML:1.0\n";
 
@@ -304,6 +305,7 @@ void System::SaveTrajectory(const std::string &filename) {
   f << output;
   f.close();
   std::cout << "Trajectory saved!" << std::endl;
+#endif // ANDROID
 }
 
 int System::GetTrackingState() {

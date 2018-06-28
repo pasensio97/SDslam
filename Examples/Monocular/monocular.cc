@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   bool useViewer = true;
   bool live = false;
   double freq = 1.0/30.0;
-  std::string src = "";
+  std::string src, fname;
 
   if(argc != 3) {
     cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
@@ -128,9 +128,11 @@ int main(int argc, char **argv) {
     if (live) {
       *cap >> im_rgb;
       cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
+      fname = "";
     } else {
       // Read image from file
-      src = string(argv[2])+"/"+vFilenames[ni];
+      fname = vFilenames[ni];
+      src = string(argv[2]) + "/" + fname;
       cout << "[INFO] Reading Frame " << src << endl;
       im = cv::imread(src, CV_LOAD_IMAGE_GRAYSCALE);
 
@@ -143,7 +145,7 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, vFilenames[ni]);
+    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, fname);
 
     // Show world pose
     ShowPose(pose);

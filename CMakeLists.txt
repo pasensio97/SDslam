@@ -192,6 +192,9 @@ LIST(APPEND SOURCEFILES
 
 add_library(${PROJECT_NAME} SHARED ${SOURCEFILES})
 
+install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+install(DIRECTORY src/ DESTINATION include/${PROJECT_NAME} FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+
 if(USE_ANDROID)
   LIST(APPEND REQUIRED_LIBRARIES lib_opencv log)
 else()
@@ -230,4 +233,3 @@ if(NOT USE_ANDROID)
   Examples/Calibration/calibration.cc)
   target_link_libraries(calibration ${PROJECT_NAME})
 endif()
-

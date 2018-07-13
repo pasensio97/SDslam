@@ -36,7 +36,7 @@
 
 using namespace std;
 
-void LoadImages(const string &strFile, vector<string> &vFilenames);
+bool LoadImages(const string &strFile, vector<string> &vFilenames);
 
 void ShowPose(const Eigen::Matrix4d &pose) {
   Eigen::Matrix4d wpose;
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   bool useViewer = true;
   bool live = false;
   double freq = 1.0/30.0;
-  std::string src = "";
+  std::string src, fname;
 
   if(argc != 3) {
     cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
@@ -93,7 +93,12 @@ int main(int argc, char **argv) {
   } else {
     // Retrieve paths to images
     string filename = string(argv[2])+"/files.txt";
-    LoadImages(filename, vFilenames);
+    bool ok = LoadImages(filename, vFilenames);
+    if (!ok) {
+      cerr << "[ERROR] Couldn't find images, does " << filename << " exist?" << endl;
+      return 1;
+    }
+
     nImages = vFilenames.size();
     cout << "[INFO] Sequence has " << nImages << " images" << endl;
   }
@@ -123,9 +128,11 @@ int main(int argc, char **argv) {
     if (live) {
       *cap >> im_rgb;
       cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
+      fname = "";
     } else {
       // Read image from file
-      src = string(argv[2])+"/"+vFilenames[ni];
+      fname = vFilenames[ni];
+      src = string(argv[2]) + "/" + fname;
       cout << "[INFO] Reading Frame " << src << endl;
       im = cv::imread(src, CV_LOAD_IMAGE_GRAYSCALE);
 
@@ -138,7 +145,7 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, vFilenames[ni]);
+    Eigen::Matrix4d pose = SLAM.TrackMonocular(im, fname);
 
     // Show world pose
     ShowPose(pose);
@@ -183,9 +190,12 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void LoadImages(const string &strFile, vector<string> &vFilenames) {
+bool LoadImages(const string &strFile, vector<string> &vFilenames) {
   ifstream f;
   f.open(strFile.c_str());
+  if(!f.is_open())
+    return false;
+
   while(!f.eof()) {
     string s;
     getline(f, s);
@@ -197,4 +207,6 @@ void LoadImages(const string &strFile, vector<string> &vFilenames) {
       vFilenames.push_back(sRGB);
     }
   }
+
+  return true;
 }

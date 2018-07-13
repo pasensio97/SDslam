@@ -37,7 +37,7 @@
 
 using namespace std;
 
-void LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
+bool LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
                 vector<string> &vFilenamesD);
 
 int main(int argc, char **argv) {
@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
   int nImages, ni = 0;
   bool useViewer = true;
   double freq = 1.0/30.0;
+  std::string fname;
 
   if(argc != 4) {
       cerr << endl << "Usage: ./rgbd path_to_settings path_to_sequence path_to_association" << endl;
@@ -62,7 +63,11 @@ int main(int argc, char **argv) {
 
   // Retrieve paths to images
   string strAssociationFilename = string(argv[3]);
-  LoadImages(strAssociationFilename, vFilenamesRGB, vFilenamesD);
+  bool ok = LoadImages(strAssociationFilename, vFilenamesRGB, vFilenamesD);
+  if (!ok) {
+    cerr << "[ERROR] Couldn't find images, does " << strAssociationFilename << " exist?" << endl;
+    return 1;
+  }
 
   // Check consistency in the number of images and depthmaps
   nImages = vFilenamesRGB.size();
@@ -100,6 +105,7 @@ int main(int argc, char **argv) {
   while (ni<nImages) {
     // Read image and depthmap from file
     cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenamesRGB[ni] << endl;
+    fname = vFilenamesRGB[ni];
     im = cv::imread(string(argv[2])+"/"+vFilenamesRGB[ni], CV_LOAD_IMAGE_GRAYSCALE);
     imD = cv::imread(string(argv[2])+"/"+vFilenamesD[ni], CV_LOAD_IMAGE_UNCHANGED);
 
@@ -111,7 +117,7 @@ int main(int argc, char **argv) {
     SD_SLAM::Timer ttracking(true);
 
     // Pass the image to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackRGBD(im, imD);
+    Eigen::Matrix4d pose = SLAM.TrackRGBD(im, imD, fname);
 
     // Set data to UI
 #ifdef PANGOLIN
@@ -137,6 +143,9 @@ int main(int argc, char **argv) {
   // Stop all threads
   SLAM.Shutdown();
 
+  // Save data
+  SLAM.SaveTrajectory("trajectoryRGBD.yaml");
+
 #ifdef PANGOLIN
   if (useViewer) {
     viewer->RequestFinish();
@@ -150,10 +159,13 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
+bool LoadImages(const string &strAssociationFilename, vector<string> &vFilenamesRGB,
                 vector<string> &vFilenamesD) {
   ifstream fAssociation;
   fAssociation.open(strAssociationFilename.c_str());
+  if(!fAssociation.is_open())
+    return false;
+
   while(!fAssociation.eof()) {
     string s;
     getline(fAssociation, s);
@@ -170,4 +182,6 @@ void LoadImages(const string &strAssociationFilename, vector<string> &vFilenames
       vFilenamesD.push_back(sD);
     }
   }
+
+  return true;
 }

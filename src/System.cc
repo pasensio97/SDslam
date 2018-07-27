@@ -39,7 +39,8 @@ using std::endl;
 
 namespace SD_SLAM {
 
-System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset(false) {
+System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset(false),
+               mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false) {
   if (mSensor==MONOCULAR) {
     LOGD("Input sensor was set to Monocular");
   } else if (mSensor==RGBD) {
@@ -89,6 +90,27 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, co
     exit(-1);
   }
 
+  // Check mode change
+  {
+    unique_lock<mutex> lock(mMutexMode);
+    if(mbActivateLocalizationMode) {
+      mpLocalMapper->RequestStop();
+
+      // Wait until Local Mapping has effectively stopped
+      while(!mpLocalMapper->isStopped()) {
+        usleep(1000);
+      }
+
+      mpTracker->InformOnlyTracking(true);
+      mbActivateLocalizationMode = false;
+    }
+    if(mbDeactivateLocalizationMode) {
+      mpTracker->InformOnlyTracking(false);
+      mpLocalMapper->Release();
+      mbDeactivateLocalizationMode = false;
+    }
+  }
+
   // Check reset
   {
     unique_lock<mutex> lock(mMutexReset);
@@ -120,6 +142,27 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const std::string file
   if (mSensor!=MONOCULAR) {
     LOGE("Called TrackMonocular but input sensor was not set to Monocular");
     exit(-1);
+  }
+
+  // Check mode change
+  {
+    unique_lock<mutex> lock(mMutexMode);
+    if(mbActivateLocalizationMode) {
+      /*mpLocalMapper->RequestStop();
+
+      // Wait until Local Mapping has effectively stopped
+      while(!mpLocalMapper->isStopped()) {
+        usleep(1000);
+      }*/
+
+      mpTracker->InformOnlyTracking(true);
+      mbActivateLocalizationMode = false;
+    }
+    if(mbDeactivateLocalizationMode) {
+      mpTracker->InformOnlyTracking(false);
+      //mpLocalMapper->Release();
+      mbDeactivateLocalizationMode = false;
+    }
   }
 
   // Check reset
@@ -181,6 +224,16 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
   mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
 
   return Tcw;
+}
+
+void System::ActivateLocalizationMode() {
+  unique_lock<mutex> lock(mMutexMode);
+  mbActivateLocalizationMode = true;
+}
+
+void System::DeactivateLocalizationMode() {
+  unique_lock<mutex> lock(mMutexMode);
+  mbDeactivateLocalizationMode = true;
 }
 
 bool System::MapChanged() {

@@ -38,6 +38,7 @@ FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap) {
   undistort = false;
   addPlane = false;
   clearAR = false;
+  onlyTracking_ = false;
 }
 
 cv::Mat FrameDrawer::DrawFrame() {
@@ -77,7 +78,7 @@ cv::Mat FrameDrawer::DrawFrame() {
     for (unsigned int i = 0; i < vMatches.size(); i++) {
       if (vMatches[i] >= 0)
         cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt, cv::Scalar(0, 255, 0), 2);
-    }    
+    }
   } else if (state==Tracking::OK) { //TRACKING
     mnTracked = 0;
     const float r = 3;
@@ -85,7 +86,10 @@ cv::Mat FrameDrawer::DrawFrame() {
     for (int i = 0; i<n; i++) {
       if (vbMap[i]) {
         // This is a match to a MapPoint in the map
-        cv::circle(im, vCurrentKeys[i].pt, r, cv::Scalar(0, 255, 0), 2);
+        if (onlyTracking_)
+          cv::circle(im, vCurrentKeys[i].pt, r, cv::Scalar(0, 0, 255), 2);
+        else
+          cv::circle(im, vCurrentKeys[i].pt, r, cv::Scalar(0, 255, 0), 2);
         mnTracked++;
       }
     }
@@ -104,6 +108,8 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState) {
   else if (nState==Tracking::NOT_INITIALIZED)
     s << " TRYING TO INITIALIZE ";
   else if (nState==Tracking::OK) {
+    if(onlyTracking_)
+      s << "LOCALIZATION | ";
     int nKFs = mpMap->KeyFramesInMap();
     int nMPs = mpMap->MapPointsInMap();
     s << "KFs: " << nKFs << ", MPs: " << nMPs << ", Matches: " << mnTracked;
@@ -136,6 +142,7 @@ void FrameDrawer::Update(const cv::Mat &im, const Eigen::Matrix4d &pose, Trackin
   int n = mvCurrentKeys.size();
   mvbMap = vector<bool>(n, false);
   mvMPs.clear();
+  onlyTracking_ = pTracker->OnlyTracking();
 
   if (pTracker->GetLastState() == Tracking::NOT_INITIALIZED)  {
     if (undistort)

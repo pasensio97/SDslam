@@ -78,6 +78,8 @@ class Tracking {
     measurements_ = measurements;
   }
 
+  inline bool OnlyTracking() const { return mbOnlyTracking; }
+
   inline eTrackingState GetState() { return mState; }
   inline eTrackingState GetLastState() { return mLastProcessedState; }
 
@@ -87,6 +89,9 @@ class Tracking {
   inline std::vector<int> GetInitialMatches() { return mvIniMatches; }
 
   void Reset();
+
+  // Use this function if you have deactivated local mapping and you only want to localize the camera.
+  void InformOnlyTracking(const bool &flag);
 
  protected:
   // Main tracking function. It is independent of the input sensor.
@@ -197,6 +202,9 @@ class Tracking {
   std::list<Eigen::Matrix4d> mlRelativeFramePoses;
   std::list<KeyFrame*> mlpReferences;
   std::list<bool> mlbLost;
+
+  // True if local mapping is deactivated and we are performing only localization
+  bool mbOnlyTracking;
 
   bool usePattern;
 

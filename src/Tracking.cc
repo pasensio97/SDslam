@@ -41,7 +41,7 @@ namespace SD_SLAM {
 
 Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
-  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0) {
+  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0), mbOnlyTracking(false) {
   // Load camera parameters
   float fx = Config::fx();
   float fy = Config::fy();
@@ -1121,6 +1121,10 @@ void Tracking::Reset() {
   mlpReferences.clear();
   mlbLost.clear();
   motion_model_->Restart();
+}
+
+void Tracking::InformOnlyTracking(const bool &flag) {
+  mbOnlyTracking = flag;
 }
 
 }  // namespace SD_SLAM

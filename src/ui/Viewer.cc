@@ -67,6 +67,7 @@ void Viewer::Run() {
 
   pangolin::CreatePanel("menu").SetBounds(0.0, 1.0, 0.0,pangolin::Attach::Pix(mw));
   pangolin::Var<bool> menuReset("menu.Reset SD-SLAM", false, false);
+  pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode", false, true);
   pangolin::Var<bool> menuShowMap("menu.Show Map", true, true);
 	pangolin::Var<std::string> menuSeparatorMap("menu.## 3D Map parameters ##","", false);
   pangolin::Var<bool> menuFollowCamera("menu.Follow Camera", true, true);
@@ -103,10 +104,21 @@ void Viewer::Run() {
   pangolin::OpenGlMatrixSpec P = pangolin::ProjectionMatrixRDF_TopLeft(iw,ih,fx,fy,cx,cy,0.001,1000);
 
   bool bFollow = true;
+  bool bLocalizationMode = false;
 
   while (!pangolin::ShouldQuit()) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // Check localization mode
+    if(menuLocalizationMode && !bLocalizationMode) {
+        mpSystem->ActivateLocalizationMode();
+        bLocalizationMode = true;
+    } else if(!menuLocalizationMode && bLocalizationMode) {
+        mpSystem->DeactivateLocalizationMode();
+        bLocalizationMode = false;
+    }
+
+    // Set camera position
     mpMapDrawer->GetCurrentOpenGLCameraMatrix(Twc);
 
     if (menuFollowCamera && bFollow) {
@@ -208,6 +220,10 @@ void Viewer::Run() {
       menuShowKeyFrames = true;
       menuShowGraph = true;
       menuShowFrames = true;
+      menuLocalizationMode = false;
+      if(bLocalizationMode)
+        mpSystem->DeactivateLocalizationMode();
+      bLocalizationMode = false;
       bFollow = true;
       mpSystem->Reset();
       menuReset = false;

@@ -148,19 +148,19 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const std::string file
   {
     unique_lock<mutex> lock(mMutexMode);
     if(mbActivateLocalizationMode) {
-      /*mpLocalMapper->RequestStop();
+      mpLocalMapper->RequestStop();
 
       // Wait until Local Mapping has effectively stopped
       while(!mpLocalMapper->isStopped()) {
         usleep(1000);
-      }*/
+      }
 
       mpTracker->InformOnlyTracking(true);
       mbActivateLocalizationMode = false;
     }
     if(mbDeactivateLocalizationMode) {
       mpTracker->InformOnlyTracking(false);
-      //mpLocalMapper->Release();
+      mpLocalMapper->Release();
       mbDeactivateLocalizationMode = false;
     }
   }

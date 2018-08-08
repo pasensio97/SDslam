@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
 #endif
 
   // Main loop
-  while (ni<nImages) {
+  while (ni<nImages && !SLAM.StopRequested()) {
     // Read image and depthmap from file
     cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenamesRGB[ni] << endl;
     fname = vFilenamesRGB[ni];

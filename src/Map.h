@@ -47,6 +47,12 @@ class Map {
   void InformNewBigChange();
   int GetLastBigChangeIdx();
 
+  // Get KeyFrame by id
+  KeyFrame* GetKeyFrame(int id);
+
+  // Update connected KeyFrames
+  void UpdateConnections();
+
   std::vector<KeyFrame*> GetAllKeyFrames();
   std::vector<MapPoint*> GetAllMapPoints();
   std::vector<MapPoint*> GetReferenceMapPoints();

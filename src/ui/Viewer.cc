@@ -67,6 +67,7 @@ void Viewer::Run() {
 
   pangolin::CreatePanel("menu").SetBounds(0.0, 1.0, 0.0,pangolin::Attach::Pix(mw));
   pangolin::Var<bool> menuReset("menu.Reset SD-SLAM", false, false);
+  pangolin::Var<bool> menuStopAndSave("menu.Stop and Save", false, false);
   pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode", false, true);
   pangolin::Var<bool> menuShowMap("menu.Show Map", true, true);
 	pangolin::Var<std::string> menuSeparatorMap("menu.## 3D Map parameters ##","", false);
@@ -111,11 +112,17 @@ void Viewer::Run() {
 
     // Check localization mode
     if(menuLocalizationMode && !bLocalizationMode) {
-        mpSystem->ActivateLocalizationMode();
-        bLocalizationMode = true;
+      mpSystem->ActivateLocalizationMode();
+      bLocalizationMode = true;
     } else if(!menuLocalizationMode && bLocalizationMode) {
-        mpSystem->DeactivateLocalizationMode();
-        bLocalizationMode = false;
+      mpSystem->DeactivateLocalizationMode();
+      bLocalizationMode = false;
+    }
+
+    // Check stop
+    if (menuStopAndSave) {
+      mpSystem->RequestStop();
+      menuStopAndSave = false;
     }
 
     // Set camera position

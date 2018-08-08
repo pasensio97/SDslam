@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
 #endif
 
   // Main loop
-  while (ni<nImages) {
+  while (ni<nImages && !SLAM.StopRequested()) {
     // Read image from file
     cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenames[ni] << endl;
     im = cv::imread(string(argv[2])+"/"+vFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);

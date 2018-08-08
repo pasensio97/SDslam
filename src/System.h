@@ -56,6 +56,9 @@ class System {
   inline Map * GetMap() { return mpMap; }
   inline Tracking * GetTracker() { return mpTracker; }
 
+  inline void RequestStop() { stopRequested_ = true; }
+  inline bool StopRequested() const { return stopRequested_; }
+
   // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
   // Input image: Grayscale (CV_8U).
   // Input depthmap: Float (CV_32F).
@@ -99,6 +102,9 @@ class System {
   // Save trajectory calculated
   void SaveTrajectory(const std::string &filename);
 
+  // Load saved trajectory
+  bool LoadTrajectory(const std::string &filename, const std::string &path);
+
  private:
   // Input sensor
   eSensor mSensor;
@@ -137,6 +143,7 @@ class System {
   std::vector<MapPoint*> mTrackedMapPoints;
   std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
   std::mutex mMutexState;
+  bool stopRequested_;          // True if stop is requested
 };
 
 }  // namespace SD_SLAM

@@ -170,6 +170,10 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::strin
   return mCurrentFrame.GetPose();
 }
 
+Frame Tracking::CreateFrame(const cv::Mat &im) {
+  return Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+}
+
 void Tracking::Track() {
   if (mState==NO_IMAGES_YET)
     mState = NOT_INITIALIZED;
@@ -965,6 +969,7 @@ void Tracking::UpdateLocalPoints() {
 
 
 void Tracking::UpdateLocalKeyFrames() {
+
   // Each map point vote for the keyframes in which it has been observed
   map<KeyFrame*, int> keyframeCounter;
   for (int i = 0; i<mCurrentFrame.N; i++) {
@@ -1004,7 +1009,6 @@ void Tracking::UpdateLocalKeyFrames() {
     mvpLocalKeyFrames.push_back(it->first);
     pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
   }
-
 
   // Include also some not-already-included keyframes that are neighbors to already-included keyframes
   for (vector<KeyFrame*>::const_iterator itKF = mvpLocalKeyFrames.begin(), itEndKF = mvpLocalKeyFrames.end(); itKF!=itEndKF; itKF++) {

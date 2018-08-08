@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
   ros::start();
 
   if(argc != 2) {
-    cerr << endl << "Usage: rosrun SD-SLAM Monocular path_to_settings" << endl;        
+    cerr << endl << "Usage: rosrun SD-SLAM Monocular path_to_settings" << endl;
     ros::shutdown();
     return 1;
   }
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   ros::Subscriber sub = n.subscribe(config.CameraTopic(), 1, &ImageReader::ReadImage, &reader);
 
   ros::Rate r(30);
-  while (ros::ok()) {
+  while (ros::ok()  && !SLAM.StopRequested()) {
     if (reader.HasNewImage()) {
       // Get new image
       if (reader.NumChannels() == 1) {

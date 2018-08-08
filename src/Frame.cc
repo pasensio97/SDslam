@@ -96,7 +96,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extrac
   mvpMapPoints = vector<MapPoint*>(N, static_cast<MapPoint*>(NULL));
   mvbOutlier = vector<bool>(N, false);
 
-  // This is done only for the first Frame (or after a change in the calibration)
+  // This is done only for the first Frame
   if (mbInitialComputations) {
     ComputeImageBounds(imGray);
 

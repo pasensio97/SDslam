@@ -66,6 +66,9 @@ class Tracking {
   Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
 
+  // Create new frame and extract features
+  Frame CreateFrame(const cv::Mat &im);
+
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
     mpLocalMapper = pLocalMapper;
   }
@@ -82,6 +85,7 @@ class Tracking {
 
   inline eTrackingState GetState() { return mState; }
   inline eTrackingState GetLastState() { return mLastProcessedState; }
+  inline void ForceRelocalization() { mState = LOST; }
 
   inline Frame& GetCurrentFrame() { return mCurrentFrame; }
   inline Frame& GetInitialFrame() { return mInitialFrame; }

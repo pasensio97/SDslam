@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
   ros::start();
 
   if(argc != 2) {
-    cerr << endl << "Usage: rosrun SD-SLAM RGBD path_to_settings" << endl;        
+    cerr << endl << "Usage: rosrun SD-SLAM RGBD path_to_settings" << endl;
     ros::shutdown();
     return 1;
   }
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
   sync.registerCallback(boost::bind(&ImageReader::ReadRGBD, &reader, _1, _2));
 
   ros::Rate r(30);
-  while (ros::ok()) {
+  while (ros::ok() && !SLAM.StopRequested()) {
     if (reader.HasNewImage()) {
       // Get new image
       if (reader.NumChannels() == 1) {

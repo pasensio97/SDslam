@@ -59,8 +59,8 @@ int main(int argc, char **argv) {
   double freq = 1.0/30.0;
   std::string src, fname;
 
-  if(argc != 3) {
-    cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number" << endl;
+  if(argc != 3 && argc !=4) {
+    cerr << endl << "Usage: ./monocular path_to_settings path_to_sequence/device_number [path_to_saved_map]" << endl;
     return 1;
   }
 
@@ -106,6 +106,11 @@ int main(int argc, char **argv) {
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
   SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
 
+  // Check if a saved map is provided
+  if (argc == 4 && !isdigit(argv[2][0])) {
+    SLAM.LoadTrajectory(string(argv[3]), string(argv[2]));
+  }
+
 #ifdef PANGOLIN
   // Create user interface
   SD_SLAM::Map * map = SLAM.GetMap();
@@ -124,7 +129,7 @@ int main(int argc, char **argv) {
 #endif
 
   // Main loop
-  while (ni<nImages) {
+  while (ni<nImages && !SLAM.StopRequested()) {
     if (live) {
       *cap >> im_rgb;
       cv::cvtColor(im_rgb, im, CV_RGB2GRAY);

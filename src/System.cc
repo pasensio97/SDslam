@@ -40,7 +40,8 @@ using std::endl;
 namespace SD_SLAM {
 
 System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset(false),
-               mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false) {
+               mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false),
+               stopRequested_(false) {
   if (mSensor==MONOCULAR) {
     LOGD("Input sensor was set to Monocular");
   } else if (mSensor==RGBD) {
@@ -148,19 +149,19 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const std::string file
   {
     unique_lock<mutex> lock(mMutexMode);
     if(mbActivateLocalizationMode) {
-      /*mpLocalMapper->RequestStop();
+      mpLocalMapper->RequestStop();
 
       // Wait until Local Mapping has effectively stopped
       while(!mpLocalMapper->isStopped()) {
         usleep(1000);
-      }*/
+      }
 
       mpTracker->InformOnlyTracking(true);
       mbActivateLocalizationMode = false;
     }
     if(mbDeactivateLocalizationMode) {
       mpTracker->InformOnlyTracking(false);
-      //mpLocalMapper->Release();
+      mpLocalMapper->Release();
       mbDeactivateLocalizationMode = false;
     }
   }
@@ -359,6 +360,143 @@ void System::SaveTrajectory(const std::string &filename) {
   f.close();
   std::cout << "Trajectory saved!" << std::endl;
 #endif // ANDROID
+}
+
+// Load saved trajectory
+bool System::LoadTrajectory(const std::string &filename, const std::string &path) {
+#ifndef ANDROID
+  cv::FileStorage fs;
+  cv::Mat im;
+
+  LOGD("Loading trajectory from file %s", filename.c_str());
+  try {
+    // Read config file
+    fs.open(filename.c_str(), cv::FileStorage::READ);
+    if (!fs.isOpened()) {
+      LOGE("Failed to open file: %s", filename.c_str());
+      return false;
+    }
+  } catch(cv::Exception &ex) {
+    LOGE("Parse error: %s", ex.what());
+    return false;
+  }
+
+  // Read keyframes
+  cv::FileNode keyframes = fs["keyframes"];
+
+  for(auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+    int id;
+    vector<double> pose;
+    std::string filename;
+
+    (*it)["id"] >> id;
+    (*it)["filename"] >> filename;
+    (*it)["pose"] >> pose;
+
+    if (pose.size() != 7) {
+      LOGE("KeyFrame pose not valid");
+      continue;
+    }
+
+    // Load image
+    std::string imgname = path + "/" + filename;
+    im = cv::imread(imgname, CV_LOAD_IMAGE_GRAYSCALE);
+    if(im.empty()) {
+      LOGE("Couldn't load image %s", imgname.c_str());
+      continue;
+    }
+
+    // Calculate pose
+    Eigen::Matrix4d mpose;
+    Eigen::Quaterniond q(pose[0], pose[1], pose[2], pose[3]);
+    Eigen::Vector3d t(pose[4], pose[5], pose[6]);
+    mpose.setIdentity();
+    mpose.block<3, 3>(0, 0) = q.toRotationMatrix();
+    mpose.block<3, 1>(0, 3) = t;
+
+    Frame frame = mpTracker->CreateFrame(im);
+    frame.mFilename = filename;
+    frame.SetPose(mpose);
+    frame.SetPose(frame.GetPoseInverse()); // Saved pose was in "world to camera coordinates"
+
+    KeyFrame* kf = new KeyFrame(frame, mpMap);
+    kf->SetID(id);
+
+    // Insert Keyframe in Map
+    mpMap->AddKeyFrame(kf);
+  }
+
+  // Read map points
+  cv::FileNode points = fs["points"];
+
+  for(auto it = points.begin(); it != points.end(); ++it) {
+    int id;
+    vector<double> position;
+
+    (*it)["id"] >> id;
+    (*it)["pose"] >> position;
+
+    if (position.size() != 3) {
+      LOGE("Map point pose not valid");
+      continue;
+    }
+
+    MapPoint * mp = nullptr;
+
+    cv::FileNode observations = (*it)["observations"];
+
+    // Read observations
+    for(auto it_obs = observations.begin(); it_obs != observations.end(); ++it_obs) {
+      int kf_id;
+      vector<double> pixel;
+
+      (*it_obs)["kf"] >> kf_id;
+      (*it_obs)["pixel"] >> pixel;
+
+      if (pixel.size() != 2) {
+        LOGE("Map point pixel not valid");
+        continue;
+      }
+
+      // Search keyFrame by id
+      KeyFrame * kf = mpMap->GetKeyFrame(kf_id);
+      if (kf == nullptr)
+        continue;
+
+      // Create map point for the first time
+      if (mp == nullptr) {
+        Eigen::Vector3d worldPos(position[0], position[1], position[2]);
+        mp = new MapPoint(worldPos, kf, mpMap);
+      }
+
+      Eigen::Vector2d imgPos(pixel[0], pixel[1]);
+      int index = kf->AddMapPoint(mp, imgPos);
+      if (index >= 0) {
+        mp->AddObservation(kf, index);
+        mp->ComputeDistinctiveDescriptors();
+        mp->UpdateNormalAndDepth();
+
+        //Add to Map
+        mpMap->AddMapPoint(mp);
+      }
+
+    }
+  }
+
+  // Update links in the Covisibility Graph
+  mpMap->UpdateConnections();
+
+  LOGD("Map loaded!");
+
+  fs.release();
+
+  // Force relocalization inside loaded map
+  mpTracker->ForceRelocalization();
+  //ActivateLocalizationMode();
+
+#endif // ANDROID
+
+  return true;
 }
 
 int System::GetTrackingState() {

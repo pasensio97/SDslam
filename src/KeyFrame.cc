@@ -37,7 +37,7 @@ namespace SD_SLAM {
 long unsigned int KeyFrame::nNextId = 0;
 
 KeyFrame::KeyFrame(Frame &F, Map *pMap):
-  mnFrameId(F.mnId),  mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
+  mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
   mfGridElementWidthInv(F.mfGridElementWidthInv), mfGridElementHeightInv(F.mfGridElementHeightInv),
   mnTrackReferenceForFrame(0), mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0),
   mnLoopQuery(0), mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0),
@@ -66,6 +66,11 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mvImagePyramid.resize(size);
   for (int i = 0; i < size; i++)
     mvImagePyramid[i] = F.mvImagePyramid[i].clone();
+}
+
+void KeyFrame::SetID(int n) {
+  mnId = n;
+  nNextId = std::max(nNextId, mnId+1);
 }
 
 void KeyFrame::SetPose(const Eigen::Matrix4d &Tcw_) {
@@ -161,7 +166,6 @@ vector<KeyFrame*> KeyFrame::GetBestCovisibilityKeyFrames(const int &N) {
     return mvpOrderedConnectedKeyFrames;
   else
     return vector<KeyFrame*>(mvpOrderedConnectedKeyFrames.begin(), mvpOrderedConnectedKeyFrames.begin()+N);
-
 }
 
 vector<KeyFrame*> KeyFrame::GetCovisiblesByWeight(const int &w) {
@@ -190,6 +194,27 @@ int KeyFrame::GetWeight(KeyFrame *pKF) {
 void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx) {
   unique_lock<mutex> lock(mMutexFeatures);
   mvpMapPoints[idx]=pMP;
+}
+
+int KeyFrame::AddMapPoint(MapPoint* pMP, const Eigen::Vector2d &pos) {
+  bool found = false;
+  int index = -1;
+  int size = mvKeys.size();
+
+
+  // Get index of feature detected at selected position
+  for (int i = 0; i < size && !found; i++) {
+    const cv::KeyPoint &kp = mvKeys[i];
+    if (kp.pt.x == pos(0) && kp.pt.y == pos(1)) {
+      index = i;
+      found = true;
+    }
+  }
+
+  if (index >= 0)
+    AddMapPoint(pMP, index);
+
+  return index;
 }
 
 void KeyFrame::EraseMapPointMatch(const size_t &idx) {
@@ -320,7 +345,6 @@ void KeyFrame::UpdateConnections() {
 
   {
     unique_lock<mutex> lockCon(mMutexConnections);
-
     // mspConnectedKeyFrames = spConnectedKeyFrames;
     mConnectedKeyFrameWeights = KFcounter;
     mvpOrderedConnectedKeyFrames = vector<KeyFrame*>(lKFs.begin(),lKFs.end());
@@ -331,7 +355,6 @@ void KeyFrame::UpdateConnections() {
       mpParent->AddChild(this);
       mbFirstConnection = false;
     }
-
   }
 }
 
@@ -347,8 +370,11 @@ void KeyFrame::EraseChild(KeyFrame *pKF) {
 
 void KeyFrame::ChangeParent(KeyFrame *pKF) {
   unique_lock<mutex> lockCon(mMutexConnections);
-  mpParent = pKF;
-  pKF->AddChild(this);
+  // Avoid linking to itself
+  if (pKF->GetID() != GetID()) {
+    mpParent = pKF;
+    pKF->AddChild(this);
+  }
 }
 
 set<KeyFrame*> KeyFrame::GetChilds() {

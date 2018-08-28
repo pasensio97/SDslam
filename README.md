@@ -182,6 +182,22 @@ Add a new parameter at the end of the standard RGBD command. Change `PATH_TO_SAV
 ./Examples/RGB-D/rgbd Examples/RGB-D/X.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE PATH_TO_SAVED_MAP
 ```
 
+## 9.3 ROS Monocular Node Example
+
+Add a new parameter at the end of the standard ROS monocular command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+rosrun SD-SLAM Monocular Examples/ROS/SD-SLAM/ROS.yaml PATH_TO_SAVED_MAP
+```
+
+## 9.4 ROS RGBD Node Example
+
+Add a new parameter at the end of the standard ROS RGBD command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+rosrun SD-SLAM RGBD Examples/ROS/SD-SLAM/ROS.yaml PATH_TO_SAVED_MAP
+```
+
 # 10. Localization Mode
 
 You can change between the *Default Mode* and *Localization mode* using the GUI of the map viewer.

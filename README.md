@@ -160,11 +160,11 @@ Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data fro
   rosrun SD-SLAM Fusion Examples/ROS/SD-SLAM/ROS.yaml
   ```
 
-# 9. Reading saved data (Monocular mode only)
+# 9. Reading saved data
 
 Mapping data can be stored in a YAML file. You can save the current map at any moment pressing the `Stop and Save` button, or it will be created automatically when a sequence is completed.
 
-This data can be loaded afterwards before the SLAM algorithm starts.
+Saved data can be loaded afterwards both in monocular and RGBD modes:
 
 ## 9.1 Monocular Example
 
@@ -172,6 +172,14 @@ Add a new parameter at the end of the standard monocular command. Change `PATH_T
 
 ```
 ./Examples/Monocular/monocular Examples/Monocular/X.yaml PATH_TO_SEQUENCE_FOLDER PATH_TO_SAVED_MAP
+```
+
+## 9.2 RGBD Example
+
+Add a new parameter at the end of the standard RGBD command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+./Examples/RGB-D/rgbd Examples/RGB-D/X.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE PATH_TO_SAVED_MAP
 ```
 
 # 10. Localization Mode

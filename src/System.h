@@ -100,10 +100,10 @@ class System {
   std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
 
   // Save trajectory calculated
-  void SaveTrajectory(const std::string &filename);
+  void SaveTrajectory(const std::string &filename, const std::string &foldername);
 
   // Load saved trajectory
-  bool LoadTrajectory(const std::string &filename, const std::string &path);
+  bool LoadTrajectory(const std::string &filename);
 
  private:
   // Input sensor

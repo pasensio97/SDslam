@@ -47,7 +47,7 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mnScaleLevels(F.mnScaleLevels), mfScaleFactor(F.mfScaleFactor),
   mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), mvLevelSigma2(F.mvLevelSigma2),
   mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
-  mnMaxY(F.mnMaxY), mK(F.mK), mFilename(F.mFilename), mvpMapPoints(F.mvpMapPoints),
+  mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints),
   mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
   mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap) {
   mnId=nNextId++;
@@ -66,6 +66,8 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mvImagePyramid.resize(size);
   for (int i = 0; i < size; i++)
     mvImagePyramid[i] = F.mvImagePyramid[i].clone();
+
+  mDepthImage = F.mDepthImage.clone();
 }
 
 void KeyFrame::SetID(int n) {

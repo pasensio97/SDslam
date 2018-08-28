@@ -146,7 +146,6 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, c
     imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
 
   mCurrentFrame = Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
-  mCurrentFrame.mFilename = filename;
 
   Track();
 
@@ -163,8 +162,6 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::strin
   else
     mCurrentFrame = Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 
-  mCurrentFrame.mFilename = filename;
-
   Track();
 
   return mCurrentFrame.GetPose();
@@ -172,6 +169,15 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::strin
 
 Frame Tracking::CreateFrame(const cv::Mat &im) {
   return Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+}
+
+Frame Tracking::CreateFrame(const cv::Mat &im, const cv::Mat &imD) {
+  cv::Mat imDepth = imD;
+
+  if ((fabs(mDepthMapFactor-1.0f) > 1e-5) || imD.type() != CV_32F)
+    imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
+
+  return Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 }
 
 void Tracking::Track() {

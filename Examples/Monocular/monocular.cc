@@ -107,8 +107,8 @@ int main(int argc, char **argv) {
   SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
 
   // Check if a saved map is provided
-  if (argc == 4 && !isdigit(argv[2][0])) {
-    SLAM.LoadTrajectory(string(argv[3]), string(argv[2]));
+  if (argc == 4) {
+    SLAM.LoadTrajectory(string(argv[3]));
   }
 
 #ifdef PANGOLIN
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
   SLAM.Shutdown();
 
   // Save data
-  SLAM.SaveTrajectory("trajectory.yaml");
+  SLAM.SaveTrajectory("trajectory.yaml", "trajectory");
 
 #ifdef PANGOLIN
   if (useViewer) {

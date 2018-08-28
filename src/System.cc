@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <fstream>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "Config.h"
 #include "extra/timer.h"
 #include "extra/log.h"
@@ -273,12 +274,17 @@ void System::Shutdown() {
     mptLoopClosing->join();
 }
 
-void System::SaveTrajectory(const std::string &filename) {
+void System::SaveTrajectory(const std::string &filename, const std::string &foldername) {
 #ifndef ANDROID
   int counter;
   std::string output = "%YAML:1.0\n";
 
   std::cout << "Saving trajectory to " << filename << " ..." << std::endl;
+
+  // Create directory to store images
+  if(mkdir(foldername.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0) {
+    std::cerr << "Warning: Couldn't create folder " << foldername << std::endl;
+  }
 
   vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
@@ -311,8 +317,23 @@ void System::SaveTrajectory(const std::string &filename) {
     Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
     Eigen::Vector3d t = pose.block<3, 1>(0, 3);
 
+    // Save images
+    string imgname, depthname;
+    imgname = foldername + "/" + std::to_string(pKF->mnId) + ".png";
+    cv::imwrite(imgname, pKF->mvImagePyramid[0]);
+
+    if (mSensor==RGBD) {
+      float depthFactor = 1.0/mpTracker->GetDepthFactor();
+      depthname = foldername + "/" + std::to_string(pKF->mnId) + "_depth.png";
+      // Restore initial depth image
+      pKF->mDepthImage.convertTo(pKF->mDepthImage, CV_16U, depthFactor);
+      cv::imwrite(depthname, pKF->mDepthImage);
+    }
+
     output += "  - id: " + std::to_string(pKF->mnId) + "\n";
-    output += "    filename: \"" + pKF->mFilename + "\"\n";
+    output += "    filename: \"" + imgname + "\"\n";
+    if (mSensor==RGBD)
+      output += "    depthname: \"" + depthname + "\"\n";
     output += "    pose:\n";
     output += "      - " + std::to_string(q.w()) + "\n";
     output += "      - " + std::to_string(q.x()) + "\n";
@@ -363,10 +384,10 @@ void System::SaveTrajectory(const std::string &filename) {
 }
 
 // Load saved trajectory
-bool System::LoadTrajectory(const std::string &filename, const std::string &path) {
+bool System::LoadTrajectory(const std::string &filename) {
 #ifndef ANDROID
   cv::FileStorage fs;
-  cv::Mat im;
+  cv::Mat im, imD;
 
   LOGD("Loading trajectory from file %s", filename.c_str());
   try {
@@ -387,10 +408,12 @@ bool System::LoadTrajectory(const std::string &filename, const std::string &path
   for(auto it = keyframes.begin(); it != keyframes.end(); ++it) {
     int id;
     vector<double> pose;
-    std::string filename;
+    std::string filename, depthname;
 
     (*it)["id"] >> id;
     (*it)["filename"] >> filename;
+    if (mSensor==RGBD)
+      (*it)["depthname"] >> depthname;
     (*it)["pose"] >> pose;
 
     if (pose.size() != 7) {
@@ -399,11 +422,18 @@ bool System::LoadTrajectory(const std::string &filename, const std::string &path
     }
 
     // Load image
-    std::string imgname = path + "/" + filename;
-    im = cv::imread(imgname, CV_LOAD_IMAGE_GRAYSCALE);
+    im = cv::imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
     if(im.empty()) {
-      LOGE("Couldn't load image %s", imgname.c_str());
+      LOGE("Couldn't load image %s", filename.c_str());
       continue;
+    }
+
+    if (mSensor==RGBD) {
+      imD = cv::imread(depthname, CV_LOAD_IMAGE_UNCHANGED);
+      if(imD.empty()) {
+        LOGE("Couldn't load depth image %s", depthname.c_str());
+        continue;
+      }
     }
 
     // Calculate pose
@@ -414,8 +444,12 @@ bool System::LoadTrajectory(const std::string &filename, const std::string &path
     mpose.block<3, 3>(0, 0) = q.toRotationMatrix();
     mpose.block<3, 1>(0, 3) = t;
 
-    Frame frame = mpTracker->CreateFrame(im);
-    frame.mFilename = filename;
+    Frame frame;
+    if (mSensor==RGBD) {
+      frame = mpTracker->CreateFrame(im, imD);
+    } else {
+      frame = mpTracker->CreateFrame(im);
+    }
     frame.SetPose(mpose);
     frame.SetPose(frame.GetPoseInverse()); // Saved pose was in "world to camera coordinates"
 

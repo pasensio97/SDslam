@@ -181,9 +181,7 @@ class Frame {
 
   // Image pyramid
   std::vector<cv::Mat> mvImagePyramid;
-
-  // Source filename (if exists)
-  std::string mFilename;
+  cv::Mat mDepthImage;
 
  private:
   // Undistort keypoints given OpenCV distortion parameters.

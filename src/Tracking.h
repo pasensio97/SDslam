@@ -68,6 +68,7 @@ class Tracking {
 
   // Create new frame and extract features
   Frame CreateFrame(const cv::Mat &im);
+  Frame CreateFrame(const cv::Mat &im, const cv::Mat &imD);
 
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
     mpLocalMapper = pLocalMapper;
@@ -80,6 +81,8 @@ class Tracking {
   inline void SetMeasurements(const std::vector<double> &measurements) {
     measurements_ = measurements;
   }
+
+  inline float GetDepthFactor() const { return mDepthMapFactor; }
 
   inline bool OnlyTracking() const { return mbOnlyTracking; }
 

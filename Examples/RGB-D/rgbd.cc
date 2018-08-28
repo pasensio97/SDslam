@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
   double freq = 1.0/30.0;
   std::string fname;
 
-  if(argc != 4) {
-      cerr << endl << "Usage: ./rgbd path_to_settings path_to_sequence path_to_association" << endl;
+  if(argc != 4 && argc != 5) {
+      cerr << endl << "Usage: ./rgbd path_to_settings path_to_sequence path_to_association [path_to_saved_map]" << endl;
       return 1;
   }
 
@@ -83,6 +83,11 @@ int main(int argc, char **argv) {
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
   SD_SLAM::System SLAM(SD_SLAM::System::RGBD, true);
+
+  // Check if a saved map is provided
+  if (argc == 5) {
+    SLAM.LoadTrajectory(string(argv[4]));
+  }
 
 #ifdef PANGOLIN
   // Create user interface
@@ -144,7 +149,7 @@ int main(int argc, char **argv) {
   SLAM.Shutdown();
 
   // Save data
-  SLAM.SaveTrajectory("trajectoryRGBD.yaml");
+  SLAM.SaveTrajectory("trajectoryRGBD.yaml", "trajectoryRGBD");
 
 #ifdef PANGOLIN
   if (useViewer) {

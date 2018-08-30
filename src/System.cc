@@ -457,6 +457,7 @@ bool System::LoadTrajectory(const std::string &filename) {
     kf->SetID(id);
 
     // Insert Keyframe in Map
+    mpTracker->SetReferenceKeyFrame(kf);
     mpMap->AddKeyFrame(kf);
   }
 

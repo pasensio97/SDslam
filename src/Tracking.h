@@ -82,6 +82,10 @@ class Tracking {
     measurements_ = measurements;
   }
 
+  inline void SetReferenceKeyFrame(KeyFrame * kf) {
+    mpReferenceKF = kf;
+  }
+
   inline float GetDepthFactor() const { return mDepthMapFactor; }
 
   inline bool OnlyTracking() const { return mbOnlyTracking; }
@@ -204,11 +208,8 @@ class Tracking {
   std::vector<cv::Point3f> mvIniP3D;
   Frame mInitialFrame;
 
-  // Lists used to recover the full camera trajectory at the end of the execution.
-  // Basically we store the reference keyframe for each frame and its relative transformation
-  std::list<Eigen::Matrix4d> mlRelativeFramePoses;
-  std::list<KeyFrame*> mlpReferences;
-  std::list<bool> mlbLost;
+  // Save last relative pose
+  Eigen::Matrix4d lastRelativePose_;
 
   // True if local mapping is deactivated and we are performing only localization
   bool mbOnlyTracking;

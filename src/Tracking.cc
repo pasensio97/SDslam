@@ -127,6 +127,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mpLoopClosing = nullptr;
   mpLocalMapper = nullptr;
 
+  lastRelativePose_.setZero();
+
   // Set motion model
   Sensor * sensor_model;
   if (sensor == System::MONOCULAR_IMU)
@@ -210,7 +212,7 @@ void Tracking::Track() {
       // Local Mapping might have changed some MapPoints tracked in last frame
       CheckReplacedInLastFrame();
 
-      if (!motion_model_->Started() || mCurrentFrame.mnId<mnLastRelocFrameId+2) {
+      if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
         bOK = TrackReferenceKeyFrame();
       } else {
         bOK = TrackWithMotionModel();
@@ -290,17 +292,10 @@ void Tracking::Track() {
     mLastFrame = Frame(mCurrentFrame);
   }
 
-  // Store frame pose information to retrieve the complete camera trajectory afterwards.
+  // Store relative pose
   if (!mCurrentFrame.GetPose().isZero()) {
     Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
-    mlRelativeFramePoses.push_back(Tcr);
-    mlpReferences.push_back(mpReferenceKF);
-    mlbLost.push_back(mState==LOST);
-  } else {
-    // This can happen if tracking is lost
-    mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
-    mlpReferences.push_back(mlpReferences.back());
-    mlbLost.push_back(mState==LOST);
+    lastRelativePose_ = Tcr;
   }
 }
 
@@ -651,7 +646,7 @@ bool Tracking::TrackReferenceKeyFrame() {
 void Tracking::UpdateLastFrame() {
   // Update pose according to reference keyframe
   KeyFrame* pRef = mLastFrame.mpReferenceKF;
-  Eigen::Matrix4d Tlr = mlRelativeFramePoses.back();
+  Eigen::Matrix4d Tlr = lastRelativePose_;
 
   mLastFrame.SetPose(Tlr*pRef->GetPose());
 }
@@ -1127,9 +1122,7 @@ void Tracking::Reset() {
     mpInitializer = static_cast<Initializer*>(NULL);
   }
 
-  mlRelativeFramePoses.clear();
-  mlpReferences.clear();
-  mlbLost.clear();
+  lastRelativePose_.setZero();
   motion_model_->Restart();
 }
 

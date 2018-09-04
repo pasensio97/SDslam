@@ -91,7 +91,7 @@ void Map::UpdateConnections() {
   unique_lock<mutex> lock(mMutexMap);
 
   for (auto it = mspKeyFrames.begin(); it != mspKeyFrames.end(); it++)
-    (*it)->UpdateConnections();
+    (*it)->UpdateConnections(true);
 }
 
 vector<KeyFrame*> Map::GetAllKeyFrames() {

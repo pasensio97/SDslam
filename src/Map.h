@@ -50,7 +50,7 @@ class Map {
   // Get KeyFrame by id
   KeyFrame* GetKeyFrame(int id);
 
-  // Update connected KeyFrames
+  // Update connected KeyFrames taking into account its order
   void UpdateConnections();
 
   std::vector<KeyFrame*> GetAllKeyFrames();

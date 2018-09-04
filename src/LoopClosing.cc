@@ -527,9 +527,9 @@ void LoopClosing::CorrectLoop() {
   mpThreadGBA = new std::thread(&LoopClosing::RunGlobalBundleAdjustment, this, mpCurrentKF->mnId);
 
   // Loop closed. Release Local Mapping.
-  mpLocalMapper->Release();  
+  mpLocalMapper->Release();
 
-  mLastLoopKFid = mpCurrentKF->mnId;   
+  mLastLoopKFid = mpCurrentKF->mnId;
 }
 
 void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap) {
@@ -663,7 +663,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
 
           pMP->SetWorldPos(Rwc*Xc+twc);
         }
-      }      
+      }
 
       mpMap->InformNewBigChange();
 

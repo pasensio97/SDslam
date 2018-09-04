@@ -55,7 +55,7 @@ class KeyFrame {
   // Covisibility graph functions
   void AddConnection(KeyFrame* pKF, const int &weight);
   void EraseConnection(KeyFrame* pKF);
-  void UpdateConnections();
+  void UpdateConnections(bool checkID = false);
   void UpdateBestCovisibles();
   std::set<KeyFrame *> GetConnectedKeyFrames();
   std::vector<KeyFrame* > GetVectorCovisibleKeyFrames();

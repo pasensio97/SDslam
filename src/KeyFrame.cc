@@ -279,7 +279,7 @@ MapPoint* KeyFrame::GetMapPoint(const size_t &idx) {
   return mvpMapPoints[idx];
 }
 
-void KeyFrame::UpdateConnections() {
+void KeyFrame::UpdateConnections(bool checkID) {
   map<KeyFrame*, int> KFcounter;
 
   vector<MapPoint*> vpMP;
@@ -305,6 +305,11 @@ void KeyFrame::UpdateConnections() {
     for (map<KeyFrame*, size_t>::iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
       if (mit->first->mnId == mnId)
         continue;
+
+      // Use only KFs previous to current KF
+      if (checkID && mit->first->mnId > mnId)
+        continue;
+
       KFcounter[mit->first]++;
     }
   }
@@ -347,7 +352,6 @@ void KeyFrame::UpdateConnections() {
 
   {
     unique_lock<mutex> lockCon(mMutexConnections);
-    // mspConnectedKeyFrames = spConnectedKeyFrames;
     mConnectedKeyFrameWeights = KFcounter;
     mvpOrderedConnectedKeyFrames = vector<KeyFrame*>(lKFs.begin(),lKFs.end());
     mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());

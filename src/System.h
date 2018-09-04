@@ -56,6 +56,9 @@ class System {
   inline Map * GetMap() { return mpMap; }
   inline Tracking * GetTracker() { return mpTracker; }
 
+  inline void RequestStop() { stopRequested_ = true; }
+  inline bool StopRequested() const { return stopRequested_; }
+
   // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
   // Input image: Grayscale (CV_8U).
   // Input depthmap: Float (CV_32F).
@@ -72,6 +75,11 @@ class System {
   // Input measurements: Float (CV_32F).
   // Returns the camera pose (empty if tracking fails).
   Eigen::Matrix4d TrackFusion(const cv::Mat &im, const std::vector<double> &measurements, const std::string filename = "");
+
+  // This stops local mapping thread (map building) and performs only camera tracking.
+  void ActivateLocalizationMode();
+  // This resumes local mapping thread and performs SLAM again.
+  void DeactivateLocalizationMode();
 
   // Returns true if there have been a big map change (loop closure, global BA)
   // since last call to this function
@@ -92,7 +100,10 @@ class System {
   std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
 
   // Save trajectory calculated
-  void SaveTrajectory(const std::string &filename);
+  void SaveTrajectory(const std::string &filename, const std::string &foldername);
+
+  // Load saved trajectory
+  bool LoadTrajectory(const std::string &filename);
 
  private:
   // Input sensor
@@ -122,11 +133,17 @@ class System {
   std::mutex mMutexReset;
   bool mbReset;
 
+  // Change mode flags
+  std::mutex mMutexMode;
+  bool mbActivateLocalizationMode;
+  bool mbDeactivateLocalizationMode;
+
   // Tracking state
   int mTrackingState;
   std::vector<MapPoint*> mTrackedMapPoints;
   std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
   std::mutex mMutexState;
+  bool stopRequested_;          // True if stop is requested
 };
 
 }  // namespace SD_SLAM

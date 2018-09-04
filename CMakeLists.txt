@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(SD_SLAM)
 option(USE_ANDROID "Android Cross Compilation" OFF)
 set(USE_PANGOLIN ON)
+set(DEBUG OFF)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
@@ -29,6 +30,10 @@ else()
 
   if(USE_PANGOLIN)
     ADD_DEFINITIONS(-DPANGOLIN)
+  endif()
+
+  if(DEBUG)
+    ADD_DEFINITIONS(-g)
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")

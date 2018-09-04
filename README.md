@@ -1,7 +1,7 @@
 # SD-SLAM
 **Authors:** [Eduardo Perdices](https://gsyc.urjc.es/~eperdices/)
 
-SD-SLAM is a real-time SLAM library for **Monocular** and **RGB-D** cameras that computes the camera trajectory and a sparse 3D reconstruction (in the RGB-D case with true scale). It is able to detect loops and relocalize the camera in real time. 
+SD-SLAM is a real-time SLAM library for **Monocular** and **RGB-D** cameras that computes the camera trajectory and a sparse 3D reconstruction (in the RGB-D case with true scale). It is able to detect loops and relocalize the camera in real time.
 
 # 1. License
 
@@ -40,7 +40,7 @@ This will create **libSD_SLAM.so**  at *lib* folder and the executables **monocu
 
 # 4. Monocular Examples
 
-Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named `files.txt` with each image filename. 
+Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named `files.txt` with each image filename.
 
 ```
 ./Examples/Monocular/monocular Examples/Monocular/X.yaml PATH_TO_SEQUENCE_FOLDER
@@ -78,10 +78,10 @@ To use a pattern, set `UsePattern: 1` in yaml configuration file.
 
 1. Download a sequence from http://vision.in.tum.de/data/datasets/rgbd-dataset/download and uncompress it.
 
-2. Associate RGB images and depth images using the python script [associate.py](http://vision.in.tum.de/data/datasets/rgbd-dataset/tools). We already provide associations for some of the sequences in *Examples/RGB-D/associations/*. You can generate your own associations file executing:
+2. Associate RGB images and depth images using the python script `associate.py` located inside `Examples/RGB-D` folder and executing:
 
   ```
-  python associate.py PATH_TO_SEQUENCE/rgb.txt PATH_TO_SEQUENCE/depth.txt > associations.txt
+  python Examples/RGB-D/associate.py PATH_TO_SEQUENCE/rgb.txt PATH_TO_SEQUENCE/depth.txt > associations.txt
   ```
 
 3. Execute the following command. Change `TUMX.yaml` to TUM1.yaml,TUM2.yaml or TUM3.yaml for freiburg1, freiburg2 and freiburg3 sequences respectively. Change `PATH_TO_SEQUENCE_FOLDER`to the uncompressed sequence folder. Change `ASSOCIATIONS_FILE` to the path to the corresponding associations file.
@@ -103,7 +103,7 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 1. Download a sequence (ASL format) from http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets
 
 2. Change `X.yaml` to EuRoC.yaml.
- 
+
 # 7. Processing your own sequences
 
 You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM dataset for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the SD-SLAM library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
@@ -128,14 +128,14 @@ You can check if the intrinsic parameters calculated are accurate checking the r
   ```
   echo "export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:PATH/SD-SLAM/Examples/ROS" >> ~/.bashrc
   ```
-  
+
 2. Execute `build_ros.sh` script:
 
   ```
   chmod +x build_ros.sh
   ./build_ros.sh
   ```
-  
+
 ### Running Monocular Node
 
 Monocular node reads RGB images from topic `/camera/rgb/image_raw`. You will need to provide a settings file (see examples above).
@@ -160,6 +160,61 @@ Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data fro
   rosrun SD-SLAM Fusion Examples/ROS/SD-SLAM/ROS.yaml
   ```
 
-# 9. Android Compilation
-Read: https://github.com/taka-no-me/android-cmake
+# 9. Reading saved data
 
+Mapping data can be stored in a YAML file. You can save the current map at any moment pressing the `Stop and Save` button, or it will be created automatically when a sequence is completed.
+
+Saved data can be loaded afterwards both in monocular and RGBD modes:
+
+## 9.1 Monocular Example
+
+Add a new parameter at the end of the standard monocular command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+./Examples/Monocular/monocular Examples/Monocular/X.yaml PATH_TO_SEQUENCE_FOLDER PATH_TO_SAVED_MAP
+```
+
+## 9.2 RGBD Example
+
+Add a new parameter at the end of the standard RGBD command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+./Examples/RGB-D/rgbd Examples/RGB-D/X.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE PATH_TO_SAVED_MAP
+```
+
+## 9.3 ROS Monocular Node Example
+
+Add a new parameter at the end of the standard ROS monocular command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+rosrun SD-SLAM Monocular Examples/ROS/SD-SLAM/ROS.yaml PATH_TO_SAVED_MAP
+```
+
+## 9.4 ROS RGBD Node Example
+
+Add a new parameter at the end of the standard ROS RGBD command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
+
+```
+rosrun SD-SLAM RGBD Examples/ROS/SD-SLAM/ROS.yaml PATH_TO_SAVED_MAP
+```
+
+# 10. Localization Mode
+
+You can change between the *Default Mode* and *Localization mode* using the GUI of the map viewer.
+
+### Default Mode
+The system runs in parallal three threads: Tracking, Local Mapping and Loop Closing. The system localizes the camera, builds a new map and tries to close loops.
+
+### Localization Mode
+This mode can be used when you have a good map of your working area. In this mode the Local Mapping and Loop Closing are deactivated. The system localizes the camera in the map (which is no longer updated), using relocalization if needed.
+
+# 11. Android Compilation
+
+You can create a SD-SLAM library for Android running:
+
+  ```
+  chmod +x build_android.sh
+  ./build_android.sh
+  ```
+
+Before running this script, read https://github.com/taka-no-me/android-cmake to configure your workspace properly.

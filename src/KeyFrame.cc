@@ -37,7 +37,7 @@ namespace SD_SLAM {
 long unsigned int KeyFrame::nNextId = 0;
 
 KeyFrame::KeyFrame(Frame &F, Map *pMap):
-  mnFrameId(F.mnId),  mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
+  mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
   mfGridElementWidthInv(F.mfGridElementWidthInv), mfGridElementHeightInv(F.mfGridElementHeightInv),
   mnTrackReferenceForFrame(0), mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0),
   mnLoopQuery(0), mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0),
@@ -47,7 +47,7 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mnScaleLevels(F.mnScaleLevels), mfScaleFactor(F.mfScaleFactor),
   mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), mvLevelSigma2(F.mvLevelSigma2),
   mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
-  mnMaxY(F.mnMaxY), mK(F.mK), mFilename(F.mFilename), mvpMapPoints(F.mvpMapPoints),
+  mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints),
   mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
   mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap) {
   mnId=nNextId++;
@@ -66,6 +66,13 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mvImagePyramid.resize(size);
   for (int i = 0; i < size; i++)
     mvImagePyramid[i] = F.mvImagePyramid[i].clone();
+
+  mDepthImage = F.mDepthImage.clone();
+}
+
+void KeyFrame::SetID(int n) {
+  mnId = n;
+  nNextId = std::max(nNextId, mnId+1);
 }
 
 void KeyFrame::SetPose(const Eigen::Matrix4d &Tcw_) {
@@ -161,7 +168,6 @@ vector<KeyFrame*> KeyFrame::GetBestCovisibilityKeyFrames(const int &N) {
     return mvpOrderedConnectedKeyFrames;
   else
     return vector<KeyFrame*>(mvpOrderedConnectedKeyFrames.begin(), mvpOrderedConnectedKeyFrames.begin()+N);
-
 }
 
 vector<KeyFrame*> KeyFrame::GetCovisiblesByWeight(const int &w) {
@@ -190,6 +196,27 @@ int KeyFrame::GetWeight(KeyFrame *pKF) {
 void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx) {
   unique_lock<mutex> lock(mMutexFeatures);
   mvpMapPoints[idx]=pMP;
+}
+
+int KeyFrame::AddMapPoint(MapPoint* pMP, const Eigen::Vector2d &pos) {
+  bool found = false;
+  int index = -1;
+  int size = mvKeys.size();
+
+
+  // Get index of feature detected at selected position
+  for (int i = 0; i < size && !found; i++) {
+    const cv::KeyPoint &kp = mvKeys[i];
+    if (kp.pt.x == pos(0) && kp.pt.y == pos(1)) {
+      index = i;
+      found = true;
+    }
+  }
+
+  if (index >= 0)
+    AddMapPoint(pMP, index);
+
+  return index;
 }
 
 void KeyFrame::EraseMapPointMatch(const size_t &idx) {
@@ -252,7 +279,7 @@ MapPoint* KeyFrame::GetMapPoint(const size_t &idx) {
   return mvpMapPoints[idx];
 }
 
-void KeyFrame::UpdateConnections() {
+void KeyFrame::UpdateConnections(bool checkID) {
   map<KeyFrame*, int> KFcounter;
 
   vector<MapPoint*> vpMP;
@@ -278,6 +305,11 @@ void KeyFrame::UpdateConnections() {
     for (map<KeyFrame*, size_t>::iterator mit=observations.begin(), mend=observations.end(); mit != mend; mit++) {
       if (mit->first->mnId == mnId)
         continue;
+
+      // Use only KFs previous to current KF
+      if (checkID && mit->first->mnId > mnId)
+        continue;
+
       KFcounter[mit->first]++;
     }
   }
@@ -320,8 +352,6 @@ void KeyFrame::UpdateConnections() {
 
   {
     unique_lock<mutex> lockCon(mMutexConnections);
-
-    // mspConnectedKeyFrames = spConnectedKeyFrames;
     mConnectedKeyFrameWeights = KFcounter;
     mvpOrderedConnectedKeyFrames = vector<KeyFrame*>(lKFs.begin(),lKFs.end());
     mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());
@@ -331,7 +361,6 @@ void KeyFrame::UpdateConnections() {
       mpParent->AddChild(this);
       mbFirstConnection = false;
     }
-
   }
 }
 
@@ -347,8 +376,11 @@ void KeyFrame::EraseChild(KeyFrame *pKF) {
 
 void KeyFrame::ChangeParent(KeyFrame *pKF) {
   unique_lock<mutex> lockCon(mMutexConnections);
-  mpParent = pKF;
-  pKF->AddChild(this);
+  // Avoid linking to itself
+  if (pKF->GetID() != GetID()) {
+    mpParent = pKF;
+    pKF->AddChild(this);
+  }
 }
 
 set<KeyFrame*> KeyFrame::GetChilds() {

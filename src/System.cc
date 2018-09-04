@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <fstream>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "Config.h"
 #include "extra/timer.h"
 #include "extra/log.h"
@@ -39,7 +40,9 @@ using std::endl;
 
 namespace SD_SLAM {
 
-System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset(false) {
+System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset(false),
+               mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false),
+               stopRequested_(false) {
   if (mSensor==MONOCULAR) {
     LOGD("Input sensor was set to Monocular");
   } else if (mSensor==RGBD) {
@@ -89,6 +92,27 @@ Eigen::Matrix4d System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, co
     exit(-1);
   }
 
+  // Check mode change
+  {
+    unique_lock<mutex> lock(mMutexMode);
+    if(mbActivateLocalizationMode) {
+      mpLocalMapper->RequestStop();
+
+      // Wait until Local Mapping has effectively stopped
+      while(!mpLocalMapper->isStopped()) {
+        usleep(1000);
+      }
+
+      mpTracker->InformOnlyTracking(true);
+      mbActivateLocalizationMode = false;
+    }
+    if(mbDeactivateLocalizationMode) {
+      mpTracker->InformOnlyTracking(false);
+      mpLocalMapper->Release();
+      mbDeactivateLocalizationMode = false;
+    }
+  }
+
   // Check reset
   {
     unique_lock<mutex> lock(mMutexReset);
@@ -120,6 +144,27 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat &im, const std::string file
   if (mSensor!=MONOCULAR) {
     LOGE("Called TrackMonocular but input sensor was not set to Monocular");
     exit(-1);
+  }
+
+  // Check mode change
+  {
+    unique_lock<mutex> lock(mMutexMode);
+    if(mbActivateLocalizationMode) {
+      mpLocalMapper->RequestStop();
+
+      // Wait until Local Mapping has effectively stopped
+      while(!mpLocalMapper->isStopped()) {
+        usleep(1000);
+      }
+
+      mpTracker->InformOnlyTracking(true);
+      mbActivateLocalizationMode = false;
+    }
+    if(mbDeactivateLocalizationMode) {
+      mpTracker->InformOnlyTracking(false);
+      mpLocalMapper->Release();
+      mbDeactivateLocalizationMode = false;
+    }
   }
 
   // Check reset
@@ -183,6 +228,16 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
   return Tcw;
 }
 
+void System::ActivateLocalizationMode() {
+  unique_lock<mutex> lock(mMutexMode);
+  mbActivateLocalizationMode = true;
+}
+
+void System::DeactivateLocalizationMode() {
+  unique_lock<mutex> lock(mMutexMode);
+  mbDeactivateLocalizationMode = true;
+}
+
 bool System::MapChanged() {
   static int n = 0;
   int curn = mpMap->GetLastBigChangeIdx();
@@ -219,12 +274,17 @@ void System::Shutdown() {
     mptLoopClosing->join();
 }
 
-void System::SaveTrajectory(const std::string &filename) {
+void System::SaveTrajectory(const std::string &filename, const std::string &foldername) {
 #ifndef ANDROID
   int counter;
   std::string output = "%YAML:1.0\n";
 
   std::cout << "Saving trajectory to " << filename << " ..." << std::endl;
+
+  // Create directory to store images
+  if(mkdir(foldername.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0) {
+    std::cerr << "Warning: Couldn't create folder " << foldername << std::endl;
+  }
 
   vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
@@ -257,8 +317,23 @@ void System::SaveTrajectory(const std::string &filename) {
     Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
     Eigen::Vector3d t = pose.block<3, 1>(0, 3);
 
+    // Save images
+    string imgname, depthname;
+    imgname = foldername + "/" + std::to_string(pKF->mnId) + ".png";
+    cv::imwrite(imgname, pKF->mvImagePyramid[0]);
+
+    if (mSensor==RGBD) {
+      float depthFactor = 1.0/mpTracker->GetDepthFactor();
+      depthname = foldername + "/" + std::to_string(pKF->mnId) + "_depth.png";
+      // Restore initial depth image
+      pKF->mDepthImage.convertTo(pKF->mDepthImage, CV_16U, depthFactor);
+      cv::imwrite(depthname, pKF->mDepthImage);
+    }
+
     output += "  - id: " + std::to_string(pKF->mnId) + "\n";
-    output += "    filename: \"" + pKF->mFilename + "\"\n";
+    output += "    filename: \"" + imgname + "\"\n";
+    if (mSensor==RGBD)
+      output += "    depthname: \"" + depthname + "\"\n";
     output += "    pose:\n";
     output += "      - " + std::to_string(q.w()) + "\n";
     output += "      - " + std::to_string(q.x()) + "\n";
@@ -306,6 +381,157 @@ void System::SaveTrajectory(const std::string &filename) {
   f.close();
   std::cout << "Trajectory saved!" << std::endl;
 #endif // ANDROID
+}
+
+// Load saved trajectory
+bool System::LoadTrajectory(const std::string &filename) {
+#ifndef ANDROID
+  cv::FileStorage fs;
+  cv::Mat im, imD;
+
+  LOGD("Loading trajectory from file %s", filename.c_str());
+  try {
+    // Read config file
+    fs.open(filename.c_str(), cv::FileStorage::READ);
+    if (!fs.isOpened()) {
+      LOGE("Failed to open file: %s", filename.c_str());
+      return false;
+    }
+  } catch(cv::Exception &ex) {
+    LOGE("Parse error: %s", ex.what());
+    return false;
+  }
+
+  // Read keyframes
+  cv::FileNode keyframes = fs["keyframes"];
+
+  for(auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+    int id;
+    vector<double> pose;
+    std::string filename, depthname;
+
+    (*it)["id"] >> id;
+    (*it)["filename"] >> filename;
+    if (mSensor==RGBD)
+      (*it)["depthname"] >> depthname;
+    (*it)["pose"] >> pose;
+
+    if (pose.size() != 7) {
+      LOGE("KeyFrame pose not valid");
+      continue;
+    }
+
+    // Load image
+    im = cv::imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+    if(im.empty()) {
+      LOGE("Couldn't load image %s", filename.c_str());
+      continue;
+    }
+
+    if (mSensor==RGBD) {
+      imD = cv::imread(depthname, CV_LOAD_IMAGE_UNCHANGED);
+      if(imD.empty()) {
+        LOGE("Couldn't load depth image %s", depthname.c_str());
+        continue;
+      }
+    }
+
+    // Calculate pose
+    Eigen::Matrix4d mpose;
+    Eigen::Quaterniond q(pose[0], pose[1], pose[2], pose[3]);
+    Eigen::Vector3d t(pose[4], pose[5], pose[6]);
+    mpose.setIdentity();
+    mpose.block<3, 3>(0, 0) = q.toRotationMatrix();
+    mpose.block<3, 1>(0, 3) = t;
+
+    Frame frame;
+    if (mSensor==RGBD) {
+      frame = mpTracker->CreateFrame(im, imD);
+    } else {
+      frame = mpTracker->CreateFrame(im);
+    }
+    frame.SetPose(mpose);
+    frame.SetPose(frame.GetPoseInverse()); // Saved pose was in "world to camera coordinates"
+
+    KeyFrame* kf = new KeyFrame(frame, mpMap);
+    kf->SetID(id);
+
+    // Insert Keyframe in Map
+    mpTracker->SetReferenceKeyFrame(kf);
+    mpMap->AddKeyFrame(kf);
+  }
+
+  // Read map points
+  cv::FileNode points = fs["points"];
+
+  for(auto it = points.begin(); it != points.end(); ++it) {
+    int id;
+    vector<double> position;
+
+    (*it)["id"] >> id;
+    (*it)["pose"] >> position;
+
+    if (position.size() != 3) {
+      LOGE("Map point pose not valid");
+      continue;
+    }
+
+    MapPoint * mp = nullptr;
+
+    cv::FileNode observations = (*it)["observations"];
+
+    // Read observations
+    for(auto it_obs = observations.begin(); it_obs != observations.end(); ++it_obs) {
+      int kf_id;
+      vector<double> pixel;
+
+      (*it_obs)["kf"] >> kf_id;
+      (*it_obs)["pixel"] >> pixel;
+
+      if (pixel.size() != 2) {
+        LOGE("Map point pixel not valid");
+        continue;
+      }
+
+      // Search keyFrame by id
+      KeyFrame * kf = mpMap->GetKeyFrame(kf_id);
+      if (kf == nullptr)
+        continue;
+
+      // Create map point for the first time
+      if (mp == nullptr) {
+        Eigen::Vector3d worldPos(position[0], position[1], position[2]);
+        mp = new MapPoint(worldPos, kf, mpMap);
+      }
+
+      Eigen::Vector2d imgPos(pixel[0], pixel[1]);
+      int index = kf->AddMapPoint(mp, imgPos);
+      if (index >= 0) {
+        mp->AddObservation(kf, index);
+        mp->ComputeDistinctiveDescriptors();
+        mp->UpdateNormalAndDepth();
+
+        //Add to Map
+        mpMap->AddMapPoint(mp);
+      }
+
+    }
+  }
+
+  // Update links in the Covisibility Graph
+  mpMap->UpdateConnections();
+
+  LOGD("Map loaded!");
+
+  fs.release();
+
+  // Force relocalization inside loaded map
+  mpTracker->ForceRelocalization();
+  //ActivateLocalizationMode();
+
+#endif // ANDROID
+
+  return true;
 }
 
 int System::GetTrackingState() {

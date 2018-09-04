@@ -77,6 +77,23 @@ int Map::GetLastBigChangeIdx() {
   return mnBigChangeIdx;
 }
 
+KeyFrame* Map::GetKeyFrame(int id) {
+  unique_lock<mutex> lock(mMutexMap);
+  for (auto it = mspKeyFrames.begin(); it != mspKeyFrames.end(); it++) {
+    if ((*it)->GetID() == id)
+      return *it;
+  }
+
+  return nullptr;
+}
+
+void Map::UpdateConnections() {
+  unique_lock<mutex> lock(mMutexMap);
+
+  for (auto it = mspKeyFrames.begin(); it != mspKeyFrames.end(); it++)
+    (*it)->UpdateConnections(true);
+}
+
 vector<KeyFrame*> Map::GetAllKeyFrames() {
   unique_lock<mutex> lock(mMutexMap);
   return vector<KeyFrame*>(mspKeyFrames.begin(), mspKeyFrames.end());

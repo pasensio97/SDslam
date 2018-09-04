@@ -66,6 +66,10 @@ class Tracking {
   Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
 
+  // Create new frame and extract features
+  Frame CreateFrame(const cv::Mat &im);
+  Frame CreateFrame(const cv::Mat &im, const cv::Mat &imD);
+
   inline void SetLocalMapper(LocalMapping* pLocalMapper) {
     mpLocalMapper = pLocalMapper;
   }
@@ -78,8 +82,17 @@ class Tracking {
     measurements_ = measurements;
   }
 
+  inline void SetReferenceKeyFrame(KeyFrame * kf) {
+    mpReferenceKF = kf;
+  }
+
+  inline float GetDepthFactor() const { return mDepthMapFactor; }
+
+  inline bool OnlyTracking() const { return mbOnlyTracking; }
+
   inline eTrackingState GetState() { return mState; }
   inline eTrackingState GetLastState() { return mLastProcessedState; }
+  inline void ForceRelocalization() { mState = LOST; }
 
   inline Frame& GetCurrentFrame() { return mCurrentFrame; }
   inline Frame& GetInitialFrame() { return mInitialFrame; }
@@ -87,6 +100,9 @@ class Tracking {
   inline std::vector<int> GetInitialMatches() { return mvIniMatches; }
 
   void Reset();
+
+  // Use this function if you have deactivated local mapping and you only want to localize the camera.
+  void InformOnlyTracking(const bool &flag);
 
  protected:
   // Main tracking function. It is independent of the input sensor.
@@ -192,11 +208,11 @@ class Tracking {
   std::vector<cv::Point3f> mvIniP3D;
   Frame mInitialFrame;
 
-  // Lists used to recover the full camera trajectory at the end of the execution.
-  // Basically we store the reference keyframe for each frame and its relative transformation
-  std::list<Eigen::Matrix4d> mlRelativeFramePoses;
-  std::list<KeyFrame*> mlpReferences;
-  std::list<bool> mlbLost;
+  // Save last relative pose
+  Eigen::Matrix4d lastRelativePose_;
+
+  // True if local mapping is deactivated and we are performing only localization
+  bool mbOnlyTracking;
 
   bool usePattern;
 

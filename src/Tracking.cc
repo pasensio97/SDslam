@@ -41,7 +41,7 @@ namespace SD_SLAM {
 
 Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
-  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0) {
+  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0), mbOnlyTracking(false) {
   // Load camera parameters
   float fx = Config::fx();
   float fy = Config::fy();
@@ -127,6 +127,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mpLoopClosing = nullptr;
   mpLocalMapper = nullptr;
 
+  lastRelativePose_.setZero();
+
   // Set motion model
   Sensor * sensor_model;
   if (sensor == System::MONOCULAR_IMU)
@@ -146,7 +148,6 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, c
     imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
 
   mCurrentFrame = Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
-  mCurrentFrame.mFilename = filename;
 
   Track();
 
@@ -163,11 +164,22 @@ Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::strin
   else
     mCurrentFrame = Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 
-  mCurrentFrame.mFilename = filename;
-
   Track();
 
   return mCurrentFrame.GetPose();
+}
+
+Frame Tracking::CreateFrame(const cv::Mat &im) {
+  return Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+}
+
+Frame Tracking::CreateFrame(const cv::Mat &im, const cv::Mat &imD) {
+  cv::Mat imDepth = imD;
+
+  if ((fabs(mDepthMapFactor-1.0f) > 1e-5) || imD.type() != CV_32F)
+    imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
+
+  return Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 }
 
 void Tracking::Track() {
@@ -200,7 +212,7 @@ void Tracking::Track() {
       // Local Mapping might have changed some MapPoints tracked in last frame
       CheckReplacedInLastFrame();
 
-      if (!motion_model_->Started() || mCurrentFrame.mnId<mnLastRelocFrameId+2) {
+      if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
         bOK = TrackReferenceKeyFrame();
       } else {
         bOK = TrackWithMotionModel();
@@ -280,17 +292,10 @@ void Tracking::Track() {
     mLastFrame = Frame(mCurrentFrame);
   }
 
-  // Store frame pose information to retrieve the complete camera trajectory afterwards.
+  // Store relative pose
   if (!mCurrentFrame.GetPose().isZero()) {
     Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
-    mlRelativeFramePoses.push_back(Tcr);
-    mlpReferences.push_back(mpReferenceKF);
-    mlbLost.push_back(mState==LOST);
-  } else {
-    // This can happen if tracking is lost
-    mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
-    mlpReferences.push_back(mlpReferences.back());
-    mlbLost.push_back(mState==LOST);
+    lastRelativePose_ = Tcr;
   }
 }
 
@@ -641,7 +646,7 @@ bool Tracking::TrackReferenceKeyFrame() {
 void Tracking::UpdateLastFrame() {
   // Update pose according to reference keyframe
   KeyFrame* pRef = mLastFrame.mpReferenceKF;
-  Eigen::Matrix4d Tlr = mlRelativeFramePoses.back();
+  Eigen::Matrix4d Tlr = lastRelativePose_;
 
   mLastFrame.SetPose(Tlr*pRef->GetPose());
 }
@@ -965,6 +970,7 @@ void Tracking::UpdateLocalPoints() {
 
 
 void Tracking::UpdateLocalKeyFrames() {
+
   // Each map point vote for the keyframes in which it has been observed
   map<KeyFrame*, int> keyframeCounter;
   for (int i = 0; i<mCurrentFrame.N; i++) {
@@ -1004,7 +1010,6 @@ void Tracking::UpdateLocalKeyFrames() {
     mvpLocalKeyFrames.push_back(it->first);
     pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
   }
-
 
   // Include also some not-already-included keyframes that are neighbors to already-included keyframes
   for (vector<KeyFrame*>::const_iterator itKF = mvpLocalKeyFrames.begin(), itEndKF = mvpLocalKeyFrames.end(); itKF!=itEndKF; itKF++) {
@@ -1117,10 +1122,12 @@ void Tracking::Reset() {
     mpInitializer = static_cast<Initializer*>(NULL);
   }
 
-  mlRelativeFramePoses.clear();
-  mlpReferences.clear();
-  mlbLost.clear();
+  lastRelativePose_.setZero();
   motion_model_->Restart();
+}
+
+void Tracking::InformOnlyTracking(const bool &flag) {
+  mbOnlyTracking = flag;
 }
 
 }  // namespace SD_SLAM

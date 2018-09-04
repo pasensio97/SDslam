@@ -49,7 +49,7 @@ Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
   mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
   mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor), mvScaleFactors(frame.mvScaleFactors),
   mvInvScaleFactors(frame.mvInvScaleFactors), mvLevelSigma2(frame.mvLevelSigma2),
-  mvInvLevelSigma2(frame.mvInvLevelSigma2), mFilename(frame.mFilename) {
+  mvInvLevelSigma2(frame.mvInvLevelSigma2) {
   for (int i = 0; i < FRAME_GRID_COLS; i++)
     for (int j = 0; j < FRAME_GRID_ROWS; j++)
       mGrid[i][j] = frame.mGrid[i][j];
@@ -61,6 +61,8 @@ Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
   mvImagePyramid.resize(size);
   for (int i = 0; i < size; i++)
     mvImagePyramid[i] = frame.mvImagePyramid[i].clone();
+
+  mDepthImage = frame.mDepthImage.clone();
 }
 
 
@@ -92,11 +94,12 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extrac
   UndistortKeyPoints();
 
   ComputeStereoFromRGBD(imDepth);
+  mDepthImage = imDepth.clone();
 
   mvpMapPoints = vector<MapPoint*>(N, static_cast<MapPoint*>(NULL));
   mvbOutlier = vector<bool>(N, false);
 
-  // This is done only for the first Frame (or after a change in the calibration)
+  // This is done only for the first Frame
   if (mbInitialComputations) {
     ComputeImageBounds(imGray);
 

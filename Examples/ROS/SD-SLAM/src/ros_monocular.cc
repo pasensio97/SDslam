@@ -103,8 +103,8 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "Monocular");
   ros::start();
 
-  if(argc != 2) {
-    cerr << endl << "Usage: rosrun SD-SLAM Monocular path_to_settings" << endl;        
+  if(argc != 2 && argc != 3) {
+    cerr << endl << "Usage: rosrun SD-SLAM Monocular path_to_settings [path_to_saved_map]" << endl;
     ros::shutdown();
     return 1;
   }
@@ -119,6 +119,11 @@ int main(int argc, char **argv) {
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
   SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR, true);
+
+  // Check if a saved map is provided
+  if (argc == 3) {
+    SLAM.LoadTrajectory(string(argv[2]));
+  }
 
   // Create user interface
   SD_SLAM::Map * map = SLAM.GetMap();
@@ -142,7 +147,7 @@ int main(int argc, char **argv) {
   ros::Subscriber sub = n.subscribe(config.CameraTopic(), 1, &ImageReader::ReadImage, &reader);
 
   ros::Rate r(30);
-  while (ros::ok()) {
+  while (ros::ok()  && !SLAM.StopRequested()) {
     if (reader.HasNewImage()) {
       // Get new image
       if (reader.NumChannels() == 1) {
@@ -174,6 +179,9 @@ int main(int argc, char **argv) {
 
   // Stop all threads
   SLAM.Shutdown();
+
+  // Save data
+  SLAM.SaveTrajectory("trajectory_ROS.yaml", "trajectory_ROS");
 
   if (useViewer) {
     viewer->RequestFinish();

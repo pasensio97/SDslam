@@ -80,6 +80,7 @@ class FrameDrawer {
   std::vector<cv::KeyPoint> mvCurrentKeys;
   std::vector<bool> mvbMap;
   std::vector<MapPoint*> mvMPs;
+  bool onlyTracking_;
 
   int mnTracked;
 

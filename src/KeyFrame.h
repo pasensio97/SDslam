@@ -41,6 +41,9 @@ class KeyFrame {
  public:
   KeyFrame(Frame &F, Map* pMap);
 
+  inline int GetID() const { return mnId; }
+  void SetID(int n);
+
   // Pose functions
   void SetPose(const Eigen::Matrix4d &Tcw);
   Eigen::Matrix4d GetPose();
@@ -52,7 +55,7 @@ class KeyFrame {
   // Covisibility graph functions
   void AddConnection(KeyFrame* pKF, const int &weight);
   void EraseConnection(KeyFrame* pKF);
-  void UpdateConnections();
+  void UpdateConnections(bool checkID = false);
   void UpdateBestCovisibles();
   std::set<KeyFrame *> GetConnectedKeyFrames();
   std::vector<KeyFrame* > GetVectorCovisibleKeyFrames();
@@ -74,6 +77,7 @@ class KeyFrame {
 
   // MapPoint observation functions
   void AddMapPoint(MapPoint* pMP, const size_t &idx);
+  int AddMapPoint(MapPoint* pMP, const Eigen::Vector2d &pos);
   void EraseMapPointMatch(const size_t &idx);
   void EraseMapPointMatch(MapPoint* pMP);
   void ReplaceMapPointMatch(const size_t &idx, MapPoint* pMP);
@@ -112,7 +116,6 @@ class KeyFrame {
  public:
   static long unsigned int nNextId;
   long unsigned int mnId;
-  const long unsigned int mnFrameId;
 
   // Grid (to speed up feature matching)
   const int mnGridCols;
@@ -171,9 +174,7 @@ class KeyFrame {
 
   // Image pyramid
   std::vector<cv::Mat> mvImagePyramid;
-
-  // Source filename (if exists)
-  std::string mFilename;
+  cv::Mat mDepthImage;
 
   // The following variables need to be accessed trough a mutex to be thread safe.
  protected:

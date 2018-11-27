@@ -100,6 +100,9 @@ class Tracking {
   inline std::vector<int> GetInitialMatches() { return mvIniMatches; }
 
   void Reset();
+  
+  void PatternCellSize(double w, double h);
+
 
   // Use this function if you have deactivated local mapping and you only want to localize the camera.
   void InformOnlyTracking(const bool &flag);

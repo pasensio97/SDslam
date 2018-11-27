@@ -145,4 +145,8 @@ void Config::SetCameraDistortion(double k1, double k2, double p1, double p2, dou
   camera_params_.k3 = k3;
 }
 
+void Config::SetUsePattern(bool use_pattern){
+	kUsePattern_ = use_pattern;
+}
+
 }  // namespace SD_SLAM

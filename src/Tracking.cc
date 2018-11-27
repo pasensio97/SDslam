@@ -1130,4 +1130,9 @@ void Tracking::InformOnlyTracking(const bool &flag) {
   mbOnlyTracking = flag;
 }
 
+void Tracking::PatternCellSize(double w, double h){
+	mpPatternDetector.SetCellSizeW(w);
+	mpPatternDetector.SetCellSizeH(h);
+}
+
 }  // namespace SD_SLAM

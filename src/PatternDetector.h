@@ -41,6 +41,9 @@ class PatternDetector {
 
   // Calculate RT from image points
   bool GetRT(const Frame &frame, const std::vector<cv::Point2d>& pixels, Eigen::Matrix4d& RT);
+  
+  void SetCellSizeW(double s_cell_w);
+  void SetCellSizeH(double s_cell_h);
 
  private:
   // Search chessboard in image
@@ -61,6 +64,9 @@ class PatternDetector {
 
   int cb_rows_;
   int cb_cols_;
+  
+  double cell_w = 0.0283;  // Cell size (m)
+  double cell_h = 0.0283;  // Cell size (m)
 };
 
 }  // namespace SD_SLAM

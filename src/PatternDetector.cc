@@ -113,6 +113,14 @@ bool PatternDetector::GetRT(const Frame &frame, const vector<cv::Point2d>& pixel
   return true;
 }
 
+void PatternDetector::SetCellSizeW(double s_cell_w){
+	cell_w = s_cell_w;
+}
+
+void PatternDetector::SetCellSizeH(double s_cell_h){
+	cell_h = s_cell_h;
+}
+
 bool PatternDetector::SearchChessboard(const cv::Mat &img, vector<cv::Point> &candidate) {
   const cv::Size patternsize(cb_cols_, cb_rows_);
   return cv::findChessboardCorners(img, patternsize, candidate);
@@ -124,8 +132,6 @@ void PatternDetector::Get3DPoints(const Frame &frame, const vector<cv::Point2d>&
   cv::Point2f output[4];
   Eigen::Vector3d p2d, p3d;
   cv::Mat Hcv, haux;
-  const double size_w = 0.151;  // Cell size (m)
-  const double size_h = 0.0906;  // Cell size (m)
 
   input[0] = pixels[0];
   input[1] = pixels[1];
@@ -135,10 +141,10 @@ void PatternDetector::Get3DPoints(const Frame &frame, const vector<cv::Point2d>&
   output[0].x = 0;
   output[0].y = 0;
   output[1].x = 0;
-  output[1].y = size_w;
-  output[2].x = size_h;
-  output[2].y = size_w;
-  output[3].x = size_h;
+  output[1].y = cell_w;
+  output[2].x = cell_h;
+  output[2].y = cell_w;
+  output[3].x = cell_h;
   output[3].y = 0;
 
   // Calc transformation between image and 3d plane

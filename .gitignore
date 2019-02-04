@@ -21,4 +21,10 @@ Vocabulary/ORBvoc.txt
 build/
 *~
 lib/
-
+Examples/Calibration/calibration
+Examples/Fusion/monocular_imu
+Examples/Monocular/monocular
+Examples/RGB-D/rgbd
+Examples/ROS/SD-SLAM/Fusion
+Examples/ROS/SD-SLAM/Monocular
+Examples/ROS/SD-SLAM/RGBD

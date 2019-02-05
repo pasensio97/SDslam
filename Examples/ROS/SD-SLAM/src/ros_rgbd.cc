@@ -35,6 +35,8 @@
 #include "ui/Viewer.h"
 #include "ui/FrameDrawer.h"
 #include "ui/MapDrawer.h"
+#include <tf/tf.h>
+#include <tf/transform_broadcaster.h>
 
 using namespace std;
 
@@ -98,6 +100,51 @@ class ImageReader {
   std::mutex imgMutex_;
 };
 
+class ROSPublisher {
+ private:
+  const std::string _pose_topic = "/sdslam/pose";
+  ros::Publisher _pub;
+  tf::TransformBroadcaster _br;
+
+ public:
+  const std::string base_frame;
+  const std::string camera_frame;
+
+
+  ROSPublisher(const SD_SLAM::Config &config, ros::NodeHandle n):
+     base_frame(config.BaseFrame()), camera_frame(config.CameraFrame())
+  {
+    _pub = n.advertise<geometry_msgs::PoseStamped>(_pose_topic, 100);
+  }
+
+  void publish(const Eigen::Matrix4d &pose){
+    Eigen::Matrix4d wpose;
+    wpose.setIdentity();
+    wpose.block<3, 3>(0, 0) = pose.block<3, 3>(0, 0).transpose();
+    wpose.block<3, 1>(0, 3) = -wpose.block<3, 3>(0, 0) * pose.block<3, 1>(0, 3);
+
+    Eigen::Quaterniond q(wpose.block<3, 3>(0, 0));
+    ros::Time time_now = ros::Time::now();
+
+    // TF
+    tf::Transform new_transform;
+    // World coordinates (X forward, Y left and Z up)
+    new_transform.setOrigin(tf::Vector3(wpose(2, 3), -wpose(0, 3), -wpose(1, 3)));
+    tf::Quaternion tf_quaternion(q.z(), -q.x(), -q.y(), q.w());
+
+    new_transform.setRotation(tf_quaternion);
+    tf::StampedTransform stamped_transform = tf::StampedTransform(new_transform, time_now, base_frame, camera_frame);
+    _br.sendTransform(stamped_transform);
+
+    // pose
+    geometry_msgs::PoseStamped pose_msgs;
+    pose_msgs.header.stamp = time_now;
+    pose_msgs.header.frame_id = base_frame;
+    tf::poseTFToMsg(new_transform, pose_msgs.pose);
+    _pub.publish(pose_msgs);
+  }
+};
+
 void ShowPose(const Eigen::Matrix4d &pose) {
   Eigen::Matrix4d wpose;
   wpose.setIdentity();
@@ -156,6 +203,7 @@ int main(int argc, char **argv) {
 
   ros::NodeHandle n;
   ImageReader reader;
+  ROSPublisher publisher(config, n);
 
   // Subscribe to topics
   message_filters::Subscriber<sensor_msgs::Image> rgb_sub(n, config.CameraTopic(), 1);
@@ -177,6 +225,9 @@ int main(int argc, char **argv) {
 
       // Pass the image to the SLAM system
       Eigen::Matrix4d pose = SLAM.TrackRGBD(im, imD);
+
+      // Publish camera pose as TF and PoseStamped
+      publisher.publish(pose);
 
       // Show world pose
       ShowPose(pose);

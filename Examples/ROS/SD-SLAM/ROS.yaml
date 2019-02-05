@@ -22,3 +22,5 @@ Camera.k3: 0.0
 ROS.CameraTopic: "/camera/rgb/image_raw"
 ROS.DepthTopic: "/camera/depth/image_raw"
 ROS.IMUTopic: "/imu_data"
+ROS.BaseFrame: "odom"
+ROS.CameraFrame: "camera_link"

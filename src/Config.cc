@@ -64,6 +64,9 @@ Config::Config() {
   kCameraTopic_ = "/camera/rgb/image_raw";
   kDepthTopic_ = "/camera/depth/image_raw";
   kIMUTopic_ = "/imu_data";
+
+  kBaseFrame_ = "odom";
+  kCameraFrame_ = "camera_link";
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -122,6 +125,8 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["ROS.CameraTopic"].isNamed()) fs["ROS.CameraTopic"] >> kCameraTopic_;
   if (fs["ROS.DepthTopic"].isNamed()) fs["ROS.DepthTopic"] >> kDepthTopic_;
   if (fs["ROS.IMUTopic"].isNamed()) fs["ROS.IMUTopic"] >> kIMUTopic_;
+  if (fs["ROS.BaseFrame"].isNamed()) fs["ROS.BaseFrame"] >> kBaseFrame_;
+  if (fs["ROS.CameraFrame"].isNamed()) fs["ROS.CameraFrame"] >> kCameraFrame_;
 
   fs.release();
 

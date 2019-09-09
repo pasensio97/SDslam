@@ -22,7 +22,7 @@ We use [Eigen3](http://eigen.tuxfamily.org) to perform matrices operations. Down
 ## g2o (Included in extra folder)
 We use modified versions of the [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. This library (which is BSD) is included in the *extra* folder.
 
-# 3. Building ORB-SLAM2 library and examples
+# 3. Building SD-SLAM library and examples
 
 Clone the repository:
 ```

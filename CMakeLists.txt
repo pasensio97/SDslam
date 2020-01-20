@@ -100,6 +100,12 @@ LIST(APPEND SOURCEFILES
 
   # Debug tools
   src/debug_tools/seq_dumper.cc
+
+  # Inertial tools
+  src/inertial/IMU_Measurements.cc
+  src/inertial/Madgwick.cc
+  src/inertial/PoseEstimator.cc
+
 )
 
 if(NOT USE_ANDROID AND USE_PANGOLIN)

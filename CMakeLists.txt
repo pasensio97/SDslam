@@ -97,6 +97,9 @@ LIST(APPEND SOURCEFILES
 
   # Extra
   src/extra/utils.cc
+
+  # Debug tools
+  src/debug_tools/seq_dumper.cc
 )
 
 if(NOT USE_ANDROID AND USE_PANGOLIN)

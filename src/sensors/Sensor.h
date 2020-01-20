@@ -23,6 +23,7 @@
 #define SQUARE(a) ((a)*(a))
 
 #include <iostream>
+#include <vector>
 #include <Eigen/Dense>
 
 namespace SD_SLAM {

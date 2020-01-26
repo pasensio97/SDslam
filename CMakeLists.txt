@@ -240,6 +240,10 @@ if(NOT USE_ANDROID)
   Examples/Fusion/monocular_imu.cc)
   target_link_libraries(monocular_imu ${PROJECT_NAME})
 
+  add_executable(fusion_kitti
+  Examples/Fusion/fusion_kitti.cc)
+  target_link_libraries(fusion_kitti ${PROJECT_NAME})
+
   # Calibration
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Calibration)
 

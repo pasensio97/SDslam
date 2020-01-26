@@ -32,6 +32,7 @@
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
+#include "inertial/IMU_Measurements.h"
 
 namespace SD_SLAM {
 
@@ -46,7 +47,8 @@ class System {
   enum eSensor{
     MONOCULAR = 0,
     RGBD = 1,
-    MONOCULAR_IMU = 2
+    MONOCULAR_IMU = 2,
+    MONOCULAR_IMU_NEW = 3
   };
 
  public:
@@ -75,6 +77,12 @@ class System {
   // Input measurements: Float (CV_32F).
   // Returns the camera pose (empty if tracking fails).
   Eigen::Matrix4d TrackFusion(const cv::Mat &im, const std::vector<double> &measurements, const std::string filename = "");
+
+  // Proccess the given monocular frame and imu measurements
+  // Input images: Grayscale (CV_8U).
+  // Input measurements: IMU_Measurements.
+  // Returns the camera pose (empty if tracking fails).
+  Eigen::Matrix4d TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const std::string filename = "");
 
   // This stops local mapping thread (map building) and performs only camera tracking.
   void ActivateLocalizationMode();

@@ -40,6 +40,8 @@
 #include "PatternDetector.h"
 #include "System.h"
 #include "sensors/EKF.h"
+#include "inertial/IMU_Measurements.h"
+#include "inertial/Madgwick.h"
 
 namespace SD_SLAM {
 
@@ -65,6 +67,7 @@ class Tracking {
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
   Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
+  Eigen::Matrix4d GrabImageFusion(const cv::Mat &im, const double dt, const std::string filename); // Temporal used to pass dt
 
   // Create new frame and extract features
   Frame CreateFrame(const cv::Mat &im);
@@ -80,6 +83,10 @@ class Tracking {
 
   inline void SetMeasurements(const std::vector<double> &measurements) {
     measurements_ = measurements;
+  }
+
+  inline void SetIMUMeasurements(const IMU_Measurements &measurements) {
+    imu_measurements_ = measurements;
   }
 
   inline void SetReferenceKeyFrame(KeyFrame * kf) {
@@ -107,6 +114,21 @@ class Tracking {
   // Use this function if you have deactivated local mapping and you only want to localize the camera.
   void InformOnlyTracking(const bool &flag);
 
+  // Madgwick
+  Madgwick madgwick_;
+  double dt_;
+  inline void set_madgwick_gain(double gain){ madgwick_.set_gain(gain);}
+  // Test and debug
+  // test debug
+  bool set_debug;
+  Quaterniond last_relative_q, last_q, last_mad_q;
+  Quaterniond pred_ctevel_q, pred_mad_q, pred_vision_q;
+  Matrix4d _prediction;
+  
+  inline const Quaterniond get_last_relative_q(){return last_relative_q;}
+  inline const Quaterniond get_last_local_q(){return last_q;}
+  inline const Quaterniond get_last_local_mad_q(){return last_mad_q;}
+
  protected:
   // Main tracking function. It is independent of the input sensor.
   void Track();
@@ -125,6 +147,8 @@ class Tracking {
   bool TrackReferenceKeyFrame();
   void UpdateLastFrame();
   bool TrackWithMotionModel();
+  bool TrackWithNewIMUModel(); // in dev
+  bool TrackVisual(Eigen::Matrix4d predicted_pose); // code cte in TrackWithNewIMUModel
 
   bool Relocalization();
 
@@ -200,6 +224,7 @@ class Tracking {
   // Sensor model
   EKF* motion_model_;
   std::vector<double> measurements_;
+  IMU_Measurements imu_measurements_;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;

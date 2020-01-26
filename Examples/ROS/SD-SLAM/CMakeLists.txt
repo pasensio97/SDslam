@@ -57,5 +57,15 @@ rosbuild_add_executable(Fusion
 )
 target_link_libraries(Fusion ${LIBS})
 
+# Node for RGB-IMU fusion in dev
+rosbuild_add_executable(Inertial
+  src/ros_inertial.cc
+)
+target_link_libraries(Inertial ${LIBS})
 
+# Node for debug RGB-IMU fusion 
+rosbuild_add_executable(DebugInertial
+  src/ros_inertial_debug.cc
+)
+target_link_libraries(DebugInertial ${LIBS})
 

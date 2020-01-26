@@ -34,6 +34,7 @@
 #include "extra/log.h"
 #include "sensors/ConstantVelocity.h"
 #include "sensors/IMU.h"
+#include <math.h>
 
 using namespace std;
 
@@ -41,7 +42,7 @@ namespace SD_SLAM {
 
 Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
-  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0), mbOnlyTracking(false) {
+  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0), mbOnlyTracking(false), madgwick_(Config::MadgwickGain()) {
   // Load camera parameters
   float fx = Config::fx();
   float fy = Config::fy();
@@ -136,6 +137,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   else
     sensor_model = new ConstantVelocity();
   motion_model_ = new EKF(sensor_model);
+  
+  set_debug = false;
 }
 
 Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename) {
@@ -158,6 +161,22 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, c
 Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat &im, const std::string filename) {
   // Image must be in gray scale
   assert(im.channels() == 1);
+
+  if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
+    mCurrentFrame = Frame(im, mpIniORBextractor, mK, mDistCoef, mbf, mThDepth);
+  else
+    mCurrentFrame = Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
+
+  Track();
+
+  return mCurrentFrame.GetPose();
+}
+
+Eigen::Matrix4d Tracking::GrabImageFusion(const cv::Mat &im, const double dt, const std::string filename) {
+  // Image must be in gray scale 8UB
+  // Img + Imu
+  assert(im.channels() == 1);
+  dt_ = dt;
 
   if (mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
     mCurrentFrame = Frame(im, mpIniORBextractor, mK, mDistCoef, mbf, mThDepth);
@@ -215,8 +234,12 @@ void Tracking::Track() {
       if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
         bOK = TrackReferenceKeyFrame();
       } else {
-        bOK = TrackWithMotionModel();
+        if (mSensor == System::MONOCULAR_IMU_NEW)
+          bOK = TrackWithNewIMUModel();
+        else
+          bOK = TrackWithMotionModel();
         if (!bOK) {
+          LOGD("Failed Track TrackWithMotionModel. Trying to track with Reference key frame");
           bOK = TrackReferenceKeyFrame();
           motion_model_->Restart();
         }
@@ -241,8 +264,11 @@ void Tracking::Track() {
     if (bOK) {
 
       // Update motion sensor
-      if (!mLastFrame.GetPose().isZero())
+      if (!mLastFrame.GetPose().isZero()){
         motion_model_->Update(mCurrentFrame.GetPose(), measurements_);
+        madgwick_.set_orientation_from_frame(mCurrentFrame.GetPose());
+      }
+
       else
         motion_model_->Restart();
 
@@ -651,6 +677,155 @@ void Tracking::UpdateLastFrame() {
   mLastFrame.SetPose(Tlr*pRef->GetPose());
 }
 
+bool Tracking::TrackVisual(Eigen::Matrix4d predicted_pose) {
+  mCurrentFrame.SetPose(predicted_pose);
+
+  ORBmatcher matcher(0.9, true);
+
+  // Align current and last image
+  if (align_image_) {
+    ImageAlign image_align;
+    if (!image_align.ComputePose(mCurrentFrame, mLastFrame)) {
+      LOGE("Image align failed");
+      mCurrentFrame.SetPose(predicted_pose);
+    }
+  }
+
+  // Project points seen in previous frame
+  fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
+  int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, threshold_, mSensor!=System::RGBD);
+
+  // If few matches, ignores alignment and uses a wider window search
+  if (nmatches<20) {
+    LOGD("Not enough matches [%d], double threshold", nmatches);
+    mCurrentFrame.SetPose(predicted_pose);
+    fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
+    nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
+  }
+
+  if (nmatches<20) {
+    LOGD("Not enough matches [%d], tracking failed", nmatches);
+    return false;
+  }
+
+  // Optimize frame pose with all matches
+  Optimizer::PoseOptimization(&mCurrentFrame);
+
+  // Discard outliers
+  int nmatchesMap = 0;
+  for (int i  = 0; i<mCurrentFrame.N; i++) {
+    if (mCurrentFrame.mvpMapPoints[i]) {
+      if (mCurrentFrame.mvbOutlier[i]) {
+        MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+
+        mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
+        mCurrentFrame.mvbOutlier[i]=false;
+        pMP->mbTrackInView = false;
+        pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+        nmatches--;
+      } else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+        nmatchesMap++;
+    }
+  }
+
+  if (nmatchesMap<10) {
+    LOGD("Not enough inliers [%d], tracking failed", nmatchesMap);
+    return false;
+  }
+
+  return true;
+
+}
+
+bool Tracking::TrackWithNewIMUModel() {
+
+  // Update last frame pose according to its reference keyframe
+  UpdateLastFrame();
+
+  // Predict pose with motion model
+  Eigen::Matrix4d predicted_pose = motion_model_->Predict(mLastFrame.GetPose());
+  LOGD("Predicted pose: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
+  Matrix3d Rpred = predicted_pose.block<3,3>(0,0);
+  // Update Madgwick
+  madgwick_.update(imu_measurements_.acceleration(), imu_measurements_.angular_velocity(), dt_); // ADD DT
+  Matrix3d Rimu = madgwick_.get_local_orientation().toRotationMatrix();
+
+  // Check if movement is agresive or soft between t and t-1
+  double movement_threshold = 0.04; 
+  double angle = Quaterniond(mLastFrame.GetRotation()).angularDistance(madgwick_.get_local_orientation());
+
+  int model = 2;
+  /*
+  Model 0: Monocular tracking
+  Model 1: Reemplazar la rotacion de la prediccion por la de la IMU si estamos en curva
+  Model 2: Reemplazar la rotacion de la prediccion por la de la IMU
+  */
+  if ((model == 1 && angle > movement_threshold) || model == 2){
+    // Insert IMU rotation on prediction if stay in curve.
+      predicted_pose.block<3,3>(0,0) = Rimu;
+  }
+
+
+  bool vision = TrackVisual(predicted_pose);
+
+  cout << "------- VERBOSE -------" << endl;
+
+  // Disp matrix
+  Matrix3d Rvisual = mCurrentFrame.GetRotation();
+  Vector3d Apred = Rpred.eulerAngles(0,1,2);
+  Vector3d Aimu  = Rimu.eulerAngles(0,1,2);
+  Vector3d Avis  = Rvisual.eulerAngles(0,1,2);
+  double roll, pitch, yaw;
+
+  roll = Apred.x() * (180.0 / M_PI); pitch = Apred.y() * (180.0 / M_PI); yaw = Apred.z()* (180.0 / M_PI);
+  printf("\nPrediction rotation: (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
+  cout << Rpred << endl;
+
+  roll = Aimu.x() * (180.0 / M_PI); pitch = Aimu.y() * (180.0 / M_PI); yaw = Aimu.z()* (180.0 / M_PI);
+  printf("\nIMU rotation:        (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
+  cout << Rimu << endl;
+
+  roll = Avis.x() * (180.0 / M_PI); pitch = Avis.y() * (180.0 / M_PI); yaw = Avis.z()* (180.0 / M_PI);
+  printf("\nVisual rotation:     (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
+  cout << Rvisual << endl;
+
+  cout << "\nRotation Visual-IMU: \n" << Rvisual - Rimu << endl;
+  cout << "\nRotation Visual-Pred: \n" << Rvisual - Rpred << endl;
+
+  // Check if rotations have determinant 1 and rank 3 
+  int rank, det;
+      // Prediction
+  FullPivLU<Matrix3d> lu_decomp_p(Rpred);
+  rank = lu_decomp_p.rank();
+  det = Rpred.determinant();
+  if (rank != 3){LOGD("Prediction rotation rank is not 3. Its %d", rank); }
+  if (det != 1) {LOGD("Prediction rotation determinant is not 1. Its %d", det); }
+
+  // IMU
+  FullPivLU<Matrix3d> lu_decomp(Rimu);
+  rank = lu_decomp.rank();
+  det = Rimu.determinant();
+  if (rank != 3){LOGD("IMU rotation rank is not 3. Its %d", rank); }
+  if (det != 1) {LOGD("IMU rotation determinant is not 1. Its %d", det); }
+
+  // Visual
+  FullPivLU<Matrix3d> lu_decomp_v(Rvisual);
+  rank = lu_decomp_v.rank();
+  det  = Rvisual.determinant();
+  if (rank != 3){LOGD("Visual rotation rank is not 3. Its %d", rank); }
+  if (det != 1) {LOGD("Visualrotation determinant is not 1. Its %d", det); }
+
+
+  // save poses for create TFs
+  pred_ctevel_q = Quaterniond(Rpred);
+  pred_mad_q    = Quaterniond(Rimu);
+  pred_vision_q = Quaterniond(Rvisual);
+
+  cout << "----------------------" << endl;
+
+  return vision;
+}
+
 bool Tracking::TrackWithMotionModel() {
   ORBmatcher matcher(0.9, true);
 
@@ -741,7 +916,7 @@ bool Tracking::TrackLocalMap() {
   }
 
   // Decide if the tracking was succesful
-  if (mnMatchesInliers<30) {
+  if (mnMatchesInliers<15) {
     LOGD("Not enough points tracked [%d], tracking failed", mnMatchesInliers);
     return false;
   }
@@ -834,6 +1009,11 @@ void Tracking::CreateNewKeyFrame() {
   mpReferenceKF = pKF;
   mCurrentFrame.mpReferenceKF = pKF;
 
+  /*
+  if (mSensor==System::MONOCULAR_IMU_NEW) {
+    madgwick_.set_orientation_from_frame(mCurrentFrame.GetPose()); 
+  }
+  */
   if (mSensor==System::RGBD) {
     mCurrentFrame.UpdatePoseMatrices();
 

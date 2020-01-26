@@ -98,6 +98,9 @@ class Config {
   static std::string BaseFrame() { return GetInstance().kBaseFrame_; }
   static std::string CameraFrame() { return GetInstance().kCameraFrame_; }
 
+  static double MadgwickGain() { return GetInstance().madgwick_gain_; }
+
+
  private:
   Config();
 
@@ -132,6 +135,9 @@ class Config {
   std::string kIMUTopic_;
   std::string kBaseFrame_;
   std::string kCameraFrame_;
+
+  // IMU CONFIGURATION
+  double madgwick_gain_;
 };
 
 }  // namespace SD_SLAM

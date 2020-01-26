@@ -1,3 +1,7 @@
+
+#ifndef SD_SLAM_IMUMEASUREMENTS_H_
+#define SD_SLAM_IMUMEASUREMENTS_H_
+
 #include <Eigen/Dense>
 using namespace Eigen;
 
@@ -18,3 +22,5 @@ class IMU_Measurements{
   Eigen::Vector3d _angular_velocity; 
 
 };
+
+#endif  // SD_SLAM_IMUMEASUREMENTS_H_

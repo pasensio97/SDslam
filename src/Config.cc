@@ -67,6 +67,7 @@ Config::Config() {
 
   kBaseFrame_ = "odom";
   kCameraFrame_ = "camera_link";
+  kUseImagesTimeStamps_ = false;
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -127,6 +128,7 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["ROS.IMUTopic"].isNamed()) fs["ROS.IMUTopic"] >> kIMUTopic_;
   if (fs["ROS.BaseFrame"].isNamed()) fs["ROS.BaseFrame"] >> kBaseFrame_;
   if (fs["ROS.CameraFrame"].isNamed()) fs["ROS.CameraFrame"] >> kCameraFrame_;
+  if (fs["ROS.UseImagesTimeStamps"].isNamed()) fs["ROS.UseImagesTimeStamps"] >> kUseImagesTimeStamps_;
 
   fs.release();
 

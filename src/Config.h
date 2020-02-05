@@ -97,6 +97,7 @@ class Config {
   static std::string IMUTopic() { return GetInstance().kIMUTopic_; }
   static std::string BaseFrame() { return GetInstance().kBaseFrame_; }
   static std::string CameraFrame() { return GetInstance().kCameraFrame_; }
+  static bool UseImagesTimeStamps() { return GetInstance().kUseImagesTimeStamps_; }
 
  private:
   Config();
@@ -132,6 +133,7 @@ class Config {
   std::string kIMUTopic_;
   std::string kBaseFrame_;
   std::string kCameraFrame_;
+  bool kUseImagesTimeStamps_;
 };
 
 }  // namespace SD_SLAM

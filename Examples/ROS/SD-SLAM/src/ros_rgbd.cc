@@ -37,6 +37,7 @@
 #include "ui/MapDrawer.h"
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
+#include <nav_msgs/Odometry.h>
 
 using namespace std;
 
@@ -65,6 +66,7 @@ class ImageReader {
       return;
     }
 
+    this->image_timestamp = msgD->header.stamp;
 
     ROS_INFO("Read new %dx%d image", cv_ptrRGB->image.cols, cv_ptrRGB->image.rows);
 
@@ -92,6 +94,8 @@ class ImageReader {
     return channels_;
   }
 
+ public:
+  ros::Time image_timestamp;
  private:
   bool updated_;
   cv::Mat imgRGB_;
@@ -102,7 +106,7 @@ class ImageReader {
 
 class ROSPublisher {
  private:
-  const std::string _pose_topic = "/sdslam/pose";
+  const std::string _odom_topic = "/sdslam/odom";
   ros::Publisher _pub;
   tf::TransformBroadcaster _br;
 
@@ -114,7 +118,7 @@ class ROSPublisher {
   ROSPublisher(const SD_SLAM::Config &config, ros::NodeHandle n):
      base_frame(config.BaseFrame()), camera_frame(config.CameraFrame())
   {
-    _pub = n.advertise<geometry_msgs::PoseStamped>(_pose_topic, 100);
+    _pub = n.advertise<nav_msgs::Odometry>(_odom_topic, 100);
   }
 
   void publish(const Eigen::Matrix4d &pose){
@@ -137,12 +141,57 @@ class ROSPublisher {
     _br.sendTransform(stamped_transform);
 
     // pose
-    geometry_msgs::PoseStamped pose_msgs;
-    pose_msgs.header.stamp = time_now;
-    pose_msgs.header.frame_id = base_frame;
-    tf::poseTFToMsg(new_transform, pose_msgs.pose);
-    _pub.publish(pose_msgs);
+    geometry_msgs::Pose pose_msgs;
+    tf::poseTFToMsg(new_transform, pose_msgs);
+
+    //odometry
+    nav_msgs::Odometry odom_msg;
+    odom_msg.header.stamp = time_now; //TODO allow dethp images  times
+    odom_msg.header.frame_id = "odom";
+    odom_msg.child_frame_id = "base_link";
+    odom_msg.pose.pose = pose_msgs;
+    // TODO: Covariance of the pose and the twist remaing to be fill
+    _pub.publish(odom_msg);
   }
+
+    /**
+     * Publish the odometry with the desired timestamp. Useful when we want to compare against other dataset and we
+     * want to be registered to the same timestamps.
+     * @param pose
+     * @param timestamp
+     */
+    void publish(const Eigen::Matrix4d &pose, ros::Time timestamp){
+        Eigen::Matrix4d wpose;
+        wpose.setIdentity();
+        wpose.block<3, 3>(0, 0) = pose.block<3, 3>(0, 0).transpose();
+        wpose.block<3, 1>(0, 3) = -wpose.block<3, 3>(0, 0) * pose.block<3, 1>(0, 3);
+
+        Eigen::Quaterniond q(wpose.block<3, 3>(0, 0));
+
+        // TF
+        tf::Transform new_transform;
+        // World coordinates (X forward, Y left and Z up)
+        new_transform.setOrigin(tf::Vector3(wpose(2, 3), -wpose(0, 3), -wpose(1, 3)));
+        tf::Quaternion tf_quaternion(q.z(), -q.x(), -q.y(), q.w());
+
+        new_transform.setRotation(tf_quaternion);
+        tf::StampedTransform stamped_transform = tf::StampedTransform(new_transform, timestamp, base_frame, camera_frame);
+        _br.sendTransform(stamped_transform);
+
+        // pose
+        geometry_msgs::Pose pose_msgs;
+        tf::poseTFToMsg(new_transform, pose_msgs);
+
+        //odometry
+        nav_msgs::Odometry odom_msg;
+        odom_msg.header.stamp = timestamp; //TODO allow dethp images  times
+        odom_msg.header.frame_id = "odom";
+        odom_msg.child_frame_id = "base_link";
+        odom_msg.pose.pose = pose_msgs;
+        // TODO: Covariance of the pose and the twist remaing to be fill
+        _pub.publish(odom_msg);
+    }
+
 };
 
 void ShowPose(const Eigen::Matrix4d &pose) {
@@ -227,7 +276,12 @@ int main(int argc, char **argv) {
       Eigen::Matrix4d pose = SLAM.TrackRGBD(im, imD);
 
       // Publish camera pose as TF and PoseStamped
-      publisher.publish(pose);
+      if (!config.UseImagesTimeStamps()) {
+          publisher.publish(pose);
+      } else {
+          publisher.publish(pose, reader.image_timestamp);
+      }
+
 
       // Show world pose
       ShowPose(pose);

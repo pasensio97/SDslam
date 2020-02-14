@@ -1,0 +1,12 @@
+<!--
+THIS LAUNCH FILE WILL START THE REALSENSE CAMERA WITH THE DEFAULT PARAMETERS
+AND THEN THE DIFODO ALGORITHM
+-->
+
+<launch>
+
+    <!--Package is the name of the package as in the package.xml is defined, type is the node name that is the name of
+    of the executable created, finally name is just a given name (Just the name you will see when using "rosnode list").
+    output=screen is meant to redirect the stdout or logs to the terminal where the launch was made.-->
+    <node name="SD_SLAM_RGBD" pkg="SD-SLAM" type="RGBD"  output="screen" args="/home/omar/Programs/SDslam/Examples/ROS/SD-SLAM/config/ROS_TUM1.yaml"/>
+</launch>

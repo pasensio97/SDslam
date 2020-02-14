@@ -160,6 +160,22 @@ Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data fro
   rosrun SD-SLAM Fusion Examples/ROS/SD-SLAM/ROS.yaml
   ```
 
+### Running RGBD with roslaunch
+Several launch files has been provided so the node RGBD can be run with those.
+In order to run SD-SLAM with the configuration for TUM freidburg1 sequences run
+
+  ```
+  roslaunch SD-SLAM sdslam_TUM1.launch
+  ```
+
+In order to run SD-SLAM with the configuration for TUM freidburg1 sequences and odometry_evaluation_file_creation to create a groundtruth file that can be compare with the groundtruths of TUM
+
+  ```
+  roslaunch SD-SLAM sdslam_TUM1_evaluation_file.launch
+  ```
+
+
+
 # 9. Reading saved data
 
 Mapping data can be stored in a YAML file. You can save the current map at any moment pressing the `Stop and Save` button, or it will be created automatically when a sequence is completed.

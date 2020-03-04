@@ -148,6 +148,64 @@ Quaterniond camera_to_world(const Matrix4d & pose){
   return Quaterniond(pose_rot);
 }
 
+class Imu_Publisher{
+ private:
+    string frame_id;
+    ros::Publisher pub;
+    int seq;
+ public:
+  Imu_Publisher(ros::NodeHandle nodehandle, const string &frame, const string &topic){
+    pub = nodehandle.advertise<sensor_msgs::Imu>(topic, 100);
+    frame_id = frame;
+    seq = 0;
+  }
+
+  void publish(const Vector3d & acc, const Vector3d & gyr){
+    sensor_msgs::Imu imu_msg;
+    
+    imu_msg.header.stamp = ros::Time::now();
+    imu_msg.header.frame_id = frame_id;
+    imu_msg.header.seq = seq;
+    seq++;
+
+    imu_msg.orientation_covariance[0] = -1;
+
+    imu_msg.linear_acceleration.x = acc.x();
+    imu_msg.linear_acceleration.y = acc.y();
+    imu_msg.linear_acceleration.z = acc.z();
+    imu_msg.linear_acceleration_covariance[0] = -1;
+
+    imu_msg.angular_velocity.x = gyr.x();
+    imu_msg.angular_velocity.y = gyr.y();
+    imu_msg.angular_velocity.z = gyr.z();
+    imu_msg.angular_velocity_covariance[0] = -1;
+
+    pub.publish(imu_msg);
+
+    seq++;
+  }
+};
+
+Vector3d remove_gravity(Vector3d acc, Quaterniond  orientation, string cs = "NWU"){  
+
+  if (cs == "ENU"){
+    cout << "Transform acceleration from ENU to NWU to remove gravity." << endl;
+    acc = Vector3d(-acc.y(), -acc.x(), acc.z());  // ENU to NWU
+  }
+  else if (cs == "WUN"){  // d435i
+    cout << "Transform acceleration from ENU to NWU to remove gravity." << endl;
+    acc = Vector3d(-acc.y(), -acc.x(), acc.z());  // WUN to NWU
+  }
+
+  orientation.normalize();
+  Vector3d g(0, 0, 9.80665);
+
+  Vector3d g_rot = orientation.inverse() * g;
+  Vector3d linear_acc = acc - g_rot;
+
+  return linear_acc;
+}
+
 int main(int argc, char **argv) {
   vector<string> vFilenames;
   cv::Mat im_rgb, im;
@@ -203,6 +261,9 @@ int main(int argc, char **argv) {
   message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub, imu_sub);
   sync.registerCallback(boost::bind(&ImageReader::ReadRGBIMU, &reader, _1, _2));
 
+  // test
+  Imu_Publisher imu_test = Imu_Publisher(n, "odom", "acc");
+
   double last_t = 0.0, dt = 0.0;
   SLAM.GetTracker()->set_madgwick_gain(gain);
   ros::Rate r(30);
@@ -216,7 +277,7 @@ int main(int argc, char **argv) {
         cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
       }
 
-      dt = (last_t == 0.0) ? 0.0 : imu.timestamp() - last_t;
+      dt = (last_t == 0.0) ? 0.03 : imu.timestamp() - last_t;
       last_t = imu.timestamp();
       
       // Pass the image and IMU data to the SLAM system
@@ -235,6 +296,10 @@ int main(int argc, char **argv) {
       Quaterniond world_cam = camera_to_world(pose);
       pub.publish_orientation(world_prediction, time_now, "odom", "pred");
       pub.publish_orientation(world_cam, time_now, "odom", "final");
+
+      // Acc pub
+      Vector3d linear_acc = remove_gravity(imu.acceleration(), SLAM.GetTracker()->pred_mad_q, "ENU");
+      imu_test.publish(linear_acc, imu.angular_velocity());     
 
       // Set data to UI
       fdrawer->Update(im, pose, tracker);

@@ -838,14 +838,14 @@ bool Tracking::TrackWithNewIMUModel() {
     if (det != 1) {LOGD("Visualrotation determinant is not 1. Its %d", det); }
 
 
-    // save poses for create TFs
-    pred_ctevel_q = Quaterniond(Rpred);
-    pred_mad_q    = Quaterniond(Rimu);
-    pred_vision_q = Quaterniond(Rvisual);
-
+    
     cout << "----------------------" << endl;
   }
 
+  // save poses for create TFs
+  pred_ctevel_q = Quaterniond(Rpred);
+  pred_mad_q    = Quaterniond(Rimu);
+  pred_vision_q = Quaterniond(mCurrentFrame.GetRotation());
   return vision;
 }
 

@@ -21,32 +21,12 @@ using namespace std;
 void load_filenames(const string &basepath, vector<string> &vstrImageFilenames, vector<string> &vstrIMUFilenames);
 IMU_Measurements load_IMU_data(const string &filename);
 
-
-void write_it_info(const string &filename, int it, SD_SLAM::System &slam_system){
-  string SEPARATOR = ",";
-
-  std::fstream outfile;
-	outfile.open(filename, std::fstream::app);
-
-  outfile << it << SEPARATOR 
-          << slam_system.GetTrackingState() << SEPARATOR 
-          << slam_system.GetTracker()->stay_in_curve << SEPARATOR
-          << slam_system.GetTracker()->first_proj << SEPARATOR
-          << slam_system.GetTracker()->second_proj << SEPARATOR
-          << slam_system.GetTracker()->inliers_on_pred << SEPARATOR
-          << slam_system.GetTracker()->inliers_on_localmap 
-          << endl;
-
-  outfile.close();
-}
-
-
 int main(int argc, char **argv)
 {
     
   
-  if(argc != 3) {
-    cerr << endl << "Usage: ./fusion_kitti path_to_settings path_to_RAW_sequence" << endl;
+  if(argc != 4) {
+    cerr << endl << "Usage: ./fusion_kitti path_to_settings path_to_RAW_sequence path_to_GT_file" << endl;
     return 1;
   }
 
@@ -56,13 +36,6 @@ int main(int argc, char **argv)
     cerr << "[ERROR] Config file contains errors" << endl;
     return 1;
   }
-
-  string filename = "/home/javi/tfm/tests/matches/new.csv";
-
-  std::fstream outfile;
-	outfile.open(filename, std::fstream::out);
-	outfile << "# it, state, is_curve, first_proj, second_proj, inliers, inliers_localmap" << std::endl;
-	outfile.close();
 
   vector<string> images_filenames;
   vector<string> imu_filenames;
@@ -77,7 +50,7 @@ int main(int argc, char **argv)
 
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR_IMU_NEW, true);
+  SD_SLAM::System SLAM(SD_SLAM::System::FUSION_DATA_AND_GT, true);
 
   // Create user interface
   SD_SLAM::Map * map = SLAM.GetMap();
@@ -99,7 +72,7 @@ int main(int argc, char **argv)
   IMU_Measurements imu;
 
   while (i < n_images && !SLAM.StopRequested()) {
-    cout << "\n[INFO] Reading data " << i << "/" << n_images << endl;
+    cout << "[INFO] Reading data " << i << "/" << n_images << endl;
     img = cv::imread(images_filenames[i], CV_LOAD_IMAGE_GRAYSCALE);
     imu = load_IMU_data(imu_filenames[i]);
 
@@ -117,7 +90,6 @@ int main(int argc, char **argv)
     fdrawer->Update(img, pose, tracker);
     mdrawer->SetCurrentCameraPose(pose);
 
-    write_it_info(filename, i, SLAM);
 
     ttracking.Stop();
     double delay = ttracking.GetTime();
@@ -193,4 +165,22 @@ IMU_Measurements load_IMU_data(const string &filename){
   return imu_data;
 }
 
+vector<vector<double>> read_gt_file(const string &filename, const int index){
+  return;
+  std::vector<double> content;
+  ifstream file;
+  file.open(filename.c_str());
+  while(!file.eof()) {
+    string line;
+    getline(file, line);
+    std::stringstream  line_stream(line);
+
+    double value;
+    while(line_stream >> value){
+      content.push_back(value);
+    }
+    
+  Eigen::Matrix4d pose;
+
+}
 

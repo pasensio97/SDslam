@@ -89,6 +89,10 @@ class Tracking {
     imu_measurements_ = measurements;
   }
 
+  inline void SetGroundthtruthPose(const Eigen::Matrix4d &gt_pose) {
+    gt_pose_ = gt_pose;
+  }
+
   inline void SetReferenceKeyFrame(KeyFrame * kf) {
     mpReferenceKF = kf;
   }
@@ -124,6 +128,8 @@ class Tracking {
   Quaterniond last_relative_q, last_q, last_mad_q;
   Quaterniond pred_ctevel_q, pred_mad_q, pred_vision_q;
   Matrix4d _prediction;
+  int first_proj, second_proj, inliers_on_pred, inliers_on_localmap;
+  bool stay_in_curve; 
   
   inline const Quaterniond get_last_relative_q(){return last_relative_q;}
   inline const Quaterniond get_last_local_q(){return last_q;}
@@ -160,6 +166,7 @@ class Tracking {
   void SearchLocalPoints();
 
   bool NeedNewKeyFrame();
+  bool NeedNewKeyFrame_test();
   void CreateNewKeyFrame();
 
   // Other Thread Pointers
@@ -246,6 +253,9 @@ class Tracking {
 
   // Image align
   bool align_image_;
+
+  // Test with GT
+  Matrix4d gt_pose_;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

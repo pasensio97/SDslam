@@ -16,10 +16,14 @@ class PoseEstimator{
   void update(const Eigen::VectorXd & measurements);
   const Eigen::VectorXd state_vector();
 
-	Eigen::VectorXd f(Eigen::VectorXd & x, double dt);
-  Eigen::MatrixXd jacobian_f(Eigen::VectorXd & x, double dt);
-  Eigen::VectorXd h(const Eigen::VectorXd & x, double dt);
-  Eigen::MatrixXd jacobian_h(Eigen::VectorXd & x, double dt);
+	Eigen::MatrixXd f(Eigen::MatrixXd & x, double dt);
+  Eigen::MatrixXd jacobian_f(const Eigen::MatrixXd & x, double dt);
+  Eigen::MatrixXd h(const Eigen::MatrixXd & x, double dt);
+  Eigen::MatrixXd jacobian_h(Eigen::MatrixXd & x, double dt);
+
+	Eigen::MatrixXd R_update(double time);
+	Eigen::MatrixXd Q_update(double time);
+	Eigen::MatrixXd jacobian_Q(double time);
 
 	void print_state_vector();
 	
@@ -32,9 +36,9 @@ class PoseEstimator{
 
 	double dt;  // k in the literature
 	bool initilized;
-	Eigen::VectorXd x, y, z;
+	Eigen::MatrixXd x, y, z;
 	Eigen::MatrixXd F, P, Q;
 	Eigen::MatrixXd H, S, K, R;
-	Eigen::MatrixXd Id;
+	//Eigen::MatrixXd Id;
 
 };

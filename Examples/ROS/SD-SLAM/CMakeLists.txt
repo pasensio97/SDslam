@@ -69,3 +69,8 @@ rosbuild_add_executable(DebugInertial
 )
 target_link_libraries(DebugInertial ${LIBS})
 
+# Node for debug imu tools
+rosbuild_add_executable(IMU_TEST
+  src/imu_test.cc
+)
+target_link_libraries(IMU_TEST ${LIBS})

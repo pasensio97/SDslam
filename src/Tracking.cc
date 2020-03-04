@@ -118,7 +118,7 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
       mDepthMapFactor = 1.0f/mDepthMapFactor;
   }
 
-  threshold_ = 8;
+  threshold_ = 32;  // 8
   usePattern = Config::UsePattern();
   align_image_ = true;
 
@@ -234,7 +234,7 @@ void Tracking::Track() {
       if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
         bOK = TrackReferenceKeyFrame();
       } else {
-        if (mSensor == System::MONOCULAR_IMU_NEW)
+        if (mSensor == System::MONOCULAR_IMU_NEW || mSensor == System::FUSION_DATA_AND_GT)
           bOK = TrackWithNewIMUModel();
         else
           bOK = TrackWithMotionModel();
@@ -694,6 +694,7 @@ bool Tracking::TrackVisual(Eigen::Matrix4d predicted_pose) {
   // Project points seen in previous frame
   fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
   int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, threshold_, mSensor!=System::RGBD);
+  first_proj = nmatches;
 
   // If few matches, ignores alignment and uses a wider window search
   if (nmatches<20) {
@@ -701,6 +702,7 @@ bool Tracking::TrackVisual(Eigen::Matrix4d predicted_pose) {
     mCurrentFrame.SetPose(predicted_pose);
     fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
     nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
+    second_proj = nmatches;
   }
 
   if (nmatches<20) {
@@ -728,6 +730,8 @@ bool Tracking::TrackVisual(Eigen::Matrix4d predicted_pose) {
     }
   }
 
+  inliers_on_pred = nmatchesMap;
+
   if (nmatchesMap<10) {
     LOGD("Not enough inliers [%d], tracking failed", nmatchesMap);
     return false;
@@ -751,77 +755,96 @@ bool Tracking::TrackWithNewIMUModel() {
   Matrix3d Rimu = madgwick_.get_local_orientation().toRotationMatrix();
 
   // Check if movement is agresive or soft between t and t-1
-  double movement_threshold = 0.04; 
+  double movement_threshold = 0.02; // 0.04
   double angle = Quaterniond(mLastFrame.GetRotation()).angularDistance(madgwick_.get_local_orientation());
 
-  int model = 2;
+
+  // debug vars
+  first_proj = 0, second_proj = 0, inliers_on_pred = 0, inliers_on_localmap = 0;
+  stay_in_curve = angle > movement_threshold;
+  // 
+
+  int model = 1;
+  
   /*
   Model 0: Monocular tracking
   Model 1: Reemplazar la rotacion de la prediccion por la de la IMU si estamos en curva
   Model 2: Reemplazar la rotacion de la prediccion por la de la IMU
+  ----
+  Using GT:  // ASEGURARSE QUE ESTAN EN EL MISMO SISTEMA DE COORDENADAS
+  Model 3: Reemplazar la rotacion de la prediccion con la rotacion del GT -> ¿Tambien se pierde asi?
+  Model 4: Usar como prediccion la traslacion del GT y la rotacion de la IMU -> No va a funcionar por la T
   */
-  if ((model == 1 && angle > movement_threshold) || model == 2){
-    // Insert IMU rotation on prediction if stay in curve.
+ 
+  if ((model == 1 && stay_in_curve) || model == 2){
+      LOGD("\t MODEL in curve!");
       predicted_pose.block<3,3>(0,0) = Rimu;
+      //threshold_ = 32;
+  }else{
+    //threshold_ = 8;
   }
 
 
   bool vision = TrackVisual(predicted_pose);
 
-  cout << "------- VERBOSE -------" << endl;
+  bool verbose = false;
+  if (verbose){
+    cout << "------- VERBOSE -------" << endl;
 
-  // Disp matrix
-  Matrix3d Rvisual = mCurrentFrame.GetRotation();
-  Vector3d Apred = Rpred.eulerAngles(0,1,2);
-  Vector3d Aimu  = Rimu.eulerAngles(0,1,2);
-  Vector3d Avis  = Rvisual.eulerAngles(0,1,2);
-  double roll, pitch, yaw;
+    // Disp matrix
+    Matrix3d Rvisual = mCurrentFrame.GetRotation();
+    Vector3d Apred = Rpred.eulerAngles(0,1,2);
+    Vector3d Aimu  = Rimu.eulerAngles(0,1,2);
+    Vector3d Avis  = Rvisual.eulerAngles(0,1,2);
+    double roll, pitch, yaw;
 
-  roll = Apred.x() * (180.0 / M_PI); pitch = Apred.y() * (180.0 / M_PI); yaw = Apred.z()* (180.0 / M_PI);
-  printf("\nPrediction rotation: (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
-  cout << Rpred << endl;
+    roll = Apred.x() * (180.0 / M_PI); pitch = Apred.y() * (180.0 / M_PI); yaw = Apred.z()* (180.0 / M_PI);
+    printf("\nPrediction rotation: (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
+    cout << Rpred << endl;
 
-  roll = Aimu.x() * (180.0 / M_PI); pitch = Aimu.y() * (180.0 / M_PI); yaw = Aimu.z()* (180.0 / M_PI);
-  printf("\nIMU rotation:        (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
-  cout << Rimu << endl;
+    roll = Aimu.x() * (180.0 / M_PI); pitch = Aimu.y() * (180.0 / M_PI); yaw = Aimu.z()* (180.0 / M_PI);
+    printf("\nIMU rotation:        (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
+    cout << Rimu << endl;
 
-  roll = Avis.x() * (180.0 / M_PI); pitch = Avis.y() * (180.0 / M_PI); yaw = Avis.z()* (180.0 / M_PI);
-  printf("\nVisual rotation:     (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
-  cout << Rvisual << endl;
+    roll = Avis.x() * (180.0 / M_PI); pitch = Avis.y() * (180.0 / M_PI); yaw = Avis.z()* (180.0 / M_PI);
+    printf("\nVisual rotation:     (%.2f, %.2f, %.2f). Matrix: \n", roll, pitch, yaw);
+    cout << Rvisual << endl;
 
-  cout << "\nRotation Visual-IMU: \n" << Rvisual - Rimu << endl;
-  cout << "\nRotation Visual-Pred: \n" << Rvisual - Rpred << endl;
-
-  // Check if rotations have determinant 1 and rank 3 
-  int rank, det;
-      // Prediction
-  FullPivLU<Matrix3d> lu_decomp_p(Rpred);
-  rank = lu_decomp_p.rank();
-  det = Rpred.determinant();
-  if (rank != 3){LOGD("Prediction rotation rank is not 3. Its %d", rank); }
-  if (det != 1) {LOGD("Prediction rotation determinant is not 1. Its %d", det); }
-
-  // IMU
-  FullPivLU<Matrix3d> lu_decomp(Rimu);
-  rank = lu_decomp.rank();
-  det = Rimu.determinant();
-  if (rank != 3){LOGD("IMU rotation rank is not 3. Its %d", rank); }
-  if (det != 1) {LOGD("IMU rotation determinant is not 1. Its %d", det); }
-
-  // Visual
-  FullPivLU<Matrix3d> lu_decomp_v(Rvisual);
-  rank = lu_decomp_v.rank();
-  det  = Rvisual.determinant();
-  if (rank != 3){LOGD("Visual rotation rank is not 3. Its %d", rank); }
-  if (det != 1) {LOGD("Visualrotation determinant is not 1. Its %d", det); }
+    cout << "\nRotation Visual-IMU: \n" << Rvisual - Rimu << endl;
+    cout << "\nRotation Visual-Pred: \n" << Rvisual - Rpred << endl;
 
 
-  // save poses for create TFs
-  pred_ctevel_q = Quaterniond(Rpred);
-  pred_mad_q    = Quaterniond(Rimu);
-  pred_vision_q = Quaterniond(Rvisual);
+    // Check if rotations have determinant 1 and rank 3 
+    int rank, det;
+    // Prediction
+    FullPivLU<Matrix3d> lu_decomp_p(Rpred);
+    rank = lu_decomp_p.rank();
+    det = Rpred.determinant();
+    if (rank != 3){LOGD("Prediction rotation rank is not 3. Its %d", rank); }
+    if (det != 1) {LOGD("Prediction rotation determinant is not 1. Its %d", det); }
 
-  cout << "----------------------" << endl;
+    // IMU
+    FullPivLU<Matrix3d> lu_decomp(Rimu);
+    rank = lu_decomp.rank();
+    det = Rimu.determinant();
+    if (rank != 3){LOGD("IMU rotation rank is not 3. Its %d", rank); }
+    if (det != 1) {LOGD("IMU rotation determinant is not 1. Its %d", det); }
+
+    // Visual
+    FullPivLU<Matrix3d> lu_decomp_v(Rvisual);
+    rank = lu_decomp_v.rank();
+    det  = Rvisual.determinant();
+    if (rank != 3){LOGD("Visual rotation rank is not 3. Its %d", rank); }
+    if (det != 1) {LOGD("Visualrotation determinant is not 1. Its %d", det); }
+
+
+    // save poses for create TFs
+    pred_ctevel_q = Quaterniond(Rpred);
+    pred_mad_q    = Quaterniond(Rimu);
+    pred_vision_q = Quaterniond(Rvisual);
+
+    cout << "----------------------" << endl;
+  }
 
   return vision;
 }
@@ -915,6 +938,7 @@ bool Tracking::TrackLocalMap() {
     }
   }
 
+  inliers_on_localmap = mnMatchesInliers;
   // Decide if the tracking was succesful
   if (mnMatchesInliers<15) {
     LOGD("Not enough points tracked [%d], tracking failed", mnMatchesInliers);
@@ -924,6 +948,106 @@ bool Tracking::TrackLocalMap() {
   return true;
 }
 
+
+bool Tracking::NeedNewKeyFrame_test() {
+  // If Local Mapping is freezed by a Loop Closure do not insert keyframes
+  if (mpLocalMapper->isStopped() || mpLocalMapper->stopRequested())
+    return false;
+
+  const int nKFs = mpMap->KeyFramesInMap();
+
+  bool temp = mCurrentFrame.mnId<mnLastRelocFrameId+(mMaxFrames / 2);
+  LOGD("KeyFrame creation conditions")
+  LOGD("\t1) Han pasado suficientes KF desde la ultima reloc? %s ", //([%lu] > [%d]?)", 
+       temp ? "NO" : "SI");
+       //mCurrentFrame.mnId, mnLastRelocFrameId+mMaxFrames);
+
+  // Do not insert keyframes if not enough frames have passed from last relocalisation
+  if (temp && nKFs>mMaxFrames){
+    return false;
+  }
+  // Tracked MapPoints in the reference keyframe
+  int nMinObs = 3;
+  if (nKFs<=2)
+    nMinObs=2;
+  if (nKFs==1 && usePattern)
+    nMinObs=1;
+  int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
+
+  // Local Mapping accept keyframes?
+  bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
+
+  // Check how many "close" points are being tracked and how many could be potentially created.
+  int nNonTrackedClose = 0;
+  int nTrackedClose= 0;
+  if (mSensor==System::RGBD) {
+    for (int i  = 0; i<mCurrentFrame.N; i++) {
+      if (mCurrentFrame.mvDepth[i] > 0 && mCurrentFrame.mvDepth[i]<mThDepth) {
+        if (mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
+          nTrackedClose++;
+        else
+          nNonTrackedClose++;
+      }
+    }
+  }
+
+  bool bNeedToInsertClose = (nTrackedClose<100) && (nNonTrackedClose>70);
+
+  // Thresholds
+  float thRefRatio = 0.75f;
+  if (nKFs<2)
+    thRefRatio = 0.4f;
+
+  if (mSensor!=System::RGBD)
+    thRefRatio = 0.9f;
+
+  // Condition 1a: More than "MaxFrames" have passed from last keyframe insertion
+  const bool c1a = mCurrentFrame.mnId >= mnLastKeyFrameId+mMaxFrames;
+  // Condition 1b: More than "MinFrames" have passed and Local Mapping is idle
+  const bool c1b = (mCurrentFrame.mnId >= mnLastKeyFrameId+mMinFrames && bLocalMappingIdle);
+  //Condition 1c: tracking is weak
+  const bool c1c =  mSensor==System::RGBD && (mnMatchesInliers<nRefMatches*0.25 || bNeedToInsertClose) ;
+  //Condition 1d: stay in curve
+  const bool c1d =  stay_in_curve && bLocalMappingIdle ;
+  // Condition 2: Few tracked points compared to reference keyframe. Lots of visual odometry compared to map matches.
+  const bool c2 = ((mnMatchesInliers<nRefMatches*thRefRatio|| bNeedToInsertClose) && mnMatchesInliers>15);
+
+  bool cond_1 = (c1a || c1b || c1c || c1d);
+  bool cond = cond_1 && c2;
+
+  LOGD("\t2a)");
+  LOGD("\t\t1) Han pasado el num MIN desde la ultima insercion? %s", mCurrentFrame.mnId >= mnLastKeyFrameId+mMinFrames ? "SI" : "NO");
+  LOGD("\t\t2) El mapa local está en IDLE? %s", bLocalMappingIdle ? "SI" : "NO");
+  LOGD("\t\t3) Han pasado el num MAX desde la ultima insercion? %s", c1a ? "SI" : "NO");
+  LOGD("\t\t4) Estoy en una curva? %s", c1d ? "SI" : "NO");
+  LOGD("\t\t** Resolución cond 2a ((1 AND 2) OR 3 OR (4 AND 2)) ->: [%s]", cond_1 ? "TRUE" : "FALSE");
+  LOGD("\t2b)");
+  LOGD("\t\t1) Num inliers [%d] es MAYOR a [15]? %s", mnMatchesInliers, mnMatchesInliers>15 ? "SI" : "NO");
+  LOGD("\t\t2) Num inliers [%d] es MENOR que el %.2f de los puntos de ref [%f]? %s", 
+       mnMatchesInliers, thRefRatio*100, nRefMatches*thRefRatio, mnMatchesInliers<nRefMatches*thRefRatio ? "SI" : "NO");
+  LOGD("\t\t** Resolución cond 2b (1 AND 2) ->: [%s]", c2 ? "TRUE" : "FALSE");
+
+  LOGD("** Necesario crear KF? [%s]\n",  cond_1 && c2 ? "SI" : "NO");
+
+  if (c2) {
+    // If the mapping accepts keyframes, insert keyframe.
+    // Otherwise send a signal to interrupt BA
+    if (bLocalMappingIdle) {
+      return true;
+    } else {
+      mpLocalMapper->InterruptBA();
+
+      if (mSensor==System::RGBD) {
+        if (mpLocalMapper->KeyframesInQueue()<3)
+          return true;
+        else
+          return false;
+      } else
+        return false;
+    }
+  } else
+    return false;
+}
 
 bool Tracking::NeedNewKeyFrame() {
   // If Local Mapping is freezed by a Loop Closure do not insert keyframes

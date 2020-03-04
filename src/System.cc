@@ -51,6 +51,8 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
     LOGD("Input sensor was set to Monocular-IMU");
   } else if (mSensor==MONOCULAR_IMU_NEW) {
     LOGD("Input sensor was set to Monocular-IMU-NEW");
+  } else if (mSensor==FUSION_DATA_AND_GT) {
+    LOGD("Input sensor was set to FUSION_DATA_AND_GT");
   }
 
   // Create the Map
@@ -232,7 +234,7 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
 
 
 Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const std::string filename) {
-  LOGD("Track monocular image with other IMU measurements");
+  LOGD("Track monocular image with IMU measurements");
 
   if (mSensor!=MONOCULAR_IMU_NEW) {
     LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
@@ -255,6 +257,48 @@ Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements
 
   mpTracker->SetIMUMeasurements(measurements);
   Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, filename);
+
+  total.Stop();
+  LOGD("Tracking time is %.2fms", total.GetMsTime());
+
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0, 3), Tcw(1, 3), Tcw(2, 3));
+
+  unique_lock<mutex> lock2(mMutexState);
+  mTrackingState = mpTracker->GetState();
+  mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
+  mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
+
+  return Tcw;
+}
+
+
+Eigen::Matrix4d System::TrackFusion_with_gt(const cv::Mat &im, const IMU_Measurements &measurements, 
+                                                     const double dt, const Eigen::Matrix4d gt_pose) {
+  LOGD("Track monocular image with IMU and GT measurements");
+
+  if (mSensor!=FUSION_DATA_AND_GT) {
+    LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
+    exit(-1);
+  }
+
+  if (dt <= 0.0)
+    return Eigen::Matrix4d::Identity();
+
+  // Check reset
+  {
+    unique_lock<mutex> lock(mMutexReset);
+    if (mbReset) {
+      mpTracker->Reset();
+      mbReset = false;
+    }
+  }
+
+  Timer total(true);
+
+  mpTracker->SetIMUMeasurements(measurements);
+  mpTracker->SetGroundthtruthPose(gt_pose);
+
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, "");
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());

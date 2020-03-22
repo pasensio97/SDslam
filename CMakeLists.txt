@@ -37,9 +37,7 @@ else()
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
-
-  LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++17")
 
   find_package(OpenCV 3.0 QUIET)
   if(NOT OpenCV_FOUND)
@@ -51,10 +49,25 @@ else()
   endif()
 endif()
 
+# ROS DEPENDENCIES
+set(CATKIN_COMPONENTS
+        roscpp
+        cv_bridge
+        image_transport
+        std_msgs
+        tf)
+
+find_package(catkin REQUIRED COMPONENTS ${CATKIN_COMPONENTS})
+
+# MRPT COMPILES ON C++17 AND MAKE EVERYTHING BE IN C++17 I THINK SO I HAD TO CHANGE CODE IN
+# LOOPCLOSING TO COMPILE.
+find_package(MRPT REQUIRED poses gui vision)
+
 include_directories(
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
   ${EIGEN3_INCLUDE_DIR}
+  ${catkin_INCLUDE_DIRS}
 )
 
 if(USE_PANGOLIN)
@@ -94,6 +107,9 @@ LIST(APPEND SOURCEFILES
   src/sensors/Sensor.cc
   src/sensors/ConstantVelocity.cc
   src/sensors/IMU.cc
+
+  # Rosify Difodo
+  src/rosify_difodo/CROSDifodo.cc
 
   # Extra
   src/extra/utils.cc
@@ -209,7 +225,7 @@ else()
   endif()
 endif()
 
-target_link_libraries(${PROJECT_NAME} ${REQUIRED_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${REQUIRED_LIBRARIES} ${catkin_LIBRARIES} ${MRPT_LIBRARIES})
 
 if(NOT USE_ANDROID)
   # Build examples

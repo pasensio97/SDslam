@@ -12,13 +12,12 @@ MESSAGE("Build type: " ${ROS_BUILD_TYPE})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O3 -march=native ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
 
-LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake_modules)
-
 find_package(OpenCV 3.0 QUIET)
 if(NOT OpenCV_FOUND)
    find_package(OpenCV 2.4.3 REQUIRED)
 endif()
 
+find_package(MRPT REQUIRED poses gui vision)
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED )
@@ -37,6 +36,7 @@ set(LIBS
   ${Pangolin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${PROJECT_SOURCE_DIR}/../../../lib/libSD_SLAM.so
+  ${MRPT_LIBRARIES}
 )
 
 # Node for monocular camera

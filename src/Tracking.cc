@@ -202,6 +202,7 @@ void Tracking::Track() {
     }
 
     if (mState!=OK)
+      //TODO: Here DIFODO will take care of computing the new pose for the currentFrame
       return;
   } else {
     // System is initialized. Track Frame.
@@ -236,6 +237,9 @@ void Tracking::Track() {
       mState = OK;
     else
       mState = LOST;
+      //TODO: Here DIFODO will take care of computing the new pose for the currentFrame.
+      // WARNING: It seems that the mLastFrame.mTcw (Camera Pose) can be modified along the steps before, so it
+      // will have to be store as a copy first to be reused here if needed.
 
     // If tracking were good, check if we insert a keyframe
     if (bOK) {

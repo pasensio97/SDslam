@@ -40,6 +40,7 @@
 #include "PatternDetector.h"
 #include "System.h"
 #include "sensors/EKF.h"
+#include "rosify_difodo/CVDifodo.h"
 
 namespace SD_SLAM {
 
@@ -111,6 +112,12 @@ class Tracking {
   // Main tracking function. It is independent of the input sensor.
   void Track();
 
+  inline static void debugPrintEigenPose(std::string message, Eigen::Matrix4d &mat) {
+      Eigen::Quaterniond q(mat.block<3, 3>(0, 0));
+      std::cout << "[--OGM--] " << message << "[" << mat(0, 3) << " " << mat(1, 3) << " " << mat(2, 3) << "]";
+      std::cout << "[" << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "]" << std::endl;
+  }
+
   // Map initialization for stereo and RGB-D
   void StereoInitialization();
 
@@ -148,6 +155,8 @@ class Tracking {
 
   // Input sensor
   int mSensor;
+
+  CVDifodo mCvDifodo;
 
   // Current Frame
   Frame mCurrentFrame;

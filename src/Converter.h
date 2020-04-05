@@ -30,6 +30,7 @@
 #include <Eigen/Dense>
 #include "extra/g2o/types/types_six_dof_expmap.h"
 #include "extra/g2o/types/types_seven_dof_expmap.h"
+#include <mrpt/poses/CPose3D.h>
 
 namespace SD_SLAM {
 
@@ -50,6 +51,12 @@ class Converter {
   static Eigen::Matrix<double, 4, 4> toMatrix4d(const cv::Mat &cvMat4);
   static Eigen::Matrix<double, 4, 4> toMatrix4d(const g2o::SE3Quat &SE3);
   static Eigen::Matrix<double, 4, 4> toMatrix4d(const g2o::Sim3 &Sim3);
+  /**
+   * Returns the pose in the homogeneous form in a 4 by 4 matrix in Eigen.
+   * @param pose
+   * @return
+   */
+  static Eigen::Matrix<double, 4, 4> toMatrix4d(const mrpt::poses::CPose3D &pose);
   static Eigen::Matrix<double, 4, 4> toSE3(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &t);
 };
 

@@ -32,7 +32,6 @@
 #include "Map.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
-#include "rosify_difodo/CROSDifodo.h"
 
 namespace SD_SLAM {
 
@@ -109,9 +108,6 @@ class System {
  private:
   // Input sensor
   eSensor mSensor;
-
-  // Rosify Difodo
-  CROSDifodo* ros_difodo;
 
   // Map structure that stores the pointers to all KeyFrames and MapPoints.
   Map* mpMap;

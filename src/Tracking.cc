@@ -136,6 +136,11 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   else
     sensor_model = new ConstantVelocity();
   motion_model_ = new EKF(sensor_model);
+
+  // Difodo configuration
+  mCvDifodo = CVDifodo();
+  // TODO: Allow to load configuration parameter from configuration.
+  mCvDifodo.loadInnerConfiguration();
 }
 
 Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename) {
@@ -183,6 +188,41 @@ Frame Tracking::CreateFrame(const cv::Mat &im, const cv::Mat &imD) {
 }
 
 void Tracking::Track() {
+  // Load depth frame to difodo (making it always ready to be used)
+  mCvDifodo.loadFrame(mCurrentFrame.mDepthImage);
+  mCvDifodo.execute_iteration();
+
+  // Store the last pose known since this seems to may be modified in some steps. And If I want to use difodo I
+  // want the previous pose not an altered one.
+  // WARNING: It seems that the mLastFrame.mTcw (Camera Pose) can be modified along the steps before, so it
+  // will have to be store as a copy first to be reused here if needed.
+  Eigen::Matrix4d lastFramePose = mLastFrame.GetPose();
+
+  // DEBUG: Just to test that the logic is working until I create a dataset for testing and evaluation.
+  if (mCurrentFrame.mnId > 200 /*&& mCurrentFrame.mnId < 350*/) {
+
+    if (mCurrentFrame.mnId == 301) ROS_INFO_STREAM("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+
+    //
+    // Get the last pose displacement from the two last poses from DIFODO
+    Eigen::Matrix4d dispEstByDifodo = Converter::toMatrix4d(mCvDifodo.getDisplacementPoseInSDSLAMCoords());
+
+    // Add the displacement to SD-SLAM last known pose
+    Eigen::Matrix4d inverseDispEstByDifodo;
+    inverseDispEstByDifodo.setIdentity();
+    inverseDispEstByDifodo.block<3, 3>(0, 0) = dispEstByDifodo.block<3, 3>(0, 0).transpose();
+    inverseDispEstByDifodo.block<3, 1>(0, 3) = -dispEstByDifodo.block<3, 3>(0, 0).transpose() * dispEstByDifodo.block<3, 1>(0, 3);
+    Eigen::Matrix4d newPose = inverseDispEstByDifodo * lastFramePose;
+
+    this->debugPrintEigenPose("Displacement (in SD-SLAM coord):", dispEstByDifodo);
+    this->debugPrintEigenPose("newPose(pose of the world seen from DIFODO):", newPose);
+
+    // Set the new pose estimated by DIFODO into the currentFrame
+    mCurrentFrame.SetPose(newPose);
+    mLastFrame = Frame(mCurrentFrame);
+    return;
+  }
+
   if (mState==NO_IMAGES_YET)
     mState = NOT_INITIALIZED;
 
@@ -271,7 +311,7 @@ void Tracking::Track() {
       if (NeedNewKeyFrame())
         CreateNewKeyFrame();
 
-      // We allow points with high innovation (considererd outliers by the Huber Function)
+      // We allow points with high innovation (considered outliers by the Huber Function)
       // pass to the new keyframe, so that bundle adjustment will finally decide
       // if they are outliers or not. We don't want next frame to estimate its position
       // with those points so we discard them in the frame.

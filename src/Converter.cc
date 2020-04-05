@@ -113,6 +113,21 @@ Eigen::Matrix<double, 4, 4> Converter::toMatrix4d(const g2o::Sim3 &Sim3) {
   return toSE3(s*eigR, eigt);
 }
 
+Eigen::Matrix<double, 4, 4> Converter::toMatrix4d(const mrpt::poses::CPose3D &pose) {
+  Eigen::Matrix<double, 4, 4> M;
+
+  mrpt::math::CMatrixDouble44 mrptHomogeneousMat;
+  pose.getHomogeneousMatrix(mrptHomogeneousMat);
+
+  M << mrptHomogeneousMat(0,0), mrptHomogeneousMat(0,1), mrptHomogeneousMat(0,2), mrptHomogeneousMat(0,3),
+       mrptHomogeneousMat(1,0), mrptHomogeneousMat(1,1), mrptHomogeneousMat(1,2), mrptHomogeneousMat(1,3),
+       mrptHomogeneousMat(2,0), mrptHomogeneousMat(2,1), mrptHomogeneousMat(2,2), mrptHomogeneousMat(2,3),
+       mrptHomogeneousMat(3,0), mrptHomogeneousMat(3,1), mrptHomogeneousMat(3,2), mrptHomogeneousMat(3,3);
+
+  return M;
+}
+
+
 Eigen::Matrix<double, 4, 4> Converter::toSE3(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &t) {
   Eigen::Matrix4d mat;
 

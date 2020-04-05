@@ -51,11 +51,6 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
     LOGD("Input sensor was set to Monocular-IMU");
   }
 
-  // Rosify Difodo configuration set up
-  ros_difodo = new CROSDifodo();
-  ros_difodo->loadInnerConfiguration();
-  ros_difodo->start();
-
   // Create the Map
   mpMap = new Map();
 
@@ -277,8 +272,6 @@ void System::Shutdown() {
   mptLocalMapping->join();
   if (mptLoopClosing)
     mptLoopClosing->join();
-
-  ros_difodo->cancel();
 }
 
 void System::SaveTrajectory(const std::string &filename, const std::string &foldername) {

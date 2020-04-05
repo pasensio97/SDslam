@@ -110,6 +110,7 @@ LIST(APPEND SOURCEFILES
 
   # Rosify Difodo
   src/rosify_difodo/CROSDifodo.cc
+  src/rosify_difodo/CVDifodo.cc
 
   # Extra
   src/extra/utils.cc

@@ -198,31 +198,6 @@ void Tracking::Track() {
   // will have to be store as a copy first to be reused here if needed.
   Eigen::Matrix4d lastFramePose = mLastFrame.GetPose();
 
-  // DEBUG: Just to test that the logic is working until I create a dataset for testing and evaluation.
-  if (mCurrentFrame.mnId > 200 /*&& mCurrentFrame.mnId < 350*/) {
-
-    if (mCurrentFrame.mnId == 301) ROS_INFO_STREAM("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-
-    //
-    // Get the last pose displacement from the two last poses from DIFODO
-    Eigen::Matrix4d dispEstByDifodo = Converter::toMatrix4d(mCvDifodo.getDisplacementPoseInSDSLAMCoords());
-
-    // Add the displacement to SD-SLAM last known pose
-    Eigen::Matrix4d inverseDispEstByDifodo;
-    inverseDispEstByDifodo.setIdentity();
-    inverseDispEstByDifodo.block<3, 3>(0, 0) = dispEstByDifodo.block<3, 3>(0, 0).transpose();
-    inverseDispEstByDifodo.block<3, 1>(0, 3) = -dispEstByDifodo.block<3, 3>(0, 0).transpose() * dispEstByDifodo.block<3, 1>(0, 3);
-    Eigen::Matrix4d newPose = inverseDispEstByDifodo * lastFramePose;
-
-    this->debugPrintEigenPose("Displacement (in SD-SLAM coord):", dispEstByDifodo);
-    this->debugPrintEigenPose("newPose(pose of the world seen from DIFODO):", newPose);
-
-    // Set the new pose estimated by DIFODO into the currentFrame
-    mCurrentFrame.SetPose(newPose);
-    mLastFrame = Frame(mCurrentFrame);
-    return;
-  }
-
   if (mState==NO_IMAGES_YET)
     mState = NOT_INITIALIZED;
 
@@ -242,7 +217,12 @@ void Tracking::Track() {
     }
 
     if (mState!=OK)
-      //TODO: Here DIFODO will take care of computing the new pose for the currentFrame
+      // While the system is not initialized, we can use DIFODO to get the new position. Maybe is not being initialized
+      // because there is no texture at all.
+      LOGD("[--OGM--] 1111111111111111111111111111111111111111111111111 System not initialized, using DIFODO while the system can not be initialized");
+      // No parece funcionar, al añadir el desplazamiento la ultima pose se queda igual.
+//      TrackWithDIFODO(lastFramePose);
+
       return;
   } else {
     // System is initialized. Track Frame.
@@ -273,13 +253,15 @@ void Tracking::Track() {
     if (bOK)
       bOK = TrackLocalMap();
 
-    if (bOK)
+    if (bOK) {
       mState = OK;
-    else
+      LOGD("[--OGM--] _________________________________________SD-SLAM bOK_________________________________________");
+    }
+    else {
       mState = LOST;
-      //TODO: Here DIFODO will take care of computing the new pose for the currentFrame.
-      // WARNING: It seems that the mLastFrame.mTcw (Camera Pose) can be modified along the steps before, so it
-      // will have to be store as a copy first to be reused here if needed.
+      LOGD("[--OGM--] $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$SD-SLAM has changed to LOST state, using DIFODO while the system reinitializes$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+      TrackWithDIFODO(lastFramePose);
+    }
 
     // If tracking were good, check if we insert a keyframe
     if (bOK) {
@@ -793,6 +775,30 @@ bool Tracking::TrackLocalMap() {
   return true;
 }
 
+bool Tracking::TrackWithDIFODO(const Eigen::Matrix4d &lastFramePose) {
+  // Get the last pose displacement from the two last poses from DIFODO
+  Eigen::Matrix4d dispEstByDifodo = Converter::toMatrix4d(mCvDifodo.getDisplacementPoseInSDSLAMCoords());
+
+  // Add the displacement to SD-SLAM last known pose
+  Eigen::Matrix4d inverseDispEstByDifodo;
+  inverseDispEstByDifodo.setIdentity();
+  inverseDispEstByDifodo.block<3, 3>(0, 0) = dispEstByDifodo.block<3, 3>(0, 0).transpose();
+  inverseDispEstByDifodo.block<3, 1>(0, 3) = -dispEstByDifodo.block<3, 3>(0, 0).transpose() * dispEstByDifodo.block<3, 1>(0, 3);
+  Eigen::Matrix4d newPose = inverseDispEstByDifodo * lastFramePose;
+
+  Eigen::Matrix4d lastFramePose_aux = lastFramePose;
+  this->debugPrintEigenPose("lastFramePose:", lastFramePose_aux);
+  this->debugPrintEigenPose("Displacement (in SD-SLAM coord):", dispEstByDifodo);
+  this->debugPrintEigenPose("newPose(pose of the world seen from DIFODO):", newPose);
+
+  // Set the new pose estimated by DIFODO into the currentFrame
+  mCurrentFrame.SetPose(newPose);
+  // NOTE: This is being repeated in the second case where DIFODO is used
+  mLastFrame = Frame(mCurrentFrame);
+
+  // TODO: Is there a way to know if DIFODO is performing bad?
+  return true;
+}
 
 bool Tracking::NeedNewKeyFrame() {
   // If Local Mapping is freezed by a Loop Closure do not insert keyframes

@@ -139,6 +139,8 @@ class Tracking {
   void UpdateLocalPoints();
   void UpdateLocalKeyFrames();
 
+  bool TrackWithDIFODO(const Eigen::Matrix4d &lastFramePose);
+
   bool TrackLocalMap();
   void SearchLocalPoints();
 

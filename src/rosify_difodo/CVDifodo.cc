@@ -172,7 +172,7 @@ void CVDifodo::loadConfiguration() {
 void CVDifodo::loadInnerConfiguration() {
   // This method returns false if the value couldn be found, but we already have the default values in the constructor
   // so no need to check for it
-  bool IS_TUM_DATASET = true;
+  bool IS_TUM_DATASET = false;
 
   if (IS_TUM_DATASET) {
     // FOR TUM use this
@@ -193,7 +193,9 @@ void CVDifodo::loadInnerConfiguration() {
 
     // Realsense D435 = 1000 ; TUM dataset = 1 (5000 in their website and also 16bit) for the rosbag it seems 32bit and
     // scale of 1
-    depth_pixel_scale = 1000;
+    // scale of 1 since this configuration parameter is already managed by SD-SLAM and the image get by difodo is a
+    // opencv and already has been scaled to 1.
+    depth_pixel_scale = 1;
   }
 
   rows_orig = 480;

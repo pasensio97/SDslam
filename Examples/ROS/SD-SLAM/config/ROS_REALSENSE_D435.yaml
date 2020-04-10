@@ -7,16 +7,16 @@
 # Camera calibration and distortion parameters (OpenCV)
 Camera.Width: 640
 Camera.Height: 480
-Camera.fx: 517.306408
-Camera.fy: 516.469215
-Camera.cx: 318.643040
-Camera.cy: 255.313989
+Camera.fx: 615.98974609375
+Camera.fy: 615.9147338867188
+Camera.cx: 317.8431091308594
+Camera.cy: 235.17555236816406
 
-Camera.k1: 0.262383
-Camera.k2: -0.953104
-Camera.p1: -0.005358
-Camera.p2: 0.002628
-Camera.k3: 1.163314
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+Camera.k3: 0.0
 
 # IR projector baseline times fx (aprox.)
 Camera.bf: 40.0
@@ -34,3 +34,35 @@ ROS.IMUTopic: "/imu_data"
 ROS.BaseFrame: "odom"
 ROS.CameraFrame: "camera_link"
 ROS.UseImagesTimeStamps: true
+
+#--------------------------------------------------------------------------------------------
+# ORB Parameters
+#--------------------------------------------------------------------------------------------
+
+# ORB Extractor: Number of features per image
+ORBextractor.nFeatures: 1000
+
+# ORB Extractor: Scale factor between levels in the scale pyramid
+ORBextractor.scaleFactor: 2.0
+
+# ORB Extractor: Number of levels in the scale pyramid
+ORBextractor.nLevels: 5
+
+# ORB Extractor: Fast threshold
+# Image is divided in a grid. At each cell FAST are extracted imposing a minimum threshold.
+# You can lower these values if your images have low contrast
+ORBextractor.thresholdFAST: 10
+
+#--------------------------------------------------------------------------------------------
+# Viewer Parameters
+#--------------------------------------------------------------------------------------------
+Viewer.KeyFrameSize: 0.05
+Viewer.KeyFrameLineWidth: 1.0
+Viewer.GraphLineWidth: 0.9
+Viewer.PointSize: 2.0
+Viewer.CameraSize: 0.08
+Viewer.CameraLineWidth: 3.0
+Viewer.ViewpointX: 0.0
+Viewer.ViewpointY: -0.7
+Viewer.ViewpointZ: -1.8
+Viewer.ViewpointF: 500.0

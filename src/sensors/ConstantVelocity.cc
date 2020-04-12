@@ -42,7 +42,7 @@ void ConstantVelocity::Init(Eigen::VectorXd &X, Eigen::MatrixXd &P) {
   X.segment<3>(3) = w;
 
   P.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * Sensor::COV_V_2;
-  P.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(4, 4) * Sensor::COV_W_2;
+  P.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(3, 3) * Sensor::COV_W_2;
 }
 
 void ConstantVelocity::InitState(Eigen::VectorXd &X, const Eigen::VectorXd &z) {
@@ -153,7 +153,7 @@ Eigen::MatrixXd ConstantVelocity::R(const Eigen::VectorXd &X, double time) {
 
   R.setZero();
   R.block<3, 3>(0, 0) = Eigen::MatrixXd::Identity(3, 3) * Sensor::SIGMA_V * Sensor::SIGMA_V * time * time;
-  R.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(4, 4) * Sensor::SIGMA_W * Sensor::SIGMA_W * time * time;
+  R.block<3, 3>(3, 3) = Eigen::MatrixXd::Identity(3, 3) * Sensor::SIGMA_W * Sensor::SIGMA_W * time * time;
 
   return R;
 }

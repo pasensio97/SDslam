@@ -4,14 +4,8 @@
 #include "CVDifodo.h"
 #include "mrpt/poses/CPose3D.h"
 
-// MACRO USED TO KNOW MORE INFORMATION ABOUT THE PROCESS TAKING PLACE IN THE TERMINAL.
-#define DEBUG
-//#undef DEBUG
-
 CVDifodo::CVDifodo() : mrpt::vision::CDifodo() {
   // DEFAULT ATTRIBUTES VALUES
-  first_iteration = true;
-
   rows_orig = 480;
   cols_orig = 640;
 
@@ -37,9 +31,6 @@ CVDifodo::CVDifodo() : mrpt::vision::CDifodo() {
 
   // NOTE: I dont know why but if set to true, the algorithm doesnt work...
   fast_pyramid = false;
-
-  // Just to initialize it, the first measurement wont be accurate but the followings will be.
-  last_execution_time = (double) cv::getTickCount();
 
   // Initialize the displacement pose
   cam_pose_displacement = mrpt::poses::CPose3D(mrpt::poses::UNINITIALIZED_POSE);
@@ -219,9 +210,6 @@ void CVDifodo::loadInnerConfiguration() {
   // NOTE: I dont know why but if set to true, the algorithm doesnt work...
   fast_pyramid = false;
 
-  // Just to initialize it, the first measurement wont be accurate but the followings will be.
-  last_execution_time = (double) cv::getTickCount();
-
   ROS_INFO_STREAM(std::endl <<
                             "---------------------------------------------------------" << std::endl <<
                             "         DIFODO CONFIGURATION PARAMETERS LOADED" << std::endl <<
@@ -393,36 +381,10 @@ mrpt::poses::CPose3D CVDifodo::getDisplacementPoseInSDSLAMCoords() {
 }
 
 void CVDifodo::execute_iteration() {
-  // 1. Set the frame rate between the previous frame and the current frame. This is a value used in the
-  // odometryCalcuation of DIFODO algorithm, when computing temporal derivatives. Since the frame rate can vary (for
-  // example if we dropped frames) it has to be recalculated on each iteration and set before computing the odometry.
-//    if (!first_iteration) {
-//        ros::Duration time_between_images = this->current_depth_image_time - this->last_depth_image_time;
-//        this->fps = 1.0f / time_between_images.toSec();
-//    }
-//    this->last_depth_image_time = this->current_depth_image_time;
-
-
-  // 2. Compute and publish odometry
+  // Estimation of the new pose
   this->odometryCalculation();
-  ROS_INFO_STREAM("OGM::New pose" << this->cam_pose);
 
   // Get displacement or movement between poses, referenced to the cam_oldpose coordinate reference system
   cam_pose_displacement = this->cam_pose - this->cam_oldpose;
-  ROS_INFO_STREAM("OGM::Displacement" << cam_pose_displacement);
-
-  //DEBUG: Lets do the way back of this position to the world so i can check if cam_pose equals to it.
-//    mrpt::poses::CPose3D new_cam_pose(mrpt::poses::UNINITIALIZED_POSE);
-//    new_cam_pose = this->cam_oldpose + cam_pose_displacement;
-//    ROS_INFO_STREAM("OGM::old_pose + displacement (should be equal to cam_pose)" << new_cam_pose);
-
-
-  // 3. Control the working rate: Wait the time needed to publish at the constant rate specified
-  // Compute the working time or working frame rate.
-
-  // WARNING: For any reason, when using this method (probably due to the sleep function) the time that it takes
-  // DIFODO to execute increases, compare to when is not used. from 3-4ms to 8-9ms. (A notorious time)
-//    double working_time_ms;
-
-  if (first_iteration) first_iteration = false;
+  ROS_DEBUG_STREAM("Displacement estimation from DIFODO" << cam_pose_displacement);
 }

@@ -118,12 +118,6 @@ private:
   double max_depth_value_filter;
 
   /**
-   * The encoding of the ros message. Following REP 118 https://www.ros.org/reps/rep-0118.html this can be either
-   * 16bit or 32bit. "16UC1" and "32FC1". Check sensor_msgs/image_encoding.h to see all available encodings.
-   */
-  std::string pixel_encoding;
-
-  /**
    * The finest resolution of the course to fine pyramid. Can be less than the depth image used but in the experiments
    * Ive made, results are bad when using a different resolution than the depth image after downsampling.
    * Because of this, this value is FIXED to the resolution of the depth images downsampled.
@@ -151,26 +145,6 @@ private:
    * The displacement between the new_pose and the old_pose in the old_pose reference coordinate system.
    */
   mrpt::poses::CPose3D cam_pose_displacement;
-
-  /**
-   * Variable just to know that we are on the first iteration or not
-   */
-  bool first_iteration;
-
-  /**
-   * Time to store the time when a certain part of the code was reach.
-   */
-  double last_execution_time;
-
-  /**
-   * Time to store the time of the current ros depth image message.
-   */
-  ros::Time current_depth_image_time;
-
-  /**
-   * Time to store the time of the last ros depth image message.
-   */
-  ros::Time last_depth_image_time;
 
   /**
    * Converts from a opencv like matrix to a mprt CMatrixFloat, which is the default depth structure used

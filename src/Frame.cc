@@ -88,9 +88,6 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extrac
 
   N = mvKeys.size();
 
-  if (mvKeys.empty())
-    return;
-
   UndistortKeyPoints();
 
   ComputeStereoFromRGBD(imDepth);

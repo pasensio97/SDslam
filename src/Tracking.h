@@ -57,7 +57,8 @@ class Tracking {
     NO_IMAGES_YET = 0,
     NOT_INITIALIZED = 1,
     OK = 2,
-    LOST = 3
+    LOST = 3,
+    OK_DIFODO = 4,
   };
 
  public:
@@ -112,14 +113,14 @@ class Tracking {
   // Main tracking function. It is independent of the input sensor.
   void Track();
 
-  inline static void debugPrintEigenPose(std::string message, Eigen::Matrix4d &mat) {
-      Eigen::Quaterniond q(mat.block<3, 3>(0, 0));
-      std::cout << "[--OGM--] " << message << "[" << mat(0, 3) << " " << mat(1, 3) << " " << mat(2, 3) << "]";
-      std::cout << "[" << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "]" << std::endl;
-  }
+  // TrackRGBD just for the RGBD input sensor.
+  void TrackRGBD();
 
   // Map initialization for stereo and RGB-D
   void StereoInitialization();
+
+  // Used to recover tracking (ORB tracking) from non texture scenarios
+  void ReStereoInitialization();
 
   // Map initialization for monocular
   void MonocularInitialization();

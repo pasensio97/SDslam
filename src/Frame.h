@@ -160,7 +160,7 @@ class Frame {
   long unsigned int mnId;
 
   // Reference Keyframe.
-  KeyFrame* mpReferenceKF;
+  KeyFrame* mpReferenceKF = nullptr;
 
   // Scale pyramid info.
   int mnScaleLevels;

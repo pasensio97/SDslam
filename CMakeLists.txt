@@ -109,7 +109,6 @@ LIST(APPEND SOURCEFILES
   src/sensors/IMU.cc
 
   # Rosify Difodo
-  src/rosify_difodo/CROSDifodo.cc
   src/rosify_difodo/CVDifodo.cc
 
   # Extra

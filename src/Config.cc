@@ -40,6 +40,15 @@ Config::Config() {
   camera_params_.k3 = 0.0;
   camera_params_.fps = 30.0;
   camera_params_.bf = 40.0;
+  camera_params_.fovh_degrees= 74.0f;
+  camera_params_.fovv_degrees = 62.0f;
+
+  // DIFODO
+  difodo_params_.min_depth_value_filter = 0.5;
+  difodo_params_.max_depth_value_filter = 4.5;
+  difodo_params_.downsample = 4;
+  difodo_params_.ctf_levels = 5;
+  difodo_params_.fast_pyramid = false;
 
   kUsePattern_ = false;
   kThDepth_ = 40.0;
@@ -99,6 +108,15 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Camera.k3"].isNamed()) fs["Camera.k3"] >> camera_params_.k3;
   if (fs["Camera.fps"].isNamed()) fs["Camera.fps"] >> camera_params_.fps;
   if (fs["Camera.bf"].isNamed()) fs["Camera.bf"] >> camera_params_.bf;
+  if (fs["Camera.fovh_degrees"].isNamed()) fs["Camera.fovh_degrees"] >> camera_params_.fovh_degrees;
+  if (fs["Camera.fovv_degrees"].isNamed()) fs["Camera.fovv_degrees"] >> camera_params_.fovv_degrees;
+
+  // DIFODO
+  if (fs["DIFODO.min_depth_value_filter"].isNamed()) fs["DIFODO.min_depth_value_filter"] >> difodo_params_.min_depth_value_filter;
+  if (fs["DIFODO.max_depth_value_filter"].isNamed()) fs["DIFODO.max_depth_value_filter"] >> difodo_params_.max_depth_value_filter;
+  if (fs["DIFODO.downsample"].isNamed()) fs["DIFODO.downsample"] >> difodo_params_.downsample;
+  if (fs["DIFODO.ctf_levels"].isNamed()) fs["DIFODO.ctf_levels"] >> difodo_params_.ctf_levels;
+  if (fs["DIFODO.fast_pyramid"].isNamed()) fs["DIFODO.fast_pyramid"] >> difodo_params_.fast_pyramid;
 
   if (fs["UsePattern"].isNamed()) fs["UsePattern"] >> kUsePattern_;
   if (fs["ThDepth"].isNamed()) fs["ThDepth"] >> kThDepth_;

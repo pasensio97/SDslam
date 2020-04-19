@@ -39,7 +39,20 @@ struct CameraParameters {
   double k3;
   double fps;
   double bf;
+  // Used only by DIFODO
+  float fovh_degrees;
+  float fovv_degrees;
 };
+
+struct DifodoParameters {
+  // Check CVDIFODO.h and MRPT::CDIFODO for the meaning of each parameter
+  double min_depth_value_filter;
+  double max_depth_value_filter;
+  int downsample;
+  int ctf_levels;
+  bool fast_pyramid;
+};
+
 
 class Config {
  public:
@@ -71,6 +84,14 @@ class Config {
   static double k3() { return GetInstance().camera_params_.k3; }
   static double fps() { return GetInstance().camera_params_.fps; }
   static double bf() { return GetInstance().camera_params_.bf; }
+  static float fovh() { return GetInstance().camera_params_.fovh_degrees; }
+  static float fovv() { return GetInstance().camera_params_.fovv_degrees; }
+
+  static double difodo_min_depth_value_filter() { return GetInstance().difodo_params_.min_depth_value_filter; }
+  static double difodo_max_depth_value_filter() { return GetInstance().difodo_params_.max_depth_value_filter; }
+  static int difodo_downsample() { return GetInstance().difodo_params_.downsample; }
+  static int difodo_ctf_levels() { return GetInstance().difodo_params_.ctf_levels; }
+  static bool difodo_fast_pyramid() { return GetInstance().difodo_params_.fast_pyramid; }
 
   static double UsePattern() { return GetInstance().kUsePattern_; }
   static double ThDepth() { return GetInstance().kThDepth_; }
@@ -104,6 +125,9 @@ class Config {
 
   // Camera
   CameraParameters camera_params_;
+
+  // DIFODO configuration
+  DifodoParameters difodo_params_;
 
   bool kUsePattern_;
   double kThDepth_;

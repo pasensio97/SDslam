@@ -87,6 +87,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
     cout << "- k3: " << DistCoef.at<float>(4) << endl;
   cout << "- p1: " << DistCoef.at<float>(2) << endl;
   cout << "- p2: " << DistCoef.at<float>(3) << endl;
+  cout << "- FOVH: " << Config::fovh() << endl;
+  cout << "- FOVV: " << Config::fovv() << endl;
   cout << "- fps: " << fps << endl;
 
   // Load ORB parameters
@@ -115,6 +117,18 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
       mDepthMapFactor=1;
     else
       mDepthMapFactor = 1.0f/mDepthMapFactor;
+
+    // DIFODO configuration
+    mCvDifodo = CVDifodo();
+    mCvDifodo.loadConfiguration();
+
+    cout << endl << "DIFODO Parameters: " << endl;
+    cout << "- Min Depth Value Filter: " << Config::difodo_min_depth_value_filter() << endl;
+    cout << "- Max Depth Value Filter: " << Config::difodo_max_depth_value_filter() << endl;
+
+    cout << "- Downsampling: " << Config::difodo_downsample() << endl;
+    cout << "- Course To Fine Pyramid Level: " << Config::difodo_ctf_levels() << endl;
+    cout << "- Use Fast Pyramid: " << Config::difodo_fast_pyramid() << endl;
   }
 
   threshold_ = 8;
@@ -136,11 +150,6 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   else
     sensor_model = new ConstantVelocity();
   motion_model_ = new EKF(sensor_model);
-
-  // Difodo configuration
-  mCvDifodo = CVDifodo();
-  // TODO: Allow to load configuration parameter from configuration.
-  mCvDifodo.loadInnerConfiguration();
 }
 
 Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename) {

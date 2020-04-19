@@ -40,48 +40,27 @@ CVDifodo::~CVDifodo() {
 }
 
 void CVDifodo::loadConfiguration() {
-  /*********************VALUES THAT WILL BE RETRIEVED BY A .LAUNCH OR CONFIG FILE*********************/
-  // This method returns false if the value couldn be found, but we already have the default values in the constructor
-  // so no need to check for it
+  this->rows_orig = SD_SLAM::Config::Height();
+  this->cols_orig = SD_SLAM::Config::Width();
 
-  ros::param::get("/rows_orig", rows_orig);
-  ros::param::get("/cols_orig", cols_orig);
+  // Fixed value. Not used since the image that comes to DIFODO has been preprocessed to be at millimeters.
+  this->depth_pixel_scale = 1;
 
-  ros::param::get("/depth_pixel_scale", depth_pixel_scale);
+  this->min_depth_value_filter = SD_SLAM::Config::difodo_min_depth_value_filter();
+  this->max_depth_value_filter = SD_SLAM::Config::difodo_max_depth_value_filter();
 
-  ros::param::get("/min_depth_value_filter", min_depth_value_filter);
-  ros::param::get("/max_depth_value_filter", max_depth_value_filter);
-
-  int aux; // This is needed since get only works with integer (int32) references and not any other uint or uint_16...
-  if (ros::param::get("/downsample", aux)) {
-    downsample = aux;
-  }
-
-  if (ros::param::get("/ctf_levels", aux)) {
-    ctf_levels = aux;
-  }
+  this->downsample = SD_SLAM::Config::difodo_downsample();
+  this->ctf_levels = SD_SLAM::Config::difodo_ctf_levels();
 
   rows_ctf = rows_orig / downsample;
   cols_ctf = cols_orig / downsample;
 
-  ros::param::get("/fovh_degrees", fovh_degrees);
-  ros::param::get("/fovv_degrees", fovv_degrees);
+  this->fovh_degrees = SD_SLAM::Config::fovh();
+  this->fovv_degrees = SD_SLAM::Config::fovv();
 
-  ros::param::get("/fast_pyramid", fast_pyramid);
+  this->fast_pyramid = SD_SLAM::Config::difodo_fast_pyramid();
 
-  ROS_INFO_STREAM(std::endl <<
-                            "---------------------------------------------------------" << std::endl <<
-                            "         DIFODO CONFIGURATION PARAMETERS LOADED" << std::endl <<
-                            "---------------------------------------------------------" << std::endl <<
-                            "rows_orig: " << rows_orig << std::endl <<
-                            "cols_orig: " << cols_orig << std::endl <<
-                            "downsample: " << downsample << std::endl <<
-                            "ctf_levels " << ctf_levels << std::endl <<
-                            "fovh_degrees: " << fovh_degrees << std::endl <<
-                            "fovv_degrees: " << fovv_degrees << std::endl <<
-                            "fast_pyramid: " << fast_pyramid << std::endl);
-
-  /******************SET DIFODO ATTRIBUTES VALUES*****************/
+  /******************SET DIFODO INNER ATTRIBUTES VALUES*****************/
   this->fovh = M_PI * fovh_degrees / 180.0;
   this->fovv = M_PI * fovv_degrees / 180.0;
 

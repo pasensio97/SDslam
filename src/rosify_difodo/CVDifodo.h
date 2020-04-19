@@ -29,7 +29,7 @@
 #include <fstream>
 #include <iostream>
 #include <time.h>
-
+#include "Config.h"
 
 class CVDifodo : public mrpt::vision::CDifodo {
 
@@ -50,8 +50,7 @@ public:
   void loadInnerConfiguration();
 
   /**
-   * Loads the same values as loadInnerConfiguration but from the ros parameter server. Usually these parameters will
-   * be defined in a launch.file
+   * Loads the same values as loadInnerConfiguration but from the configuration file.
    */
   void loadConfiguration();
 

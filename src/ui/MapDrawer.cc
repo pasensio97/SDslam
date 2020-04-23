@@ -162,7 +162,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
   }
 }
 
-void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
+void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc, std::vector<float> color) {
   const float &w = Config::CameraSize();
   const float h = w*0.75;
   const float z = w*0.6;
@@ -176,7 +176,7 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
 #endif
 
   glLineWidth(Config::CameraLineWidth());
-  glColor3f(0.9f, 0.0f, 0.0f);
+  glColor3f(color[0], color[1], color[2]);
   glBegin(GL_LINES);
   glVertex3f(0, 0, 0);
   glVertex3f(w, h, z);

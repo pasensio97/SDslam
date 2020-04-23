@@ -32,8 +32,8 @@ using std::unique_lock;
 
 namespace SD_SLAM {
 
-Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer):
-  mpSystem(pSystem), mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mbFinishRequested(false), mbFinished(true) {
+Viewer::Viewer(System* pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Tracking* mpTracker):
+  mpSystem(pSystem), mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpTracker(mpTracker), mbFinishRequested(false), mbFinished(true) {
 }
 
 void Viewer::Run() {
@@ -125,6 +125,11 @@ void Viewer::Run() {
       menuStopAndSave = false;
     }
 
+    // Update the last state
+    if (mpTracker != nullptr) {
+      mState = static_cast<int>(mpTracker->GetLastState());
+    }
+
     // Set camera position
     mpMapDrawer->GetCurrentOpenGLCameraMatrix(Twc);
 
@@ -145,7 +150,12 @@ void Viewer::Run() {
       d_cam.Activate(s_cam);
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-      mpMapDrawer->DrawCurrentCamera(Twc);
+      std::vector<float> cam_color = {0.9f, 0.0f, 0.0f}; // Red Color by Default;
+      if (mState == Tracking::OK_DIFODO) {
+        cam_color = {1.0f, 0.85f, 0.0f}; //Gold Color
+      }
+
+      mpMapDrawer->DrawCurrentCamera(Twc, cam_color);
       if (menuShowKeyFrames || menuShowGraph)
         mpMapDrawer->DrawKeyFrames(menuShowKeyFrames, menuShowGraph);
       if (menuShowPoints)

@@ -42,7 +42,7 @@ class MapDrawer {
 
   void DrawMapPoints();
   void DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph);
-  void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc);
+  void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc, std::vector<float> color);
   void SetCurrentCameraPose(const Eigen::Matrix4d &Tcw);
   void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
 
@@ -50,6 +50,7 @@ class MapDrawer {
   Eigen::Matrix4d mCameraPose;
 
   std::mutex mMutexCamera;
+
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

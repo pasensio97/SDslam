@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
   std::thread* tviewer = nullptr;
 
   if (useViewer) {
-    viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
+    viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer, tracker);
     tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
   }
 #endif

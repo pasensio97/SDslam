@@ -1,14 +1,17 @@
 # SD-SLAM
-**Authors:** [Eduardo Perdices](https://gsyc.urjc.es/~eperdices/)
+**Authors:** [Eduardo Perdices](https://gsyc.urjc.es/~eperdices/) & [Omar Garrido](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/)
 
 SD-SLAM is a real-time SLAM library for **Monocular** and **RGB-D** cameras that computes the camera trajectory and a sparse 3D reconstruction (in the RGB-D case with true scale). It is able to detect loops and relocalize the camera in real time.
+
+Also is the latest version, on the RGBD mode, it combines [ORB SLAM](https://github.com/raulmur/ORB_SLAM2) with [DIFODO](https://ieeexplore.ieee.org/document/7119600) tracking. This allows SD-SLAM to track even when there is no light or texture at all as can be seen in this [video](https://www.youtube.com/watch?v=eaPescZQnW4&feature=youtu.be).
+More information of this on the [blog](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/) 
 
 # 1. License
 
 SD-SLAM is released under a [GPLv3 license](https://github.com/eperdices/SD-SLAM/blob/master/License-gpl.txt).
 
 # 2. Prerequisites
-We have tested the library in **Ubuntu 16.04**, but it should be easy to compile in other platforms.
+We have tested the library in **Ubuntu 18.04**, but it should be easy to compile in other platforms.
 
 ## Pangolin
 We use [Pangolin](https://github.com/stevenlovegrove/Pangolin) for visualization and user interface. Dowload and install instructions can be found at: https://github.com/stevenlovegrove/Pangolin.
@@ -21,6 +24,9 @@ We use [Eigen3](http://eigen.tuxfamily.org) to perform matrices operations. Down
 
 ## g2o (Included in extra folder)
 We use modified versions of the [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. This library (which is BSD) is included in the *extra* folder.
+
+## MRPT
+DIFODO is an algorithm that is within [MPRT](https://github.com/MRPT/mrpt#3-install) (Mobile Robot Programming Toolkit). It can be easily installed on ubuntu from ppa. The official instructions to install it are [here](https://github.com/MRPT/mrpt#3-install). The last version where SD-SLAM was working was **1:1.9.9~snapshot20191122-1444-git-898be015-bionic-1**. Check the [blog](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/install/#mrpt) for more details or if problems with the installation arised.
 
 # 3. Building SD-SLAM library and examples
 
@@ -161,6 +167,8 @@ Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data fro
   ```
 
 ### Running RGBD with roslaunch
+
+#### TUM dataset
 Several launch files has been provided so the node RGBD can be run with those.
 In order to run SD-SLAM with the configuration for TUM freidburg1 sequences run
 
@@ -173,6 +181,17 @@ In order to run SD-SLAM with the configuration for TUM freidburg1 sequences and 
   ```
   roslaunch SD-SLAM sdslam_TUM1_evaluation_file.launch
   ```
+  
+If you want to use videos from the TUM2 or TUM3 sequences, just change in the configuration file the Camera parameters,intrinsic parameters and distortion. This is because the dataset TUM1, TUM2 and TUM3 have different parameters, check their website for more information.
+  
+#### Realsense D435
+There is also an easy script to run SD-SLAM in RGBD mode along the realsense D435 (but probably is valid for other realsense cameras).
+
+
+  ```
+  roslaunch SD-SLAM sdslam_REALSENSE_D435.launch
+  ```
+
 
 
 

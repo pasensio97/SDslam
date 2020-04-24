@@ -545,12 +545,12 @@ int main(int argc, char **argv)
     set_rot_trans_from_gt(gt_content.at(i), gt_att, gt_pos);
     cout << "GT pos " << gt_pos.transpose() << endl;
     
-    // SET GPS VALUES TO SD-SLAM
+    // SET GPS VALUES INTO SD-SLAM (in World-slam CS)
     //Vector3d gt_pos_on_slam = -gt_att.inverse().toRotationMatrix() * gt_pos;
     gps_pose_i = vector_gt_to_pose(gt_content.at(i));
     
-    gps_pose_i.block<3,3>(0,0) = gt_att.inverse().toRotationMatrix(); //gt_att.inverse().toRotationMatrix();
-    gps_pose_i.block<3,1>(0,3) = rot.cam2nwu() * gt_pos; //(-gps_pose_i.block<3,3>(0,0) * gps_pose_i.block<3,1>(0,3));
+    //gps_pose_i.block<3,3>(0,0) = gt_att.inverse().toRotationMatrix(); //gt_att.inverse().toRotationMatrix();
+    //gps_pose_i.block<3,1>(0,3) = rot.cam2nwu() * gt_pos; //(-gps_pose_i.block<3,3>(0,0) * gps_pose_i.block<3,1>(0,3));
 
     // ------ SLAM
     SD_SLAM::Timer ttracking(true);
@@ -569,11 +569,14 @@ int main(int argc, char **argv)
     
     // odompub_ekf.publish(time_it, SLAM.GetTracker()->GetCurrentFrame().GetPosition(), Quaterniond(ekf));
 
-    odompub_gps_cam.publish(time_it, gps_pos, gps_att);
-    odompub_gps_world.publish(time_it, -gps_att.toRotationMatrix().transpose() * gps_pos, gps_att.inverse());
+    odompub_gt_world.publish(time_it, (gt_pos)/27, gt_att);
 
-    odompub_slam_cam.publish(time_it, pose.block<3, 1>(0, 3), Quaterniond(pose.block<3, 3>(0, 0)));
-    odompub_slam_world.publish(time_it, -pose.block<3, 3>(0, 0).transpose() * pose.block<3, 1>(0, 3), 
+    double rviz_scale = 1; // for rviz 
+    odompub_gps_cam.publish(time_it, gps_pos * rviz_scale, gps_att);
+    odompub_gps_world.publish(time_it, (-gps_att.toRotationMatrix().transpose() * gps_pos) * rviz_scale, gps_att.inverse());
+
+    odompub_slam_cam.publish(time_it, pose.block<3, 1>(0, 3) * rviz_scale, Quaterniond(pose.block<3, 3>(0, 0)));
+    odompub_slam_world.publish(time_it, (-pose.block<3, 3>(0, 0).transpose() * pose.block<3, 1>(0, 3)) * rviz_scale, 
                                         Quaterniond(pose.block<3, 3>(0, 0).transpose()));
 
     // -----------------------------------------------------------------------------------------------------

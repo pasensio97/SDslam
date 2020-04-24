@@ -60,7 +60,9 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   }
 
   SetPose(F.mTcw);
-
+  set_gps_pose(F.gps_pose);
+  scale_gps = 0.0;
+  
   // Copy pyramid
   int size = F.mvImagePyramid.size();
   mvImagePyramid.resize(size);

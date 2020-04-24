@@ -176,6 +176,13 @@ class KeyFrame {
   std::vector<cv::Mat> mvImagePyramid;
   cv::Mat mDepthImage;
 
+  // GPS pose
+  Eigen::Matrix4d gps_pose = Eigen::Matrix4d::Identity();
+  inline void set_gps_pose(const Eigen::Matrix4d & pose){gps_pose = pose;}
+  inline Eigen::Matrix3d R_gps(){return gps_pose.block<3,3>(0,0);}
+  inline Eigen::Vector3d t_gps(){return gps_pose.block<3,1>(0,3);}
+  double scale_gps;
+
   // The following variables need to be accessed trough a mutex to be thread safe.
  protected:
   // SE3 Pose and camera center

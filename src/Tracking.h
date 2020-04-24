@@ -139,7 +139,7 @@ class Tracking {
   Matrix4d test_gps_pose, test_ekf_pose;
   void estimate_rotation_between_gps_and_slamworld();
   void estimate_rotation_between_gps_and_slamworld(Frame &curr_frame);
-  void estimate_scale_between_gps_and_slamworld();
+  void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
   Matrix4d predict_new_pose_with_gps();
   inline void set_first_gps_pose(const Matrix4d & pose){__first_gps_pose = pose;}
   inline Matrix3d R_first_gps(){return __first_gps_pose.block<3,3>(0,0);}

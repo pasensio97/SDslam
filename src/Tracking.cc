@@ -443,16 +443,29 @@ void Tracking::MonocularInitialization() {
       Tcw.block<3, 1>(0, 3) = tcw;
       mCurrentFrame.SetPose(Tcw);
       CreateInitialMapMonocular();
-      estimate_rotation_between_gps_and_slamworld();
+
+      if (mState == OK){
+        estimate_rotation_between_gps_and_slamworld();
+        estimate_scale(mpMap->GetKeyFrame(1), mpMap->GetKeyFrame(0));
+      }
+
       
-      _att_test_gps = Quaterniond(mCurrentFrame.GetRotation());
-      _att_test_gps.normalize();
+      //_att_test_gps = Quaterniond(mCurrentFrame.GetRotation());
+      //_att_test_gps.normalize();
     }
   }
 }
 
-void Tracking::estimate_scale_between_gps_and_slamworld(){
-  
+
+
+void Tracking::estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf){
+  // En los cierres de bucle que pasa con mLastFK?
+  Vector3d delta_v = curr_kf->GetPoseInverse().block<3,1>(0,3) - last_kf->GetPoseInverse().block<3,1>(0,3);
+  Vector3d delta_gps = curr_kf->t_gps() - last_kf->t_gps();
+
+  int scale = (delta_v.norm() == 0) ? 1 : delta_gps.norm() / delta_v.norm();
+  cout << "\n\tNew scale: " << scale << endl << endl;
+  curr_kf->scale_gps = scale;
 }
 
 void Tracking::estimate_rotation_between_gps_and_slamworld(){
@@ -843,6 +856,7 @@ bool Tracking::TrackWithNewIMUModel() {
   Model 10: Sensor (?)
   
   */
+  Matrix4d mmodel_pose = Matrix4d::Identity();
   int model = __model;
 
   if (model == 0){
@@ -992,18 +1006,25 @@ bool Tracking::TrackWithNewIMUModel() {
     // Use EKF prediction but calculate gps position to represent on rviz
     threshold_ = 8;
     Matrix4d estimate_gps = predict_new_pose_with_gps();
-
-    
+    Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+     
     Vector3d delta_t_gps = mCurrentFrame.t_gps() - mLastFrame.t_gps();
-    delta_t_gps /= __ratio;  // apply scale corerction
+    delta_t_gps /= mpReferenceKF->scale_gps;  // apply scale corerction
     Vector3d last_t = -mLastFrame.GetRotation().transpose() * mLastFrame.GetPosition(); 
     Vector3d new_t_w = last_t + delta_t_gps;
-    Vector3d new_t = -(estimate_gps.block<3,3>(0,0) * new_t_w);
+    // A) GT att
+    //Vector3d new_t = -(estimate_gps.block<3,3>(0,0) * new_t_w);
+
+    // B) IMU att
+    Vector3d new_t = -(estimate_imu.block<3,3>(0,0) * new_t_w);
+
+    // C) GPS paper
+    //Quaterniond diff_R_gps = (Quaterniond(mCurrentFrame.R_gps()) * Quaterniond(mLastFrame.R_gps()).inverse()).normalized();
+    //Vector3d new_t = diff_R_gps * mLastFrame.GetPosition() + curr_R_gps.inverse() * tw;   
 
 
-
-    _att_test_gps =  Quaterniond(estimate_gps.block<3,3>(0,0));
-    _pos_test_gps = new_t;//-test_gps_pose.block<3,3>(0,0) * estimate_gps.block<3,1>(0,3); 
+    _att_test_gps = Quaterniond(estimate_imu.block<3,3>(0,0));
+    _pos_test_gps = new_t;
   }
   else{
     // 
@@ -1345,7 +1366,7 @@ void Tracking::CreateNewKeyFrame() {
     return;
 
   KeyFrame* pKF = new KeyFrame(mCurrentFrame, mpMap);
-
+  estimate_scale(pKF, mpReferenceKF);
   mpReferenceKF = pKF;
   mCurrentFrame.mpReferenceKF = pKF;
 

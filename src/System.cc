@@ -233,7 +233,7 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
 }
 
 
-Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const std::string filename) {
+Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const Matrix4d &gps_pose) {
   LOGD("Track monocular image with IMU measurements");
 
   if (mSensor!=MONOCULAR_IMU_NEW) {
@@ -256,7 +256,7 @@ Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements
   Timer total(true);
 
   mpTracker->SetIMUMeasurements(measurements);
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, filename);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, gps_pose);
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
@@ -298,7 +298,7 @@ Eigen::Matrix4d System::TrackFusion_with_gt(const cv::Mat &im, const IMU_Measure
   mpTracker->SetIMUMeasurements(measurements);
   mpTracker->SetGroundthtruthPose(gt_pose);
 
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, "");
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, gt_pose);
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
@@ -633,6 +633,44 @@ vector<MapPoint*> System::GetTrackedMapPoints() {
 vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   unique_lock<mutex> lock(mMutexState);
   return mTrackedKeyPointsUn;
+}
+
+
+void System::save_as_tum(const std::string &filename) {
+
+  std::cout << "Saving trajectory to " << filename << " ..." << std::endl;
+
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+  std::string output;
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    Eigen::Matrix4d pose = pKF->GetPoseInverse();
+    Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
+    Eigen::Vector3d t = pose.block<3, 1>(0, 3);
+
+    // f << setprecision(6) << *lT << " " <<  setprecision(9) << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
+    
+    double timestamp;
+    output;
+    output += "  - id: " + std::to_string(pKF->mnId) + "\n";
+
+  }
+
+
+  f << output;
+  f.close();
+  std::cout << "Trajectory saved!" << std::endl;
+
 }
 
 }  // namespace SD_SLAM

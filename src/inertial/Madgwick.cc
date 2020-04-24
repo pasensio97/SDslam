@@ -7,7 +7,7 @@ Madgwick::Madgwick(double gain){
   }
 
 const Quaterniond Madgwick::get_orientation(){
-  return Quaterniond(q0, q1, q2, q3);
+  return Quaterniond(q0, q1, q2, q3).normalized();
 }
 
 Quaterniond Madgwick::get_local_orientation(){
@@ -20,7 +20,7 @@ Quaterniond Madgwick::get_local_orientation(){
 
   Matrix3d pose_rot;
   pose_rot = R.transpose() * q.toRotationMatrix() * R;
-  Quaterniond local_q(pose_rot.transpose());
+  Quaterniond local_q(pose_rot.inverse());
   return local_q.normalized(); // rot from NWU frame to SDSLAM local
 }
 

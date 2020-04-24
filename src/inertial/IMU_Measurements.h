@@ -12,8 +12,8 @@ class IMU_Measurements{
   IMU_Measurements apply_R(const Eigen::Matrix3d& R);
 
   inline double timestamp(){return _timestamp;}
-  inline const Eigen::Vector3d acceleration(){return _acceleration;}
-  inline const Eigen::Vector3d angular_velocity() {return _angular_velocity;}
+  inline Eigen::Vector3d acceleration() const {return Vector3d(_acceleration);}
+  inline Eigen::Vector3d angular_velocity() const {return Vector3d(_angular_velocity);}
 
 
  private:

@@ -176,7 +176,13 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
 #endif
 
   glLineWidth(Config::CameraLineWidth());
-  glColor3f(0.9f, 0.0f, 0.0f);
+  if (_with_imu){
+    glColor3f(0.9f, 0.9f, 0.0f); 
+  }
+  else{
+    glColor3f(0.9f, 0.0f, 0.0f);  
+  }
+  
   glBegin(GL_LINES);
   glVertex3f(0, 0, 0);
   glVertex3f(w, h, z);
@@ -204,9 +210,10 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
 }
 
 
-void MapDrawer::SetCurrentCameraPose(const Eigen::Matrix4d &Tcw) {
+void MapDrawer::SetCurrentCameraPose(const Eigen::Matrix4d &Tcw, bool with_imu) {
   unique_lock<mutex> lock(mMutexCamera);
   mCameraPose = Tcw;
+  _with_imu = with_imu;
 }
 
 void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M) {

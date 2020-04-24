@@ -87,6 +87,11 @@ class Frame {
     return mTcw.block<3,3>(0,0);
   }
 
+  // Returns position
+  inline Eigen::Vector3d GetPosition() const {
+    return mTcw.block<3,1>(0,3);
+  }
+
   // Check if a MapPoint is in the frustum of the camera
   // and fill variables of the MapPoint to be used by the tracking
   bool isInFrustum(MapPoint* pMP, float viewingCosLimit);
@@ -208,6 +213,15 @@ class Frame {
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // tests
+  Eigen::Matrix4d gps_pose = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d trans_gps= Eigen::Matrix4d::Identity();
+  inline void set_gps_pose(const Eigen::Matrix4d & pose){gps_pose = pose;}
+  inline Eigen::Matrix3d R_gps(){return gps_pose.block<3,3>(0,0);}
+  inline Eigen::Vector3d t_gps(){return gps_pose.block<3,1>(0,3);}
+  inline Eigen::Matrix3d R_trans_gps(){return trans_gps.block<3,3>(0,0);}
+  inline Eigen::Vector3d t_trans_gps(){return trans_gps.block<3,1>(0,3);}
 };
 
 }  // namespace SD_SLAM

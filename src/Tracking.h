@@ -42,6 +42,7 @@
 #include "sensors/EKF.h"
 #include "inertial/IMU_Measurements.h"
 #include "inertial/Madgwick.h"
+#include "inertial/PredictionModels.h"
 
 namespace SD_SLAM {
 
@@ -67,7 +68,7 @@ class Tracking {
   // Preprocess the input and call Track(). Extract features and performs stereo matching.
   Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
-  Eigen::Matrix4d GrabImageFusion(const cv::Mat &im, const double dt, const std::string filename); // Temporal used to pass dt
+  Eigen::Matrix4d GrabImageFusion(const cv::Mat &im, const double dt, const Matrix4d &gps_pose); // Temporal used to pass dt
 
   // Create new frame and extract features
   Frame CreateFrame(const cv::Mat &im);
@@ -126,8 +127,34 @@ class Tracking {
   // test debug
   bool set_debug;
   Quaterniond last_relative_q, last_q, last_mad_q;
-  Quaterniond pred_ctevel_q, pred_mad_q, pred_vision_q;
+  Quaterniond pred_ctevel_q, pred_mad_q, pred_vision_q, _gt_q;
   Matrix4d _prediction;
+  Vector3d __first_gps_pos;
+  
+  // --------------- GPS ----------------------------------------------
+  Quaterniond __rotation_gps_to_slamworld;
+  Matrix3d mat_Rwgps;
+  double __ratio;
+  Matrix4d __first_gps_pose;
+  Matrix4d test_gps_pose, test_ekf_pose;
+  void estimate_rotation_between_gps_and_slamworld();
+  void estimate_rotation_between_gps_and_slamworld(Frame &curr_frame);
+  void estimate_scale_between_gps_and_slamworld();
+  Matrix4d predict_new_pose_with_gps();
+  inline void set_first_gps_pose(const Matrix4d & pose){__first_gps_pose = pose;}
+  inline Matrix3d R_first_gps(){return __first_gps_pose.block<3,3>(0,0);}
+  inline Vector3d t_first_gps(){return __first_gps_pose.block<3,1>(0,3);}
+  Frame __last_kf_gps, __curr_kf_gps;
+  // --------------- Prediciotn models ----------------------------------------------
+  IMU_model imu_model = IMU_model(0.0085);
+  bool used_imu_model = false;
+  IMU_Measurements last_imu;
+  int __model = 0;
+  int its = 0;
+  // ------------------------ end gps ----------------------------------
+  Quaterniond _att_test_gps;
+  Vector3d _pos_test_gps;
+  
   int first_proj, second_proj, inliers_on_pred, inliers_on_localmap;
   bool stay_in_curve; 
   

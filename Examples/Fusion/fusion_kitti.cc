@@ -91,7 +91,6 @@ int main(int argc, char **argv)
 
   viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
   tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
-  
 
   double freq = 1.0/10.0;
   int i = 0;
@@ -109,6 +108,7 @@ int main(int argc, char **argv)
     }
 
     SD_SLAM::Timer ttracking(true);
+
 
     // Pass the image and measurements to the SLAM system
     Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, freq);
@@ -186,9 +186,22 @@ IMU_Measurements load_IMU_data(const string &filename){
       content.push_back(value);
     }
   }
-    
+  
+  Matrix3d rotation_imu_to_velo, rotation_velo_to_cam, rotation_cam_to_enu;
+  rotation_imu_to_velo << 9.999976e-01, 7.553071e-04, -2.035826e-03, 
+                         -7.854027e-04, 9.998898e-01, -1.482298e-02,
+                          2.024406e-03, 1.482454e-02,  9.998881e-01;
+  rotation_velo_to_cam <<  7.967514e-03, -9.999679e-01, -8.462264e-04,
+                          -2.771053e-03,  8.241710e-04, -9.999958e-01,
+                           9.999644e-01,  7.969825e-03, -2.764397e-03;
+  rotation_cam_to_enu  << 1,  0, 0,
+                          0,  0, 1,
+                          0, -1, 0;
+
   Vector3d acceleration(content.at(11), content.at(12), content.at(13));
   Vector3d gyroscope   (content.at(17), content.at(18), content.at(19));
+  //acceleration = rotation_cam_to_enu * (rotation_velo_to_cam * (rotation_imu_to_velo * acceleration));
+  //gyroscope = rotation_cam_to_enu * (rotation_velo_to_cam * (rotation_imu_to_velo * gyroscope));
   IMU_Measurements imu_data = IMU_Measurements(0.0, acceleration, gyroscope);
   return imu_data;
 }

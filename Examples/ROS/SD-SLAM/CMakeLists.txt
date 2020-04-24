@@ -25,6 +25,7 @@ find_package(Boost COMPONENTS system REQUIRED )
 
 include_directories(
   ${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/tests/
   ${PROJECT_SOURCE_DIR}/../../../
   ${PROJECT_SOURCE_DIR}/../../../src
   ${EIGEN3_INCLUDE_DIR}
@@ -32,12 +33,20 @@ include_directories(
   ${Boost_INCLUDE_DIR}
 )
 
+
 set(LIBS 
   ${OpenCV_LIBS} 
   ${Pangolin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${PROJECT_SOURCE_DIR}/../../../lib/libSD_SLAM.so
 )
+
+
+add_library(PUB_LIB ${PROJECT_SOURCE_DIR}/src/tests/publishers.cc)
+target_link_libraries(PUB_LIB ${LIBS})
+
+add_library(KITTI_LIB ${PROJECT_SOURCE_DIR}/src/tests/kitti_help.cc)
+target_link_libraries(KITTI_LIB ${LIBS})
 
 # Node for monocular camera
 rosbuild_add_executable(Monocular
@@ -74,3 +83,20 @@ rosbuild_add_executable(IMU_TEST
   src/imu_test.cc
 )
 target_link_libraries(IMU_TEST ${LIBS})
+
+# Node for debug imu tools
+rosbuild_add_executable(KITTI_TEST
+src/fusion_kitti_imu_test.cc
+)
+target_link_libraries(KITTI_TEST ${LIBS} PUB_LIB KITTI_LIB)
+
+rosbuild_add_executable(Tests
+src/ros_tests.cc
+)
+target_link_libraries(Tests ${LIBS} PUB_LIB KITTI_LIB)
+
+# Node for debug imu tools
+rosbuild_add_executable(EUROC_INERTIAL
+src/ros_inertial_euroc.cc
+)
+target_link_libraries(EUROC_INERTIAL ${LIBS} PUB_LIB)

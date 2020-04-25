@@ -156,6 +156,7 @@ void Viewer::Run() {
       }
 
       mpMapDrawer->DrawCurrentCamera(Twc, cam_color);
+      mpMapDrawer->DrawLastCameraPositions();
       if (menuShowKeyFrames || menuShowGraph)
         mpMapDrawer->DrawKeyFrames(menuShowKeyFrames, menuShowGraph);
       if (menuShowPoints)

@@ -65,6 +65,9 @@ Config::Config() {
   kPointSize_ = 2.0;
   kCameraSize_ = 0.08;
   kCameraLineWidth_ = 3.0;
+  kLastPositionsMaxSize_ = 300;
+  kLastPositionsLineWidth_ = 2.0;
+  kLastPositionsPointWidth_ = 2.0;
   kViewpointX_ = 0.0;
   kViewpointY_ = -0.7;
   kViewpointZ_ = -1.8;
@@ -135,6 +138,9 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Viewer.PointSize"].isNamed()) fs["Viewer.PointSize"] >> kPointSize_;
   if (fs["Viewer.CameraSize"].isNamed()) fs["Viewer.CameraSize"] >> kCameraSize_;
   if (fs["Viewer.CameraLineWidth"].isNamed()) fs["Viewer.CameraLineWidth"] >> kCameraLineWidth_;
+  if (fs["Viewer.LastPositionsMaxSize"].isNamed()) fs["Viewer.LastPositionsMaxSize"] >> kLastPositionsMaxSize_;
+  if (fs["Viewer.LastPositionsLineWidth"].isNamed()) fs["Viewer.LastPositionsLineWidth"] >> kLastPositionsLineWidth_;
+  if (fs["Viewer.LastPositionsPointWidth"].isNamed()) fs["Viewer.LastPositionsPointWidth"] >> kLastPositionsPointWidth_;
   if (fs["Viewer.ViewpointX"].isNamed()) fs["Viewer.ViewpointX"] >> kViewpointX_;
   if (fs["Viewer.ViewpointY"].isNamed()) fs["Viewer.ViewpointY"] >> kViewpointY_;
   if (fs["Viewer.ViewpointZ"].isNamed()) fs["Viewer.ViewpointZ"] >> kViewpointZ_;

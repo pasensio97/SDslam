@@ -35,6 +35,7 @@ namespace SD_SLAM {
 
 MapDrawer::MapDrawer(Map* pMap): mpMap(pMap) {
   mCameraPose.setZero();
+  lastCamPosMaxSize = Config::LastPositionsMaxSize();
 }
 
 void MapDrawer::DrawMapPoints() {
@@ -162,6 +163,24 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
   }
 }
 
+void MapDrawer::DrawLastCameraPositions() {
+  glLineWidth(Config::LastPositionsLineWidth());
+  glColor3f(1.0f, 0.85f, 0.0f); //Gold Color
+  glBegin(GL_LINES);
+  for (auto it = lastCameraPositions.begin(); it != lastCameraPositions.end(); ++it) {
+    glVertex3f((*it)[0], (*it)[1], (*it)[2]);
+  }
+  glEnd();
+
+  glPointSize(Config::LastPositionsPointWidth());
+  glBegin(GL_POINTS);
+  glColor3f(1.0f, 0.85f, 0.0f); //Gold Color
+  for (auto it = lastCameraPositions.begin(); it != lastCameraPositions.end(); ++it) {
+    glVertex3f((*it)[0], (*it)[1], (*it)[2]);
+  }
+  glEnd();
+}
+
 void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc, std::vector<float> color) {
   const float &w = Config::CameraSize();
   const float h = w*0.75;
@@ -238,6 +257,13 @@ void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M) {
     M.m[13] = twc(1);
     M.m[14] = twc(2);
     M.m[15]  = 1.0;
+
+    // Save the Twc in the lastCameraPositions
+    if (lastCameraPositions.size() == lastCamPosMaxSize) {
+      // Is a circular buffer
+      lastCameraPositions.pop_front();
+    }
+    lastCameraPositions.push_back({twc(0), twc(1), twc(2)});
   } else
     M.SetIdentity();
 }

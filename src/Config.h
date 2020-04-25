@@ -108,6 +108,9 @@ class Config {
   static double PointSize() { return GetInstance().kPointSize_; }
   static double CameraSize() { return GetInstance().kCameraSize_; }
   static double CameraLineWidth() { return GetInstance().kCameraLineWidth_; }
+  static double LastPositionsMaxSize() { return GetInstance().kLastPositionsMaxSize_; }
+  static double LastPositionsLineWidth() { return GetInstance().kLastPositionsLineWidth_; }
+  static double LastPositionsPointWidth() { return GetInstance().kLastPositionsPointWidth_; }
   static double ViewpointX() { return GetInstance().kViewpointX_; }
   static double ViewpointY() { return GetInstance().kViewpointY_; }
   static double ViewpointZ() { return GetInstance().kViewpointZ_; }
@@ -146,6 +149,9 @@ class Config {
   double kPointSize_;
   double kCameraSize_;
   double kCameraLineWidth_;
+  double kLastPositionsMaxSize_;
+  double kLastPositionsLineWidth_;
+  double kLastPositionsPointWidth_;
   double kViewpointX_;
   double kViewpointY_;
   double kViewpointZ_;

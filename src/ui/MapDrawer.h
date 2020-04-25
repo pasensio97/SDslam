@@ -26,6 +26,7 @@
 #define SD_SLAM_MAPDRAWER_H
 
 #include <mutex>
+#include <deque>
 #include <pangolin/pangolin.h>
 #include <Eigen/Dense>
 #include "Map.h"
@@ -43,12 +44,19 @@ class MapDrawer {
   void DrawMapPoints();
   void DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph);
   void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc, std::vector<float> color);
+  void DrawLastCameraPositions();
   void SetCurrentCameraPose(const Eigen::Matrix4d &Tcw);
+  /**
+   * Gets the last camera pose (camera2world coordinate) as an OpenGLMatrix (in world coordinates, world to camera) and
+   * also saves the camera T from the pose (RT) in the lastCameraPositions vectors.
+   * @param M
+   */
   void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
 
  private:
   Eigen::Matrix4d mCameraPose;
-
+  uint lastCamPosMaxSize;
+  std::deque<Eigen::Vector3d> lastCameraPositions;
   std::mutex mMutexCamera;
 
 

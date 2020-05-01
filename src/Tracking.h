@@ -59,7 +59,10 @@ class Tracking {
     NO_IMAGES_YET = 0,
     NOT_INITIALIZED = 1,
     OK = 2,
-    LOST = 3
+    LOST = 3,
+    OK_GPS = 4,
+    WAITING_RELOC = 5,
+    OK_IMU = 6
   };
 
  public:
@@ -131,6 +134,7 @@ class Tracking {
   Matrix4d _prediction;
   Vector3d __first_gps_pos;
   
+  double curr_timestamp = 0.0;
   // --------------- GPS ----------------------------------------------
   Quaterniond __rotation_gps_to_slamworld;
   Matrix3d mat_Rwgps;
@@ -145,12 +149,25 @@ class Tracking {
   inline Matrix3d R_first_gps(){return __first_gps_pose.block<3,3>(0,0);}
   inline Vector3d t_first_gps(){return __first_gps_pose.block<3,1>(0,3);}
   Frame __last_kf_gps, __curr_kf_gps;
+  Frame last_valid_frame;
+  Map* _new_map;
+  Matrix4d initial_gps_wpose;
+  Frame newInitFrame, newCurrFrame;
+  int nKFs_on_reinit = 0;
   // --------------- Prediciotn models ----------------------------------------------
   IMU_model imu_model = IMU_model(0.0085);
+
+  new_IMU_model new_imu_model = new_IMU_model(1.0, false, 0.0085);
+  Matrix4d mIniPoseInvIMU;
+  
+  GPS_IMU_model gps_imu_model = GPS_IMU_model(0.0085);
   bool used_imu_model = false;
   IMU_Measurements last_imu;
   int __model = 0;
+  std::string model_type = "gps"; // mono, gps, imu, imu_s
   int its = 0;
+
+  double estimate_initial_scale_imu(KeyFrame* curr_kf, KeyFrame* last_kf);
   // ------------------------ end gps ----------------------------------
   Quaterniond _att_test_gps;
   Vector3d _pos_test_gps;
@@ -165,12 +182,23 @@ class Tracking {
  protected:
   // Main tracking function. It is independent of the input sensor.
   void Track();
+  void Track_test();
+  void Track_IMU_Reloc();
+  void Track_IMU_Reinit();
+
+  void Track_GPS_Reloc();
+  void Track_GPS_Reinit();
 
   // Map initialization for stereo and RGB-D
   void StereoInitialization();
 
   // Map initialization for monocular
   void MonocularInitialization();
+  void MonocularInitializationIMU();
+  void MonocularGPSInitialization();
+
+  void MonocularReInitializationIMU();
+  bool MonocularReInitializationGPS();
   void CreateInitialMapMonocular();
 
   // Initialization with pattern

@@ -24,6 +24,7 @@
 
 #include "System.h"
 #include <iomanip>
+#include <iostream> 
 #include <fstream>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -233,9 +234,10 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
 }
 
 
-Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const Matrix4d &gps_pose) {
+Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, 
+                                       const double dt, const Matrix4d &gps_pose, double timestamp) {
   LOGD("Track monocular image with IMU measurements");
-
+  mpTracker->curr_timestamp = timestamp;
   if (mSensor!=MONOCULAR_IMU_NEW) {
     LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
     exit(-1);
@@ -644,6 +646,11 @@ void System::save_as_tum(const std::string &filename) {
   vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
 
+  double scale = 1.0;
+  if (mpTracker->model_type == "imu_s" || mpTracker->model_type == "imu"){
+    scale = 1.0 / mpTracker->new_imu_model.get_scale();
+    cout << "Scale factor: " << scale << endl;
+  }
   std::ofstream f;
   f.open(filename.c_str());
   std::string output;
@@ -656,18 +663,18 @@ void System::save_as_tum(const std::string &filename) {
 
     Eigen::Matrix4d pose = pKF->GetPoseInverse();
     Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
-    Eigen::Vector3d t = pose.block<3, 1>(0, 3);
+    Eigen::Vector3d t = pose.block<3, 1>(0, 3) * scale;
 
     // f << setprecision(6) << *lT << " " <<  setprecision(9) << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
     
-    double timestamp;
-    output;
-    output += "  - id: " + std::to_string(pKF->mnId) + "\n";
-
+    f << std::setprecision(6) 
+      << pKF->mTimestamp << " "
+      << std::setprecision(9) 
+      << t.x() << " " << t.y() << " " << t.z() << " " 
+      << q.x() << " " << q.y() << " " << q.z() << " " << q.w() 
+      << endl;
   }
 
-
-  f << output;
   f.close();
   std::cout << "Trajectory saved!" << std::endl;
 

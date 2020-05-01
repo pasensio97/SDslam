@@ -51,7 +51,7 @@ class Frame {
   Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
   // Constructor for Monocular cameras.
-  Frame(const cv::Mat &imGray, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+  Frame(const cv::Mat &imGray, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth, double timestamp=0.0);
 
   // Extract ORB on the image
   void ExtractORB(const cv::Mat &im);
@@ -192,6 +192,8 @@ class Frame {
   // Image pyramid
   std::vector<cv::Mat> mvImagePyramid;
   cv::Mat mDepthImage;
+
+  double mTimestamp;
 
  private:
   // Undistort keypoints given OpenCV distortion parameters.

@@ -183,6 +183,9 @@ class KeyFrame {
   inline Eigen::Vector3d t_gps(){return gps_pose.block<3,1>(0,3);}
   double scale_gps;
 
+  // time
+  double mTimestamp;
+
   // The following variables need to be accessed trough a mutex to be thread safe.
  protected:
   // SE3 Pose and camera center

@@ -25,11 +25,14 @@
 #include <message_filters/time_synchronizer.h>
 #include "src/tests/publishers.h"
 #include "src/tests/kitti_help.h"
+#include <random>
 
 using namespace std;
 
+const int SEED = 42;
+
 void load_filenames(const string &basepath, vector<string> &vstrImageFilenames, vector<string> &vstrIMUFilenames);
-IMU_Measurements load_IMU_data(const string &filename);
+IMU_Measurements load_IMU_data(const string &filename, double &time);
 vector<vector<double>> load_gt_data(const string &filename);
 inline bool file_exists (const std::string& name) {ifstream f(name.c_str()); return f.good();}
 void create_file(const string & filename, const string & header="");
@@ -307,9 +310,9 @@ class motion_model_test{
   Vector3d update(Vector3d acc, double dt){
     vel = vel + acc * dt;
     pos = pos + vel * dt;
-    cout << "acc " << acc.transpose() << endl;
-    cout << "vel " << vel.transpose() << endl;
-    cout << "pos " << pos.transpose() << endl;
+    //cout << "acc " << acc.transpose() << endl;
+    // cout << "vel " << vel.transpose() << endl;
+    // cout << "pos " << pos.transpose() << endl;
     return pos;
   }
 };
@@ -336,6 +339,10 @@ class KittiSeqSelect{
       path = "2011_10_03/2011_10_03_drive_0027_sync/";
       limits = {0, 4540};
     }
+    else if (seq == "seq_00a"){
+      path = "2011_10_03/2011_10_03_drive_0027_sync/";
+      limits = {0, 1655};
+    }
     else if (seq == "seq_02"){
       path = "2011_10_03/2011_10_03_drive_0034_sync/";
       limits = {0, 4660};
@@ -360,6 +367,44 @@ class KittiSeqSelect{
     printf("GT PATH:    %s\n", gt_path.c_str());
   }
 };
+
+vector<Vector3d> create_synthetic_acc(vector<vector<double>> gt_content){
+  Kitti kitti;
+  Matrix3d R = kitti.rotation_imu_cam().inverse();
+  double dt = 0.1;
+  int size = gt_content.size()-1;
+
+  vector<Vector3d> velocity(size);
+  velocity[0].setZero();
+  // Velocity
+  for (int i=1; i<size; i++){
+    Vector3d s0 = vector_gt_to_pose(gt_content[i-1]).block<3,1>(0,3);
+    Vector3d s1 = vector_gt_to_pose(gt_content[i]).block<3,1>(0,3);
+    velocity[i] = (s1 - s0) / dt;
+  }
+  // acc
+  vector<Vector3d> acc(size);
+  acc[0].setZero();
+  // Velocity
+  for (int i=1; i<size; i++){
+    Vector3d v0 = velocity[i-1];
+    Vector3d v1 = velocity[i];
+    acc[i] = R* ((v1 - v0) / dt);
+  }
+
+  return acc;
+}
+
+void add_noise(vector<Vector3d> &data, double mean, double std, uint SEED=42){
+  default_random_engine generator;
+  generator.seed(SEED); 
+  std::normal_distribution<double> distribution(mean, std);
+
+  for (int i=0; i<data.size(); i++){
+    double noise = distribution(generator);
+    data[i] = data[i] + Vector3d(noise, noise, noise);
+  }
+}
 
 int main(int argc, char **argv)
 {
@@ -388,6 +433,18 @@ int main(int argc, char **argv)
   Kitti kitti;
   vector<string> images_filenames = kitti.load_image_filenames(kitti_seq.image_path);
   vector<string> imu_filenames = kitti.load_imu_filenames(kitti_seq.imu_path);
+
+
+  Matrix4d _last_pose;
+  /*
+  bool use_syn_acc = false;
+  vector<Vector3d> syn_acc;
+  if (use_syn_acc){
+    string FILE_SYN_ACC = "/home/javi/tfm/tests/simulate_imu/temp_files/synthetic_acc.csv";
+    syn_acc = read_file_3_comps(FILE_SYN_ACC);
+    //syn_acc = correct_synt_acc(syn_acc);
+  }
+  */
   /*
   vector<string> images_filenames;
   vector<string> imu_filenames;
@@ -438,12 +495,69 @@ int main(int argc, char **argv)
   viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
   tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
 
-  if (argc == 4){
+  vector<Vector3d> acc_syn;
+  bool use_syn_acc = false;
+  if (argc > 3){
+    cout << "\nCONFIG TEST" << endl;
+    string slam_type = string(argv[3]);
+    if (slam_type == "mono"){
+      tracker->__model = 0;
+      tracker->model_type = "mono";
+    }
+    else if (slam_type == "gps"){
+      // Predict pose using GPS and if model lost, publish gps pose until reloc
+      tracker->__model = 14;
+    } 
+    else if (slam_type == "imu"){
+      // Predict pose using IMU (acc real) and if model lost, try to reinitialize the map
+      tracker->__model = 14;
+
+      tracker->model_type = "imu";
+      tracker->new_imu_model.set_remove_gravity_flag(true);
+      tracker->new_imu_model.set_rotation_imu_cam(kitti.rotation_imu_cam());
+    } 
+    else if (slam_type == "imu_s"){
+      // Predict pose using IMU (acc synthetic) and if model lost, publish imu pose until reloc
+      double mean = 0;
+      double std = (argc>4) ? atof(argv[4]) : 0;
+      uint seed = 42;
+      use_syn_acc = true;
+
+      //string FILE_SYN_ACC = "/home/javi/tfm/tests/simulate_imu/temp_files/synthetic_acc.csv";
+      //acc_syn = read_file_3_comps(FILE_SYN_ACC);
+      
+      cout << "- Creating synthetic acc... " << endl;
+      
+      acc_syn= create_synthetic_acc(gt_content);
+      if (std != 0){
+        printf("- Adding guaussian noise to acc: N(%.2f, %.2f)\n", mean, std);
+        add_noise(acc_syn, mean, std, seed);
+      }
+
+      tracker->model_type = "imu_s";
+      tracker->new_imu_model.set_remove_gravity_flag(false);
+      tracker->new_imu_model.set_rotation_imu_cam(kitti.rotation_imu_cam());
+
+      
+    } 
+    else if (slam_type == "gps_reinit"){
+      
+    } 
+    else{
+      cerr << endl << "[ERROR] Type does not recognize: "  << slam_type << endl;
+      return 1;
+    }
+    printf("- Selected SLAM type '%s'", slam_type.c_str());
+
+  }
+
+  /*
+  if (argc == 5){
     int model = atoi(argv[3]);
     printf("Selected model '%i'", model);
     tracker->__model = model;
   }
-
+  */
   Imu_Publisher pub_imu = Imu_Publisher(n, "odom", "/imu");
   Quaterniond gt_att; 
   Vector3d gt_pos, last_gt_pos;
@@ -489,6 +603,7 @@ int main(int argc, char **argv)
   //Odom_Publisher odompub_slam_local(n, "odom", "odom_slam_local");
 
   Odom_Publisher odompub_gps_world(n, "odom", "odom_world_gps");
+  Odom_Publisher odompub_imu_world(n, "odom", "odom_world_imu");
   Odom_Publisher odompub_gps_cam(n, "odom", "odom_local_gps");
   //Odom_Publisher odompub_ekf(n, "odom", "odom_local_ekf");
   Imu_Publisher acc_pub(n, "odom", "imu_data");
@@ -501,36 +616,18 @@ int main(int argc, char **argv)
   motion_model_test mmodel; TF_Publisher pub_mmodel(n, "odom", "mmodel");
 
   //Kitti kitti;
-  bool use_syn_acc = true;
-  Matrix4d _last_pose;
-
-  vector<Vector3d> syn_acc;
-  if (use_syn_acc){
-    string FILE_SYN_ACC = "/home/javi/tfm/tests/simulate_imu/temp_files/synthetic_acc.csv";
-    syn_acc = read_file_3_comps(FILE_SYN_ACC);
-    //syn_acc = correct_synt_acc(syn_acc);
-  }
-
   double freq = 1.0/10.0;
   int i = kitti_seq.limits.first; // 3600
   cv::Mat img;
   IMU_Measurements imu;
+  double total_time = 0.0;
   // --- MAIN LOOP ---
   //int limit = min(n_images, (int) gt_content.size()-1);
   while (i < kitti_seq.limits.second) {
     cout << "\n[INFO] Reading data " << i << "/" << kitti_seq.limits.second << endl;
     img = cv::imread(images_filenames[i], CV_LOAD_IMAGE_GRAYSCALE);
-    imu = load_IMU_data(imu_filenames[i]);
-    printf("Image size: %i x %i\n", img.cols, img.rows);
-    cout << "IMU acc " << imu.acceleration().transpose() << endl;
-    cout << "IMU gyr " << imu.angular_velocity().transpose() << endl;
-
-    if (use_syn_acc){
-      imu = IMU_Measurements(imu.timestamp(), 
-                             syn_acc[i], 
-                             imu.angular_velocity());
-    }
-
+    imu = load_IMU_data(imu_filenames[i], total_time);
+    if (use_syn_acc){ imu = IMU_Measurements(imu.timestamp(), acc_syn[i], imu.angular_velocity()); }
     acc_pub.publish(imu.acceleration(), imu.angular_velocity());
 
     if(img.empty()) {
@@ -538,6 +635,13 @@ int main(int argc, char **argv)
       return 1;
     }
     
+    //if (i> 500 && i<=549){img.setTo(cv::Scalar(0));}
+    //if (i> 140 && i<=145){img.setTo(cv::Scalar(0));}
+    //if (i> 140 && i<=150){img.setTo(cv::Scalar(0));}
+    //if (i> 150 && i<=170){img.setTo(cv::Scalar(0));}
+    if (i> 250 && i<=255){img.setTo(cv::Scalar(0));}
+    //if (i> 1535 && i<=1560){img.setTo(cv::Scalar(0));}
+
     ros::Time time_it = ros::Time(i);
     
     // ------GET GT
@@ -555,7 +659,7 @@ int main(int argc, char **argv)
     // ------ SLAM
     SD_SLAM::Timer ttracking(true);
     // Pass the image and measurements to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, freq, gps_pose_i); 
+    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, freq, gps_pose_i, total_time); 
 
     // Set data to UI    
     fdrawer->Update(img, pose, tracker);
@@ -571,7 +675,7 @@ int main(int argc, char **argv)
 
     odompub_gt_world.publish(time_it, (gt_pos)/27, gt_att);
 
-    double rviz_scale = 1; // for rviz 
+    double rviz_scale = 0.5; // for rviz 
     odompub_gps_cam.publish(time_it, gps_pos * rviz_scale, gps_att);
     odompub_gps_world.publish(time_it, (-gps_att.toRotationMatrix().transpose() * gps_pos) * rviz_scale, gps_att.inverse());
 
@@ -581,17 +685,24 @@ int main(int argc, char **argv)
 
     // -----------------------------------------------------------------------------------------------------
 
+    if (string(argv[3]) == "imu_s"){
+      odompub_imu_world.publish(time_it, 
+                                tracker->new_imu_model.get_pose_world().block<3,1>(0,3)*rviz_scale, 
+                                Quaterniond(tracker->new_imu_model.get_pose_world().block<3,3>(0,0)).normalized());
+      //odompub_imu_world.publish(time_it, Vector3d(0,0,0), Quaterniond(tracker->new_imu_model.get_pose_world().block<3,3>(3,3)).normalized());
+    }
+
     test_imu_model.publish(tracker, pose);
     if (use_syn_acc && i>=100){
       Vector3d curr_pos = -pose.block<3,3>(0,0).transpose() * pose.block<3,1>(0,3); 
       Vector3d last_pos = -_last_pose.block<3,3>(0,0).transpose() * _last_pose.block<3,1>(0,3); 
       if (i==100){
-        cout << "\n\tLAST POS: " << last_pos.transpose() << endl;
+        //cout << "\n\tLAST POS: " << last_pos.transpose() << endl;
         mmodel.pos = last_pos;
         mmodel.vel = (curr_pos - last_pos) / freq;
-        cout << "\n\POS model: " << mmodel.pos.transpose() << endl;
+        //cout << "\n\POS model: " << mmodel.pos.transpose() << endl;
       }
-      Vector3d pos_mmodel = mmodel.update(syn_acc[i]/100, freq);
+      Vector3d pos_mmodel = mmodel.update(acc_syn[i]/100, freq);
       pub_mmodel.publish(pos_mmodel, gt_att);
       if (i%5 == 0){
         mmodel.pos = curr_pos;
@@ -641,11 +752,17 @@ int main(int argc, char **argv)
     }
     //if (i == 200) {break;}
     i++;
+    total_time += freq;
+    if (tracker->GetLastState() == tracker->OK_GPS && tracker->GetState() == tracker->OK){
+      break;
+    }
   }
 
   // Stop all threads
   SLAM.Shutdown();
 
+  string tum_file = "/home/javi/tfm/TEMP_FILES/kitti_" + kitti_seq.SEQ + ".txt";
+  SLAM.save_as_tum(tum_file);
 
   while (!viewer->isFinished())
     usleep(5000);
@@ -685,7 +802,7 @@ void load_filenames(const string &basepath, vector<string> &vstrImageFilenames, 
 
 }
 
-IMU_Measurements load_IMU_data(const string &filename){
+IMU_Measurements load_IMU_data(const string &filename, double &time){
   std::vector<double> content;
   ifstream file;
   file.open(filename.c_str());
@@ -705,7 +822,7 @@ IMU_Measurements load_IMU_data(const string &filename){
   //frame
   //Vector3d acceleration(content.at(14), content.at(15), content.at(16));
   //Vector3d gyroscope   (content.at(20), content.at(21), content.at(22));
-  IMU_Measurements imu_data = IMU_Measurements(0.0, acceleration, gyroscope);
+  IMU_Measurements imu_data = IMU_Measurements(time, acceleration, gyroscope);
   return imu_data;
 }
 

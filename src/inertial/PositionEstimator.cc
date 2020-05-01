@@ -89,7 +89,6 @@ Eigen::Vector3d PositionEstimator::update(const Eigen::Vector3d & linear_acceler
                                           const double & dt,
                                           const bool & verbose)
 {
-  double alpha = 0.1;
   _acceleration = linear_acceleration; 
   // integrate acceleration to obtein velocity and position
   _velocity = _velocity + _acceleration * dt;

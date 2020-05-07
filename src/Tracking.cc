@@ -163,7 +163,6 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, c
 
   mCurrentFrame = Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 
-  // TODO: Create a configuration parameter to be able to change between the old SD-SLAM and the new if desired
   TrackRGBD();
 
   return mCurrentFrame.GetPose();
@@ -762,6 +761,12 @@ void Tracking::ReStereoInitialization() {
     // KF hijos seran los que se vayan creando...sino quizas si que pueda tener sentido ponerlo al haber pasado mucho
     // tiempo entre KeyFrames.
     //mpMap->mvpKeyFrameOrigins.push_back(pKFini);
+
+    // ReInitialize DIFODO. The next time that DIFODO is being used if not reinitialized, the first
+    // estimation will present a big jump. This avoids it.
+    mCvDifodo = CVDifodo();
+    mCvDifodo.loadConfiguration();
+    mCvDifodo.loadFrame(mCurrentFrame.mDepthImage);
 
     // Back to the ORB Tracking State
     mState = OK;

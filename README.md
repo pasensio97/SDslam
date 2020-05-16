@@ -1,14 +1,14 @@
-# SD-SLAM
+# SD-SLAM+
 **Authors:** [Eduardo Perdices](https://gsyc.urjc.es/~eperdices/) & [Omar Garrido](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/)
 
-SD-SLAM is a real-time SLAM library for **Monocular** and **RGB-D** cameras that computes the camera trajectory and a sparse 3D reconstruction (in the RGB-D case with true scale). It is able to detect loops and relocalize the camera in real time.
+SD-SLAM+ is a real-time SLAM library for **Monocular** and **RGB-D** cameras that computes the camera trajectory and a sparse 3D reconstruction (in the RGB-D case with true scale). It is able to detect loops and relocalize the camera in real time.
 
-Also is the latest version, on the RGBD mode, it combines [ORB SLAM](https://github.com/raulmur/ORB_SLAM2) with [DIFODO](https://ieeexplore.ieee.org/document/7119600) tracking. This allows SD-SLAM to track even when there is no light or texture at all as can be seen in this [video](https://www.youtube.com/watch?v=eaPescZQnW4&feature=youtu.be).
+Also is the latest version, on the RGBD mode, it combines [ORB SLAM](https://github.com/raulmur/ORB_SLAM2) with [DIFODO](https://ieeexplore.ieee.org/document/7119600) tracking. This allows SD-SLAM+ to track even when there is no light or texture at all as can be seen in this [video](https://www.youtube.com/watch?v=eaPescZQnW4&feature=youtu.be).
 More information of this on the [blog](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/) 
 
 # 1. License
 
-SD-SLAM is released under a [GPLv3 license](https://github.com/eperdices/SD-SLAM/blob/master/License-gpl.txt).
+SD-SLAM+ is released under a [GPLv3 license](https://github.com/eperdices/SD-SLAM/blob/master/License-gpl.txt).
 
 # 2. Prerequisites
 We have tested the library in **Ubuntu 18.04**, but it should be easy to compile in other platforms.
@@ -26,16 +26,16 @@ We use [Eigen3](http://eigen.tuxfamily.org) to perform matrices operations. Down
 We use modified versions of the [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. This library (which is BSD) is included in the *extra* folder.
 
 ## MRPT
-DIFODO is an algorithm that is within [MPRT](https://github.com/MRPT/mrpt#3-install) (Mobile Robot Programming Toolkit). It can be easily installed on ubuntu from ppa. The official instructions to install it are [here](https://github.com/MRPT/mrpt#3-install). The last version where SD-SLAM was working was **1:1.9.9~snapshot20191122-1444-git-898be015-bionic-1**. Check the [blog](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/install/#mrpt) for more details or if problems with the installation arised.
+DIFODO is an algorithm that is within [MPRT](https://github.com/MRPT/mrpt#3-install) (Mobile Robot Programming Toolkit). It can be easily installed on ubuntu from ppa. The official instructions to install it are [here](https://github.com/MRPT/mrpt#3-install). The last version where SD-SLAM+ was working was **1:1.9.9~snapshot20191122-1444-git-898be015-bionic-1**. Check the [blog](https://roboticslaburjc.github.io/2019-tfm-omar-garrido/install/#mrpt) for more details or if problems with the installation arised.
 
-# 3. Building SD-SLAM library and examples
+# 3. Building SD-SLAM+ library and examples
 
 Clone the repository:
 ```
 git clone https://github.com/eperdices/SD-SLAM
 ```
 
-We provide a script `build.sh` to build *SD-SLAM*. Please make sure you have installed all required dependencies (see section 2). Execute:
+We provide a script `build.sh` to build *SD-SLAM+*. Please make sure you have installed all required dependencies (see section 2). Execute:
 ```
 cd SD-SLAM
 chmod +x build.sh
@@ -66,7 +66,7 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named `files.txt` with eac
 
 ## Live Camera
 
-You can use a USB camera to run SD-SLAM with live images. Change `N` to the proper `/dev/videoN` value where your camera is connected.
+You can use a USB camera to run SD-SLAM+ with live images. Change `N` to the proper `/dev/videoN` value where your camera is connected.
 
 ```
 ./Examples/Monocular/monocular Examples/Monocular/X.yaml N
@@ -112,7 +112,7 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 
 # 7. Processing your own sequences
 
-You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM dataset for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the SD-SLAM library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
+You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM dataset for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the SD-SLAM+ library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
 
 ## Camera Calibration
 
@@ -129,7 +129,7 @@ You can check if the intrinsic parameters calculated are accurate checking the r
 # 8. ROS Examples
 
 ### Building the node
-1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SD-SLAM:
+1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SD-SLAM+:
 
   ```
   echo "export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:PATH/SD-SLAM/Examples/ROS" >> ~/.bashrc
@@ -185,7 +185,7 @@ In order to run SD-SLAM with the configuration for TUM freidburg1 sequences and 
 If you want to use videos from the TUM2 or TUM3 sequences, just change in the configuration file the Camera parameters,intrinsic parameters and distortion. This is because the dataset TUM1, TUM2 and TUM3 have different parameters, check their website for more information.
   
 #### Realsense D435
-There is also an easy script to run SD-SLAM in RGBD mode along the realsense D435 (but probably is valid for other realsense cameras).
+There is also an easy script to run SD-SLAM+ in RGBD mode along the realsense D435 (but probably is valid for other realsense cameras).
 
 
   ```

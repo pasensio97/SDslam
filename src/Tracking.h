@@ -40,6 +40,7 @@
 #include "PatternDetector.h"
 #include "System.h"
 #include "sensors/EKF.h"
+#include "rosify_difodo/CVDifodo.h"
 
 namespace SD_SLAM {
 
@@ -56,7 +57,8 @@ class Tracking {
     NO_IMAGES_YET = 0,
     NOT_INITIALIZED = 1,
     OK = 2,
-    LOST = 3
+    LOST = 3,
+    OK_DIFODO = 4,
   };
 
  public:
@@ -111,8 +113,14 @@ class Tracking {
   // Main tracking function. It is independent of the input sensor.
   void Track();
 
+  // TrackRGBD just for the RGBD input sensor.
+  void TrackRGBD();
+
   // Map initialization for stereo and RGB-D
   void StereoInitialization();
+
+  // Used to recover tracking (ORB tracking) from non texture scenarios
+  void ReStereoInitialization();
 
   // Map initialization for monocular
   void MonocularInitialization();
@@ -132,6 +140,8 @@ class Tracking {
   void UpdateLocalPoints();
   void UpdateLocalKeyFrames();
 
+  bool TrackWithDIFODO(const Eigen::Matrix4d &lastFramePose);
+
   bool TrackLocalMap();
   void SearchLocalPoints();
 
@@ -148,6 +158,8 @@ class Tracking {
 
   // Input sensor
   int mSensor;
+
+  CVDifodo mCvDifodo;
 
   // Current Frame
   Frame mCurrentFrame;

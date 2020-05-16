@@ -113,6 +113,8 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState) {
     int nKFs = mpMap->KeyFramesInMap();
     int nMPs = mpMap->MapPointsInMap();
     s << "KFs: " << nKFs << ", MPs: " << nMPs << ", Matches: " << mnTracked;
+  } else if (nState==Tracking::OK_DIFODO) {
+    s << " TRACKING WITH DIFODO (only depth) ";
   } else if (nState==Tracking::LOST) {
     s << " TRACK LOST. TRYING TO RELOCALIZE ";
   } else if (nState==Tracking::SYSTEM_NOT_READY) {

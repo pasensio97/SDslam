@@ -87,6 +87,8 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
     cout << "- k3: " << DistCoef.at<float>(4) << endl;
   cout << "- p1: " << DistCoef.at<float>(2) << endl;
   cout << "- p2: " << DistCoef.at<float>(3) << endl;
+  cout << "- FOVH: " << Config::fovh() << endl;
+  cout << "- FOVV: " << Config::fovv() << endl;
   cout << "- fps: " << fps << endl;
 
   // Load ORB parameters
@@ -115,6 +117,18 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
       mDepthMapFactor=1;
     else
       mDepthMapFactor = 1.0f/mDepthMapFactor;
+
+    // DIFODO configuration
+    mCvDifodo = CVDifodo();
+    mCvDifodo.loadConfiguration();
+
+    cout << endl << "DIFODO Parameters: " << endl;
+    cout << "- Min Depth Value Filter: " << Config::difodo_min_depth_value_filter() << endl;
+    cout << "- Max Depth Value Filter: " << Config::difodo_max_depth_value_filter() << endl;
+
+    cout << "- Downsampling: " << Config::difodo_downsample() << endl;
+    cout << "- Course To Fine Pyramid Level: " << Config::difodo_ctf_levels() << endl;
+    cout << "- Use Fast Pyramid: " << Config::difodo_fast_pyramid() << endl;
   }
 
   threshold_ = 8;
@@ -149,7 +163,7 @@ Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, c
 
   mCurrentFrame = Frame(im, imDepth, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth);
 
-  Track();
+  TrackRGBD();
 
   return mCurrentFrame.GetPose();
 }
@@ -267,7 +281,7 @@ void Tracking::Track() {
       if (NeedNewKeyFrame())
         CreateNewKeyFrame();
 
-      // We allow points with high innovation (considererd outliers by the Huber Function)
+      // We allow points with high innovation (considered outliers by the Huber Function)
       // pass to the new keyframe, so that bundle adjustment will finally decide
       // if they are outliers or not. We don't want next frame to estimate its position
       // with those points so we discard them in the frame.
@@ -297,6 +311,138 @@ void Tracking::Track() {
     Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
     lastRelativePose_ = Tcr;
   }
+}
+
+void Tracking::TrackRGBD() {
+  // Load depth frame to difodo (making it always ready to be used)
+  mCvDifodo.loadFrame(mCurrentFrame.mDepthImage);
+  // Store the last pose known since this seems to may be modified in some steps. And If I want to use difodo I
+  // want the previous pose not an altered one.
+  // WARNING: It seems that the mLastFrame.mTcw (Camera Pose) can be modified along the steps before, so it
+  // will have to be store as a copy first to be reused here if needed.
+  Eigen::Matrix4d lastFramePose = mLastFrame.GetPose();
+
+  if (mState==NO_IMAGES_YET)
+    mState = NOT_INITIALIZED;
+
+  mLastProcessedState = mState;
+
+  // Get Map Mutex -> Map cannot be changed
+  unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+
+  if (mState==NOT_INITIALIZED) {
+    if (mSensor==System::RGBD)
+      StereoInitialization();
+    else {
+      if (usePattern)
+        PatternInitialization();
+      else
+        MonocularInitialization();
+    }
+
+    if (mState!=OK)
+      // While the system is not initialized, we can use DIFODO to get the new position. Maybe is not being initialized
+      // because there is no texture at all.
+      // No parece funcionar, al añadir el desplazamiento la ultima pose se queda igual.
+      //      TrackWithDIFODO(lastFramePose);
+      return;
+  } else {
+    // System is initialized. Track Frame.
+    bool bOK;
+
+    if (mState == OK) {
+      // 1. Initial camera pose estimation using motion model
+
+      // Local Mapping might have changed some MapPoints tracked in last frame
+      CheckReplacedInLastFrame();
+
+      // Since DIFODO is always going to provide a new pose the estimation model should never be restarted now
+      // Is started when we have updated the model at least once.
+      if (!motion_model_->Started()) {
+        bOK = TrackReferenceKeyFrame();
+      } else {
+        bOK = TrackWithMotionModel();
+        if (!bOK) {
+          bOK = TrackReferenceKeyFrame();
+        }
+      }
+
+      // 2. If we have an initial estimation of the camera pose and matching. Track the local map.
+      if (bOK)
+        bOK = TrackLocalMap();
+
+      // 3. If tracking were good with ORB, add mapPoints and check if insert of new keyframe.
+      if (bOK) {
+        // Clean VO matches
+        for (int i = 0; i < mCurrentFrame.N; i++) {
+          MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
+          if (pMP)
+            if (pMP->Observations() < 1) {
+              mCurrentFrame.mvbOutlier[i] = false;
+              mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+            }
+        }
+
+        // Delete temporal MapPoints
+        for (list<MapPoint *>::iterator lit = mlpTemporalPoints.begin(), lend = mlpTemporalPoints.end();
+             lit != lend; lit++) {
+          MapPoint *pMP = *lit;
+          delete pMP;
+        }
+        mlpTemporalPoints.clear();
+
+        // Check if we need to insert a new keyframe
+        if (NeedNewKeyFrame())
+          CreateNewKeyFrame();
+
+        // We allow points with high innovation (considered outliers by the Huber Function)
+        // pass to the new keyframe, so that bundle adjustment will finally decide
+        // if they are outliers or not. We don't want next frame to estimate its position
+        // with those points so we discard them in the frame.
+        for (int i = 0; i < mCurrentFrame.N; i++) {
+          if (mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
+            mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+        }
+
+        mState = OK;
+        LOGD("State OK: ORB Tracking");
+      } else {
+        LOGD("ORB Tracking failed changing to tracking with DIFODO");
+        mState = OK_DIFODO;
+        TrackWithDIFODO(lastFramePose);
+      }
+
+    } else if (mState == OK_DIFODO) {
+      // DIFODO. Before DIFODO integration we relocalized in this step.
+      LOGD("State OK_DIFODO: DIFODO Tracking");
+      TrackWithDIFODO(lastFramePose);
+      ReStereoInitialization();
+    }
+
+    // Update motion sensor always independently of the tracking method being used
+    if (!mLastFrame.GetPose().isZero()) {
+      motion_model_->Update(mCurrentFrame.GetPose(), measurements_);
+    } else {
+      // Esto era antes, ahora nunca deberia darse este caso...
+      LOGE("MOTION MODEL RESTART")
+    }
+  }
+
+  // When tracking fails the last reference keyframe is not assigned. Assign it to the last known Keyframe
+  if (mCurrentFrame.mpReferenceKF == nullptr) {
+    mCurrentFrame.mpReferenceKF = mpReferenceKF;
+  }
+
+  // Save current frame as the last frame for next iteration
+  mLastFrame = Frame(mCurrentFrame);
+
+  // Store relative pose
+  if (!mCurrentFrame.GetPose().isZero()) {
+    Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
+    lastRelativePose_ = Tcr;
+  }
+
+  LOGD("End Tracking RGBD")
 }
 
 void Tracking::StereoInitialization() {
@@ -566,6 +712,68 @@ void Tracking::PatternInitialization() {
   }
 }
 
+void Tracking::ReStereoInitialization() {
+  // This should be a threshold that when there is no texture (no keypoints) no reinitialization is done.
+  if (mCurrentFrame.N>500) {
+    // Create KeyFrame
+    KeyFrame* pKFini = new KeyFrame(mCurrentFrame, mpMap);
+
+    // Insert KeyFrame in the map
+    mpMap->AddKeyFrame(pKFini);
+
+    // Create MapPoints and associate to KeyFrame
+    for (int i = 0; i<mCurrentFrame.N; i++) {
+      float z = mCurrentFrame.mvDepth[i];
+      if (z > 0) {
+        Eigen::Vector3d x3D = mCurrentFrame.UnprojectStereo(i);
+        MapPoint* pNewMP = new MapPoint(x3D, pKFini, mpMap);
+        pNewMP->AddObservation(pKFini, i);
+        pKFini->AddMapPoint(pNewMP, i);
+        pNewMP->ComputeDistinctiveDescriptors();
+        pNewMP->UpdateNormalAndDepth();
+        mpMap->AddMapPoint(pNewMP);
+
+        mCurrentFrame.mvpMapPoints[i]=pNewMP;
+      }
+    }
+
+    LOGD("Tracking::ReStereoInitialization():: Enough Texture again. Adding new keyframe with %lu points", mpMap->MapPointsInMap());
+
+    mpLocalMapper->InsertKeyFrame(pKFini);
+
+    mnLastKeyFrameId = mCurrentFrame.mnId;
+    mpLastKeyFrame = pKFini;
+
+    mvpLocalKeyFrames.push_back(pKFini);
+    mvpLocalMapPoints = mpMap->GetAllMapPoints();
+
+    mpReferenceKF = pKFini;
+    mCurrentFrame.mpReferenceKF = pKFini;
+
+    // Not enterile neccesary since it will be done at the end of the TrackRGBD()
+    mLastFrame = Frame(mCurrentFrame);
+
+    // Points used to be drawn in the GUI
+    mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+    // NOTA: Esto se usa solo cuando hace un GBA para coger el primer frame o primeros frames (en caso de haber habido
+    // varias inicializaciones entiendo) y coger los childKeyFrames de ese. Entiendo que aunque haya pasado tiempo los
+    // KF hijos seran los que se vayan creando...sino quizas si que pueda tener sentido ponerlo al haber pasado mucho
+    // tiempo entre KeyFrames.
+    //mpMap->mvpKeyFrameOrigins.push_back(pKFini);
+
+    // ReInitialize DIFODO. The next time that DIFODO is being used if not reinitialized, the first
+    // estimation will present a big jump. This avoids it.
+    mCvDifodo = CVDifodo();
+    mCvDifodo.loadConfiguration();
+    mCvDifodo.loadFrame(mCurrentFrame.mDepthImage);
+
+    // Back to the ORB Tracking State
+    mState = OK;
+  }
+}
+
+
 void Tracking::CheckReplacedInLastFrame() {
   for (int i  = 0; i<mLastFrame.N; i++) {
     MapPoint* pMP = mLastFrame.mvpMapPoints[i];
@@ -749,6 +957,24 @@ bool Tracking::TrackLocalMap() {
   return true;
 }
 
+bool Tracking::TrackWithDIFODO(const Eigen::Matrix4d &lastFramePose) {
+  mCvDifodo.execute_iteration();
+
+  // Get the last pose displacement from the two last poses from DIFODO
+  Eigen::Matrix4d dispEstByDifodo = Converter::toMatrix4d(mCvDifodo.getDisplacementPoseInSDSLAMCoords());
+
+  // Add the displacement to SD-SLAM last known pose
+  Eigen::Matrix4d inverseDispEstByDifodo;
+  inverseDispEstByDifodo.setIdentity();
+  inverseDispEstByDifodo.block<3, 3>(0, 0) = dispEstByDifodo.block<3, 3>(0, 0).transpose();
+  inverseDispEstByDifodo.block<3, 1>(0, 3) = -dispEstByDifodo.block<3, 3>(0, 0).transpose() * dispEstByDifodo.block<3, 1>(0, 3);
+  Eigen::Matrix4d newPose = inverseDispEstByDifodo * lastFramePose;
+
+  // Set the new pose estimated by DIFODO into the currentFrame
+  mCurrentFrame.SetPose(newPose);
+  // TODO: Is there a way to know if DIFODO is performing bad?
+  return true;
+}
 
 bool Tracking::NeedNewKeyFrame() {
   // If Local Mapping is freezed by a Loop Closure do not insert keyframes

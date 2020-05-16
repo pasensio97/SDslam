@@ -40,6 +40,15 @@ Config::Config() {
   camera_params_.k3 = 0.0;
   camera_params_.fps = 30.0;
   camera_params_.bf = 40.0;
+  camera_params_.fovh_degrees= 74.0f;
+  camera_params_.fovv_degrees = 62.0f;
+
+  // DIFODO
+  difodo_params_.min_depth_value_filter = 0.5;
+  difodo_params_.max_depth_value_filter = 4.5;
+  difodo_params_.downsample = 4;
+  difodo_params_.ctf_levels = 5;
+  difodo_params_.fast_pyramid = false;
 
   kUsePattern_ = false;
   kThDepth_ = 40.0;
@@ -56,6 +65,9 @@ Config::Config() {
   kPointSize_ = 2.0;
   kCameraSize_ = 0.08;
   kCameraLineWidth_ = 3.0;
+  kLastPositionsMaxSize_ = 300;
+  kLastPositionsLineWidth_ = 2.0;
+  kLastPositionsPointWidth_ = 2.0;
   kViewpointX_ = 0.0;
   kViewpointY_ = -0.7;
   kViewpointZ_ = -1.8;
@@ -99,6 +111,15 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Camera.k3"].isNamed()) fs["Camera.k3"] >> camera_params_.k3;
   if (fs["Camera.fps"].isNamed()) fs["Camera.fps"] >> camera_params_.fps;
   if (fs["Camera.bf"].isNamed()) fs["Camera.bf"] >> camera_params_.bf;
+  if (fs["Camera.fovh_degrees"].isNamed()) fs["Camera.fovh_degrees"] >> camera_params_.fovh_degrees;
+  if (fs["Camera.fovv_degrees"].isNamed()) fs["Camera.fovv_degrees"] >> camera_params_.fovv_degrees;
+
+  // DIFODO
+  if (fs["DIFODO.min_depth_value_filter"].isNamed()) fs["DIFODO.min_depth_value_filter"] >> difodo_params_.min_depth_value_filter;
+  if (fs["DIFODO.max_depth_value_filter"].isNamed()) fs["DIFODO.max_depth_value_filter"] >> difodo_params_.max_depth_value_filter;
+  if (fs["DIFODO.downsample"].isNamed()) fs["DIFODO.downsample"] >> difodo_params_.downsample;
+  if (fs["DIFODO.ctf_levels"].isNamed()) fs["DIFODO.ctf_levels"] >> difodo_params_.ctf_levels;
+  if (fs["DIFODO.fast_pyramid"].isNamed()) fs["DIFODO.fast_pyramid"] >> difodo_params_.fast_pyramid;
 
   if (fs["UsePattern"].isNamed()) fs["UsePattern"] >> kUsePattern_;
   if (fs["ThDepth"].isNamed()) fs["ThDepth"] >> kThDepth_;
@@ -117,6 +138,9 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["Viewer.PointSize"].isNamed()) fs["Viewer.PointSize"] >> kPointSize_;
   if (fs["Viewer.CameraSize"].isNamed()) fs["Viewer.CameraSize"] >> kCameraSize_;
   if (fs["Viewer.CameraLineWidth"].isNamed()) fs["Viewer.CameraLineWidth"] >> kCameraLineWidth_;
+  if (fs["Viewer.LastPositionsMaxSize"].isNamed()) fs["Viewer.LastPositionsMaxSize"] >> kLastPositionsMaxSize_;
+  if (fs["Viewer.LastPositionsLineWidth"].isNamed()) fs["Viewer.LastPositionsLineWidth"] >> kLastPositionsLineWidth_;
+  if (fs["Viewer.LastPositionsPointWidth"].isNamed()) fs["Viewer.LastPositionsPointWidth"] >> kLastPositionsPointWidth_;
   if (fs["Viewer.ViewpointX"].isNamed()) fs["Viewer.ViewpointX"] >> kViewpointX_;
   if (fs["Viewer.ViewpointY"].isNamed()) fs["Viewer.ViewpointY"] >> kViewpointY_;
   if (fs["Viewer.ViewpointZ"].isNamed()) fs["Viewer.ViewpointZ"] >> kViewpointZ_;

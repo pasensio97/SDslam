@@ -7,8 +7,10 @@ using namespace Eigen;
 
 class IMU_Measurements{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
   IMU_Measurements();
-  IMU_Measurements(const double timestamp, const Eigen::Vector3d acceleration, const Eigen::Vector3d angular_velocity);
+  IMU_Measurements(const double & timestamp, const Eigen::Vector3d & acceleration, const Eigen::Vector3d & angular_velocity);
   IMU_Measurements apply_R(const Eigen::Matrix3d& R);
 
   inline double timestamp(){return _timestamp;}

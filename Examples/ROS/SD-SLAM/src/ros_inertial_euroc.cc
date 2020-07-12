@@ -222,6 +222,9 @@ int main(int argc, char **argv) {
     tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
   }
 
+  tracker->model_type = "imu";
+  tracker->new_imu_model.set_remove_gravity_flag(true);
+
   ros::NodeHandle n;
   ImageReader reader;
   ROSPublisher pub = ROSPublisher(n);
@@ -235,22 +238,14 @@ int main(int argc, char **argv) {
 
   
 
-  //tracker->set_madgwick_gain(gain);
-  tracker->__model = 10;
-  Matrix3d rot_imu2cam;
-  rot_imu2cam << 0.0148655429818, -0.999880929698, 0.00414029679422,
-           0.999557249008, 0.0149672133247, 0.025715529948,
-           -0.0257744366974, 0.00375618835797, 0.999660727178;
+  Matrix3d R_imu_to_nwu;
+  R_imu_to_nwu << 0.33638, -0.01749,  0.94156, 
+                 -0.02078, -0.99972, -0.01114, 
+                  0.94150, -0.01582, -0.33665;
+  R_imu_to_nwu = R_imu_to_nwu.transpose();
   //tracker->imu_model.set_rotation_imu_to_slamworld(rot_imu2cam);
   
   double last_t = 0.0, dt = 0.0;
-
-
-
-  Matrix3d imu_to_nwu;
-  imu_to_nwu << 0, 0, 1,
-                0,-1, 0,
-                1, 0, 0;
 
   Odom_Publisher odom_imu(n, "odom", "imu_pred");
   Odom_Publisher odom_visual(n, "odom", "pose");
@@ -273,8 +268,8 @@ int main(int argc, char **argv) {
       last_t = imu.timestamp();
       
       IMU_Measurements nwu_imu = IMU_Measurements(imu.timestamp(),
-                                  imu_to_nwu * imu.acceleration(),
-                                  imu_to_nwu * imu.angular_velocity());
+                                                  R_imu_to_nwu * imu.acceleration(),
+                                                  R_imu_to_nwu * imu.angular_velocity());
 
       // Pass the image and IMU data to the SLAM system
       Eigen::Matrix4d pose = SLAM.TrackNewFusion(im, nwu_imu, dt);

@@ -10,6 +10,8 @@ using namespace Eigen;
 
 class PositionEstimator{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
   PositionEstimator(const bool & use_linear_acc = false);
 
   PositionEstimator(const double & alpha_acceleration, 
@@ -18,7 +20,7 @@ class PositionEstimator{
   inline Eigen::Vector3d position(){return Vector3d(_position);}
   inline Eigen::Vector3d velocity(){return Vector3d(_velocity);}
   inline Eigen::Vector3d acceleration(){return Vector3d(_acceleration);}
-  inline void set_gravity(Vector3d g){_gravity = g;}
+  inline void set_gravity(const Vector3d & g){_gravity = g;}
   
   Eigen::Vector3d update(const Eigen::Vector3d & linear_acceleration, 
                          const double & dt,

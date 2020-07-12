@@ -15,7 +15,7 @@
 #include "ui/FrameDrawer.h"
 #include "ui/MapDrawer.h"
 #include "inertial/IMU_Measurements.h"
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PositionEstimator.h"
 #include "inertial/tools/filters.h"
 #include <ros/ros.h>
@@ -71,7 +71,7 @@ vector<Vector3d> read_file_3_comps(string & filename){
   return content;
 }
 
-vector<Vector3d> correct_synt_acc(vector<Vector3d> acc){
+vector<Vector3d> correct_synt_acc(const vector<Vector3d> & acc){
   vector<Vector3d> new_acc(acc.size());
   new_acc[0] = acc[0];
   for (int i=1; i<acc.size(); i++){
@@ -112,6 +112,8 @@ double correct_angle(double const & angle){
 
 class Rotations{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   Rotations(){}
 
   Matrix3d kitti_imu2velo(){
@@ -171,6 +173,7 @@ class test_attitude{
  private: 
   const string BASEFRAME = "odom";
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Madgwick nwu_mad;
   Madgwick enu_mad;
 
@@ -207,6 +210,7 @@ class test_attitude{
 
 class Test_Pose{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   PositionEstimator position_est;
   Madgwick attitude_est;
   Imu_Publisher pub_raw_acc;
@@ -269,6 +273,7 @@ class Test_model_9{
   TF_Publisher pub_model_world;
 
  public:
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Test_model_9(ros::NodeHandle & n):
     pub_sdslam_cam(n, "odom", "sdslam_cam"),
     pub_sdslam_world(n,"odom", "sdslam_world"),
@@ -278,9 +283,9 @@ class Test_model_9{
 
   void publish(SD_SLAM::Tracking* &tracker, Matrix4d pose_cam){
     // model world
-    Vector3d pos_model_world = tracker->imu_model.position;
-    Quaterniond att_model_world = Quaterniond(tracker->imu_model.attitude);
-    pub_model_world.publish(pos_model_world, att_model_world.inverse().normalized());
+    //Vector3d pos_model_world = tracker->imu_model.position;
+    //Quaterniond att_model_world = Quaterniond(tracker->imu_model.attitude);
+    //pub_model_world.publish(pos_model_world, att_model_world.inverse().normalized());
 
     // sdslam world
     Vector3d pos_sdslam_world = -pose_cam.block<3,3>(0,0).transpose() * pose_cam.block<3,1>(0,3);
@@ -288,9 +293,9 @@ class Test_model_9{
     pub_sdslam_world.publish(pos_sdslam_world, att_sdslam_world.inverse().normalized());
 
     // model cam
-    Vector3d pos_model_cam = tracker->imu_model.position_cam;
-    Quaterniond att_model_cam = Quaterniond(tracker->imu_model.attitude);
-    pub_model_cam.publish(pos_model_cam, att_model_cam.normalized());
+    //Vector3d pos_model_cam = tracker->imu_model.position_cam;
+    //Quaterniond att_model_cam = Quaterniond(tracker->imu_model.attitude);
+    //pub_model_cam.publish(pos_model_cam, att_model_cam.normalized());
 
     // sdslam cam
     Vector3d pos_sdslam_cam = pose_cam.block<3,1>(0,3);
@@ -302,12 +307,13 @@ class Test_model_9{
 
 class motion_model_test{
  public:
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Vector3d vel, pos;
   motion_model_test(){
     vel.setZero();
     pos.setZero();
   }
-  Vector3d update(Vector3d acc, double dt){
+  Vector3d update(const Vector3d & acc, double dt){
     vel = vel + acc * dt;
     pos = pos + vel * dt;
     //cout << "acc " << acc.transpose() << endl;
@@ -322,6 +328,7 @@ class KittiSeqSelect{
   const string DATASETS_PATH = "/media/javi/Datos/TFM/datasets/kitti/raw/";
 
  public:
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   string SEQ;
   bool is_valid;
   string image_path;
@@ -343,9 +350,21 @@ class KittiSeqSelect{
       path = "2011_10_03/2011_10_03_drive_0027_sync/";
       limits = {0, 1655};
     }
+    else if (seq == "seq_00b"){
+      path = "2011_10_03/2011_10_03_drive_0027_sync/";
+      limits = {0, 740};
+    }
+    else if (seq == "seq_01"){
+      path = "2011_10_03/2011_10_03_drive_0042_sync/";
+      limits = {20, 1170};
+    }
     else if (seq == "seq_02"){
       path = "2011_10_03/2011_10_03_drive_0034_sync/";
-      limits = {0, 4660};
+      limits = {100, 4660};
+    }
+    else if (seq == "seq_06"){
+      path = "2011_09_30/2011_09_30_drive_0020_sync/";
+      limits = {110, 1100};
     }
     else if (seq == "seq_09"){
       path = "2011_09_30/2011_09_30_drive_0033_sync/";
@@ -368,7 +387,7 @@ class KittiSeqSelect{
   }
 };
 
-vector<Vector3d> create_synthetic_acc(vector<vector<double>> gt_content){
+vector<Vector3d> create_synthetic_acc(const vector<vector<double>> & gt_content){
   Kitti kitti;
   Matrix3d R = kitti.rotation_imu_cam().inverse();
   double dt = 0.1;
@@ -480,7 +499,8 @@ int main(int argc, char **argv)
 
   
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR_IMU_NEW, true); 
+  bool use_loop_closing = true;
+  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR_IMU_NEW, use_loop_closing); 
 
   // Create user interface
   SD_SLAM::Map * map = SLAM.GetMap();
@@ -514,7 +534,7 @@ int main(int argc, char **argv)
 
       tracker->model_type = "imu";
       tracker->new_imu_model.set_remove_gravity_flag(true);
-      tracker->new_imu_model.set_rotation_imu_cam(kitti.rotation_imu_cam());
+      tracker->new_imu_model.set_rotation_imu_to_world(kitti.rotation_imu_cam());
     } 
     else if (slam_type == "imu_s"){
       // Predict pose using IMU (acc synthetic) and if model lost, publish imu pose until reloc
@@ -536,7 +556,7 @@ int main(int argc, char **argv)
 
       tracker->model_type = "imu_s";
       tracker->new_imu_model.set_remove_gravity_flag(false);
-      tracker->new_imu_model.set_rotation_imu_cam(kitti.rotation_imu_cam());
+      tracker->new_imu_model.set_rotation_imu_to_world(kitti.rotation_imu_cam());
 
       
     } 
@@ -635,12 +655,16 @@ int main(int argc, char **argv)
       return 1;
     }
     
-    //if (i> 500 && i<=549){img.setTo(cv::Scalar(0));}
+    
+    //if (i> 450 && i<=549){img.setTo(cv::Scalar(0));}  // curva buena
     //if (i> 140 && i<=145){img.setTo(cv::Scalar(0));}
     //if (i> 140 && i<=150){img.setTo(cv::Scalar(0));}
     //if (i> 150 && i<=170){img.setTo(cv::Scalar(0));}
-    if (i> 250 && i<=255){img.setTo(cv::Scalar(0));}
+    ////if (i> 250 && i<=255){img.setTo(cv::Scalar(0));}
     //if (i> 1535 && i<=1560){img.setTo(cv::Scalar(0));}
+    //if (i> 250){img.setTo(cv::Scalar(0));} // IMU
+    if (i> 410  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
+
 
     ros::Time time_it = ros::Time(i);
     
@@ -660,82 +684,85 @@ int main(int argc, char **argv)
     SD_SLAM::Timer ttracking(true);
     // Pass the image and measurements to the SLAM system
     Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, freq, gps_pose_i, total_time); 
-
+    cout << "sucess return of slam" << endl;
+    cout << "Updating drawer... ";
     // Set data to UI    
     fdrawer->Update(img, pose, tracker);
     mdrawer->SetCurrentCameraPose(pose, tracker->used_imu_model);
-    // ------ end SLAM
+    // cout << "Done " << endl;
+    // // ------ end SLAM
 
-    Matrix3d ekf = SLAM.GetTracker()->GetCurrentFrame().GetRotation();
-    Quaterniond gps_att = SLAM.GetTracker()->_att_test_gps;
-    Vector3d gps_pos = SLAM.GetTracker()->_pos_test_gps;
-
+    // cout << "Doing random things... ";
+    // Matrix3d ekf = SLAM.GetTracker()->GetCurrentFrame().GetRotation();
+    // Quaterniond gps_att = SLAM.GetTracker()->_att_test_gps;
+    // Vector3d gps_pos = SLAM.GetTracker()->_pos_test_gps;
+    // cout << "Done " << endl;
     
-    // odompub_ekf.publish(time_it, SLAM.GetTracker()->GetCurrentFrame().GetPosition(), Quaterniond(ekf));
+    // // odompub_ekf.publish(time_it, SLAM.GetTracker()->GetCurrentFrame().GetPosition(), Quaterniond(ekf));
+    // cout << "Publishing... ";
+    // odompub_gt_world.publish(time_it, (gt_pos)/27, gt_att);
 
-    odompub_gt_world.publish(time_it, (gt_pos)/27, gt_att);
+    // double rviz_scale = 0.5; // for rviz 
+    // odompub_gps_cam.publish(time_it, gps_pos * rviz_scale, gps_att);
+    // odompub_gps_world.publish(time_it, (-gps_att.toRotationMatrix().transpose() * gps_pos) * rviz_scale, gps_att.inverse());
 
-    double rviz_scale = 0.5; // for rviz 
-    odompub_gps_cam.publish(time_it, gps_pos * rviz_scale, gps_att);
-    odompub_gps_world.publish(time_it, (-gps_att.toRotationMatrix().transpose() * gps_pos) * rviz_scale, gps_att.inverse());
+    // odompub_slam_cam.publish(time_it, pose.block<3, 1>(0, 3) * rviz_scale, Quaterniond(pose.block<3, 3>(0, 0)));
+    // odompub_slam_world.publish(time_it, (-pose.block<3, 3>(0, 0).transpose() * pose.block<3, 1>(0, 3)) * rviz_scale, 
+    //                                     Quaterniond(pose.block<3, 3>(0, 0).transpose()));
 
-    odompub_slam_cam.publish(time_it, pose.block<3, 1>(0, 3) * rviz_scale, Quaterniond(pose.block<3, 3>(0, 0)));
-    odompub_slam_world.publish(time_it, (-pose.block<3, 3>(0, 0).transpose() * pose.block<3, 1>(0, 3)) * rviz_scale, 
-                                        Quaterniond(pose.block<3, 3>(0, 0).transpose()));
+    // // -----------------------------------------------------------------------------------------------------
 
-    // -----------------------------------------------------------------------------------------------------
+    // if (string(argv[3]) == "imu_s"){
+    //   odompub_imu_world.publish(time_it, 
+    //                             tracker->new_imu_model.get_pose_world().block<3,1>(0,3)*rviz_scale, 
+    //                             Quaterniond(tracker->new_imu_model.get_pose_world().block<3,3>(0,0)).normalized());
+    //   //odompub_imu_world.publish(time_it, Vector3d(0,0,0), Quaterniond(tracker->new_imu_model.get_pose_world().block<3,3>(3,3)).normalized());
+    // }
 
-    if (string(argv[3]) == "imu_s"){
-      odompub_imu_world.publish(time_it, 
-                                tracker->new_imu_model.get_pose_world().block<3,1>(0,3)*rviz_scale, 
-                                Quaterniond(tracker->new_imu_model.get_pose_world().block<3,3>(0,0)).normalized());
-      //odompub_imu_world.publish(time_it, Vector3d(0,0,0), Quaterniond(tracker->new_imu_model.get_pose_world().block<3,3>(3,3)).normalized());
-    }
+    // test_imu_model.publish(tracker, pose);
+    // if (use_syn_acc && i>=100){
+    //   Vector3d curr_pos = -pose.block<3,3>(0,0).transpose() * pose.block<3,1>(0,3); 
+    //   Vector3d last_pos = -_last_pose.block<3,3>(0,0).transpose() * _last_pose.block<3,1>(0,3); 
+    //   if (i==100){
+    //     //cout << "\n\tLAST POS: " << last_pos.transpose() << endl;
+    //     mmodel.pos = last_pos;
+    //     mmodel.vel = (curr_pos - last_pos) / freq;
+    //     //cout << "\n\POS model: " << mmodel.pos.transpose() << endl;
+    //   }
+    //   Vector3d pos_mmodel = mmodel.update(acc_syn[i]/100, freq);
+    //   pub_mmodel.publish(pos_mmodel, gt_att);
+    //   if (i%5 == 0){
+    //     mmodel.pos = curr_pos;
+    //     mmodel.vel = (curr_pos - last_pos) / (freq);
+    //   }
+    // }
+    // _last_pose = pose; 
+    // //odompub_gt_world.publish(time_it, gt_pos/100, gt_att);
+    // /*
+    // // 1) WORLD
+    // odompub_gt_world.publish(time_it, rot.cam2nwu() *  (gt_pos/100), cam_to_world(gt_att));
 
-    test_imu_model.publish(tracker, pose);
-    if (use_syn_acc && i>=100){
-      Vector3d curr_pos = -pose.block<3,3>(0,0).transpose() * pose.block<3,1>(0,3); 
-      Vector3d last_pos = -_last_pose.block<3,3>(0,0).transpose() * _last_pose.block<3,1>(0,3); 
-      if (i==100){
-        //cout << "\n\tLAST POS: " << last_pos.transpose() << endl;
-        mmodel.pos = last_pos;
-        mmodel.vel = (curr_pos - last_pos) / freq;
-        //cout << "\n\POS model: " << mmodel.pos.transpose() << endl;
-      }
-      Vector3d pos_mmodel = mmodel.update(acc_syn[i]/100, freq);
-      pub_mmodel.publish(pos_mmodel, gt_att);
-      if (i%5 == 0){
-        mmodel.pos = curr_pos;
-        mmodel.vel = (curr_pos - last_pos) / (freq);
-      }
-    }
-    _last_pose = pose; 
-    //odompub_gt_world.publish(time_it, gt_pos/100, gt_att);
-    /*
-    // 1) WORLD
-    odompub_gt_world.publish(time_it, rot.cam2nwu() *  (gt_pos/100), cam_to_world(gt_att));
-
-    Quaterniond slam_word_att = cam_to_world(Quaterniond(pose.block<3, 3>(0, 0).transpose()));
-    Vector3d slam_world_pos = (-pose.block<3, 3>(0, 0).transpose() * pose.block<3, 1>(0, 3))/2;
-    odompub_slam_world.publish(time_it, rot.cam2nwu() * slam_world_pos, slam_word_att);
+    // Quaterniond slam_word_att = cam_to_world(Quaterniond(pose.block<3, 3>(0, 0).transpose()));
+    // Vector3d slam_world_pos = (-pose.block<3, 3>(0, 0).transpose() * pose.block<3, 1>(0, 3))/2;
+    // odompub_slam_world.publish(time_it, rot.cam2nwu() * slam_world_pos, slam_word_att);
     
-    // 2) local
-    //    2.1) SLAM in same coordinates of GT
-    odompub_gt_world.publish(time_it, gt_pos/100, gt_att);
-    Quaternion rot_inv = Quaterniond(pose.block<3, 3>(0, 0)).inverse();
-    Vector3d pos = pose.block<3, 1>(0, 3);
-    odompub_slam_world.publish(time_it, (-rot_inv.toRotationMatrix()*pos) / 2, rot_inv));
+    // // 2) local
+    // //    2.1) SLAM in same coordinates of GT
+    // odompub_gt_world.publish(time_it, gt_pos/100, gt_att);
+    // Quaternion rot_inv = Quaterniond(pose.block<3, 3>(0, 0)).inverse();
+    // Vector3d pos = pose.block<3, 1>(0, 3);
+    // odompub_slam_world.publish(time_it, (-rot_inv.toRotationMatrix()*pos) / 2, rot_inv));
 
-    //    2.2) GT in same coordinates of SLAM
-    Quaterniond gt_att_inv = gt_att.inverse();
-    odompub_gt_world.publish(time_it, (-gt_att_inv.toRotationMatrix() * gt_pos)/100, gt_att_inv);
-    odompub_slam_world.publish(time_it, pose.block<3, 1>(0, 3) / 2, Quaterniond(pose.block<3, 3>(0, 0)));
-    */
-    //    2.2) GT in same coordinates of SLAM ON THE FUSION POINT
-    //    2.3) WORLD in same coordinates of SLAM ON THE FUSION POINT
-    // -----------------------------------------------------------------------------------------------------
+    // //    2.2) GT in same coordinates of SLAM
+    // Quaterniond gt_att_inv = gt_att.inverse();
+    // odompub_gt_world.publish(time_it, (-gt_att_inv.toRotationMatrix() * gt_pos)/100, gt_att_inv);
+    // odompub_slam_world.publish(time_it, pose.block<3, 1>(0, 3) / 2, Quaterniond(pose.block<3, 3>(0, 0)));
+    // */
+    // //    2.2) GT in same coordinates of SLAM ON THE FUSION POINT
+    // //    2.3) WORLD in same coordinates of SLAM ON THE FUSION POINT
+    // // -----------------------------------------------------------------------------------------------------
 
-
+    cout << "Done " << endl;
 
 
     // -----------------------------------------------------------------------------------------------------
@@ -753,9 +780,6 @@ int main(int argc, char **argv)
     //if (i == 200) {break;}
     i++;
     total_time += freq;
-    if (tracker->GetLastState() == tracker->OK_GPS && tracker->GetState() == tracker->OK){
-      break;
-    }
   }
 
   // Stop all threads

@@ -15,7 +15,7 @@ class LowPassFilter{
  public:
   LowPassFilter(int vector_size, const double & alpha);
   VectorXd apply(const VectorXd & measure);
-  inline void set_initial_measure(VectorXd measure){_last_measure = measure;}
+  inline void set_initial_measure(VectorXd & measure){_last_measure = measure;}
 };
 
 #endif  // SD_SLAM_IMUMEASUREMENTS_H_

@@ -29,6 +29,8 @@ Examples/ROS/SD-SLAM/Fusion
 Examples/ROS/SD-SLAM/Monocular
 Examples/ROS/SD-SLAM/RGBD
 .vscode
+.idea
 Examples/Fusion/fusion_kitti
 Examples/ROS/SD-SLAM/DebugInertial
 Examples/ROS/SD-SLAM/Inertial
+cmake-build-debug/

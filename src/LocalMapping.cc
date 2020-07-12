@@ -628,8 +628,12 @@ void LocalMapping::KeyFrameCulling() {
       }
     }
 
-    if (nRedundantObservations > 0.9*nMPs)
+    if (nRedundantObservations > 0.9*nMPs){
       pKF->SetBadFlag();
+      if (pKF->is_fake()){
+        std::cout << "[ALERT] Removing KF fake" << std::endl;
+      }
+    }
   }
 }
 

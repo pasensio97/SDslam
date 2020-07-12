@@ -9,8 +9,9 @@ const double SIGMA_ACC = 8.94;  // m/s^3
 
 class PoseEstimator{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   PoseEstimator();
-  ~PoseEstimator();
 
   Eigen::VectorXd predict(double dt);
   void update(const Eigen::VectorXd & measurements);

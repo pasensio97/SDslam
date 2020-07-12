@@ -44,8 +44,6 @@ PoseEstimator::PoseEstimator() {
 }
 
 
-PoseEstimator::~PoseEstimator() {
-}
 
 
 Eigen::VectorXd PoseEstimator::predict(double dt){

@@ -30,8 +30,7 @@
 #include "geometry_msgs/PoseStamped.h"
 
 #include "inertial/IMU_Measurements.h"
-#include "inertial/Madgwick.h"
-#include "inertial/Madgwick_ros.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PoseEstimator.h"
 #include "inertial/PositionEstimator.h"
 #include "inertial/tools/filters.h"
@@ -49,9 +48,9 @@ class IMU_Reader {
     updated_ = true;
 
     double timestamp = msgIMU->header.stamp.toSec();
-    Eigen::Vector3d angular_velocity = Eigen::Vector3d(msgIMU->angular_velocity.x, //x
-                                                       msgIMU->angular_velocity.y, //z
-                                                       msgIMU->angular_velocity.z);//y
+    Eigen::Vector3d angular_velocity = Eigen::Vector3d(msgIMU->angular_velocity.x, 
+                                                       msgIMU->angular_velocity.y,
+                                                       msgIMU->angular_velocity.z);
     Eigen::Vector3d acceleration = Eigen::Vector3d(msgIMU->linear_acceleration.x,
                                                    msgIMU->linear_acceleration.y, 
                                                    msgIMU->linear_acceleration.z);   
@@ -870,10 +869,10 @@ int test_T265(int argc, char **argv) {
   TF_Publisher att_nwu = TF_Publisher(n, base_frame, "NWU"); 
   TF_Publisher att_enu = TF_Publisher(n, base_frame, "ENU"); 
 
-  ImuFilter att_nwu_ros = ImuFilter(0.0085, 0.5);
-  ImuFilter att_enu_ros = ImuFilter(0.0085, 0.5);
-  TF_Publisher pub_att_nwu_ros = TF_Publisher(n, base_frame, "NWU_ros"); 
-  TF_Publisher pub_att_enu_ros = TF_Publisher(n, base_frame, "ENU_ros"); 
+  //ImuFilter att_nwu_ros = ImuFilter(0.0085, 0.5);
+  //ImuFilter att_enu_ros = ImuFilter(0.0085, 0.5);
+  //TF_Publisher pub_att_nwu_ros = TF_Publisher(n, base_frame, "NWU_ros"); 
+  //TF_Publisher pub_att_enu_ros = TF_Publisher(n, base_frame, "ENU_ros"); 
 
   // --- CONFIG ---
   bool use_T265 = true;
@@ -1084,6 +1083,76 @@ int old_test_T265(int argc, char **argv) {
 }
 
 
+
+int madgwick_euroc(int argc, char **argv) {
+  ros::init(argc, argv, "IMU_TEST");
+  ros::start();
+  ros::NodeHandle n;
+
+  // --- Readers ---
+  IMU_Reader reader_imu;
+
+  // --- Subscribers ---
+  ros::Subscriber imu_sub = n.subscribe("/imu0", 100, &IMU_Reader::read_imu_msg, &reader_imu);
+  
+
+  // --- Estimators ---
+  double beta = 0.075;  // ENTRE 0.05 y 0.1 (un poco ruidoso pero bastante buena orientacion, si bajo de 0.05 la orientacion es mala)
+  Madgwick att_estimator_a = Madgwick(beta); 
+  TF_Publisher att_pub_a = TF_Publisher(n, "odom", "att_a"); 
+
+  Madgwick att_estimator_b = Madgwick(beta); 
+  TF_Publisher att_pub_b = TF_Publisher(n, "odom", "att_b"); 
+
+  printf("Imu node initialized correctly for test madgwick in EuRoC dataset.\n");
+
+  Matrix3d R;
+  R << 0.33638, -0.01749,  0.94156, 
+      -0.02078, -0.99972, -0.01114, 
+       0.94150, -0.01582, -0.33665;
+
+  double last_t=0.0;
+  Quaterniond attitude;
+  ros::Rate r(30);
+  while (ros::ok()) {
+
+    if (reader_imu.has_new_data()) {
+      IMU_Measurements imu_data = reader_imu.get_data();
+
+      // Update dt
+      double dt = imu_data.timestamp() - last_t;
+      last_t = imu_data.timestamp();
+      if (dt == imu_data.timestamp()){continue;}// first iteration
+
+
+      Vector3d acc = imu_data.acceleration();
+      // acc[0] += (2.0000e-3) + (3.0000e-3);
+      // acc[1] += (2.0000e-3) + (3.0000e-3);
+      // acc[2] += (2.0000e-3) + (3.0000e-3);
+      Vector3d gyr = imu_data.angular_velocity();
+      // gyr[0] += (1.6968e-04) + (1.9393e-05);
+      // gyr[1] += (1.6968e-04) + (1.9393e-05);
+      // gyr[2] += (1.6968e-04) + (1.9393e-05);
+
+      att_estimator_a.update(R.transpose() *acc, R.transpose() *gyr, dt);  
+      attitude = att_estimator_a.get_orientation();
+      att_pub_a.publish(Vector3d(0,0,0), attitude);
+
+      att_estimator_b.update(R*acc, R*gyr, dt);  
+      attitude = att_estimator_b.get_orientation();
+      att_pub_b.publish(Vector3d(0,0,0), attitude);
+
+    }
+
+    ros::spinOnce();
+    r.sleep();
+  }
+
+  ros::shutdown();
+  return 0;
+}
+
+
 int main(int argc, char **argv) {
   if(argc != 2) {
       cerr << endl << "Usage: rosrun SD-SLAM IMU_TEST MODE\n Modes: 'd435i', 'grav_T265', 'T265'" << endl;
@@ -1100,6 +1169,8 @@ int main(int argc, char **argv) {
     return main_test_gravity(argc, argv);
   else if (mode == "noise_T265")
     return noise_T265(argc, argv);
+  else if (mode == "att_euroc")
+    return madgwick_euroc(argc, argv);
 
   else
     cerr << endl << "Does not recognize selected MODE: 'd435i', 'GRAV', 'test_T265'" << argv[1] << endl;

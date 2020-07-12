@@ -6,13 +6,25 @@
 #include <unistd.h>
 #include <ros/ros.h>
 #include "inertial/IMU_Measurements.h"
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "tests/kitti_help.h"
+#include "tests/euroc_reader.h"
 #include "tests/publishers.h"
 #include <Eigen/Dense>
+#include <opencv2/core/core.hpp>
+#include "System.h"
+#include "Tracking.h"
+#include "Map.h"
+#include "Config.h"
+#include "extra/timer.h"
+#include "ui/Viewer.h"
+#include "ui/FrameDrawer.h"
+#include "ui/MapDrawer.h"
+#include "inertial/position_estimators/AccIntegrator.h"
 
 using namespace std;
 using namespace Eigen;
+
 
 vector<Vector3d> read_file(string & filename){
   ifstream file;
@@ -20,7 +32,6 @@ vector<Vector3d> read_file(string & filename){
 
   string line;
   vector<Vector3d> content;
-  double value;
 
   int it=0;
   while(getline(file, line)) { 
@@ -113,6 +124,186 @@ void test_kitti_imu(ros::NodeHandle &n, int max_its){
 
 
 
+void test_euroc(ros::NodeHandle &n, int max_its){
+  const uint SEED = 42;
+  const string SEQ_PATH = "/media/javi/Datos/TFM/datasets/EuRoC/MH_05/files/";
+  printf("Executing EuRoC test usign seq: %s\n", SEQ_PATH.c_str());
+
+  EuRoC_Reader* euroc_reader = new EuRoC_Reader(SEQ_PATH);
+  bool use_synthetic_acc = true;
+  double dt = 0.0;
+  double last_t = euroc_reader->current_img_data().timestamp;
+
+  AccIntegrator pos_est(!use_synthetic_acc);
+
+  double POSITION_FACTOR = 0.5;
+  // Generate acceleration from GT
+  double mean = 0.0;
+  double std = 0.0;
+  if (mean != 0.0 or std != 0.0){
+    euroc_reader->add_noise_to_synthetic_acc(mean, std, SEED);
+  }
+  
+  // GT data and publisher
+  EuRoC_GTData* gt_data;
+  EuRoC_GTData* gt_T_data;
+  Odom_Publisher odom_gt_real(n, "odom", "odom_gt_real");
+  Odom_Publisher odom_gt_T(n, "odom", "odom_gt_T");
+  Odom_Publisher odom_est(n, "odom", "odom_est");
+  
+  cv::Mat image;
+  IMU_Measurements imu_data;
+  EuRoC_ImgData img_data;
+  
+  cout << "STARTING!" << endl;
+  int count = 1; int max_count = euroc_reader->total_images();
+
+  while(euroc_reader->has_next()){
+    printf("%d / %d\n", count, max_count); count++;
+
+    euroc_reader->next();
+    img_data = euroc_reader->current_img_data();
+    imu_data = euroc_reader->current_imu_data(use_synthetic_acc);
+    gt_data = euroc_reader->current_gt_data();
+    gt_T_data = euroc_reader->current_gt_origin_data();
+    
+    dt = img_data.timestamp - last_t; last_t = img_data.timestamp;
+    image = cv::imread(img_data.filename, CV_LOAD_IMAGE_GRAYSCALE);
+
+    
+    Vector3d position = pos_est.update(imu_data.acceleration(), Quaterniond(), dt);
+    cout << "Acc: " << imu_data.acceleration().transpose() << endl;
+    cout << "Position: " << position.transpose() << endl;
+    odom_est.publish(ros::Time(gt_data->timestamp), position * POSITION_FACTOR, gt_data->attitude);
+
+    odom_gt_real.publish(ros::Time(gt_data->timestamp), gt_data->position * POSITION_FACTOR, gt_data->attitude);
+    odom_gt_T.publish(ros::Time(gt_T_data->timestamp), gt_T_data->position * POSITION_FACTOR, gt_T_data->attitude);
+    
+    cout << "dt: " << dt << endl;
+    usleep(dt * 1000000U);
+  }
+  
+}
+
+int main_slam_euroc(ros::NodeHandle &n,int argc, char **argv) {
+  
+  // EuRoC config
+  const uint SEED = 42;
+  const string SEQ_PATH = "/media/javi/Datos/TFM/datasets/EuRoC/MH_05/files/";
+  printf("Executing EuRoC test usign seq: %s\n", SEQ_PATH.c_str());
+
+  EuRoC_Reader* euroc_reader = new EuRoC_Reader(SEQ_PATH);
+  bool use_synthetic_acc = true;
+  double dt = 0.0;
+  double last_t = euroc_reader->current_img_data().timestamp;
+
+  AccIntegrator pos_est(!use_synthetic_acc);
+
+
+  // Synthetic acceleration config
+  double mean = 0.0;
+  double std = 0.0;
+  if (mean != 0.0 or std != 0.0){
+    euroc_reader->add_noise_to_synthetic_acc(mean, std, SEED);
+  }
+  
+  
+  // SLAM
+  cv::Mat img;
+  EuRoC_ImgData img_data;
+  IMU_Measurements imu;
+
+  // Read parameters
+  SD_SLAM::Config &config = SD_SLAM::Config::GetInstance();
+  if (!config.ReadParameters(argv[1])) {
+    cerr << "[ERROR] Config file contains errors" << endl;
+    ros::shutdown();
+    return 1;
+  }
+
+  // Create SLAM system. It initializes all system threads and gets ready to process frames.
+  SD_SLAM::System SLAM(SD_SLAM::System::MONOCULAR_IMU_NEW, true);
+
+  // Create user interface
+  SD_SLAM::Map * map = SLAM.GetMap();
+  SD_SLAM::Tracking * tracker = SLAM.GetTracker();
+
+  SD_SLAM::FrameDrawer * fdrawer = new SD_SLAM::FrameDrawer(map);
+  SD_SLAM::MapDrawer * mdrawer = new SD_SLAM::MapDrawer(map);
+
+  SD_SLAM::Viewer* viewer = nullptr;
+  std::thread* tviewer = nullptr;
+
+  viewer = new SD_SLAM::Viewer(&SLAM, fdrawer, mdrawer);
+  tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
+
+
+  tracker->model_type = "imu_s";
+  tracker->new_imu_model.set_remove_gravity_flag(false);
+  
+  Matrix4d identity_4d = Matrix4d::Identity();
+  int count = 1; int max_count = euroc_reader->total_images();
+  usleep(100000);
+  ros::Rate r(30);
+
+  while (ros::ok() && euroc_reader->has_next()) {
+    printf("%d / %d\n", count, max_count); count++;
+
+    euroc_reader->next();
+    img_data = euroc_reader->current_img_data();
+    imu = euroc_reader->current_imu_data();
+    img = cv::imread(img_data.filename, -1);
+    dt = img_data.timestamp - last_t; last_t = img_data.timestamp;
+
+    if(img.empty()) {
+      cout << "Img size: " << img.size() << endl;
+      cerr << endl << "[ERROR] Failed to load image at: "  << img_data.filename << endl;
+      ros::shutdown();
+      return 1;
+    }
+
+    // ------ SLAM
+    SD_SLAM::Timer ttracking(true);
+    // Pass the image and measurements to the SLAM system
+    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, dt, identity_4d, img_data.timestamp); 
+
+    // Set data to UI    
+    fdrawer->Update(img, pose, tracker);
+    mdrawer->SetCurrentCameraPose(pose, tracker->used_imu_model);
+
+
+    ttracking.Stop();
+    double delay = ttracking.GetTime();
+
+    // Wait to load the next frame
+    if(delay<dt)
+      usleep((dt-delay)*1e6);
+
+    if (viewer->isFinished()){
+      return 0;
+    }
+
+  }
+
+  // Stop all threads
+  SLAM.Shutdown();
+
+  //string tum_file = "/home/javi/tfm/TEMP_FILES/kitti_" + kitti_seq.SEQ + ".txt";
+  //SLAM.save_as_tum(tum_file);
+
+  while (!viewer->isFinished())
+    usleep(5000);
+  viewer->RequestFinish();
+  while (!viewer->isFinished())
+    usleep(5000);
+  tviewer->join();
+
+
+  ros::shutdown();
+  return 0;
+
+}
+
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "Tests");
@@ -120,7 +311,9 @@ int main(int argc, char **argv)
   ros::NodeHandle n;    
 
   // TESTS
-  test_kitti_imu(n, 0);
+  //test_kitti_imu(n, 0);
+  //test_euroc(n, 0);
+  return main_slam_euroc(n, argc, argv);
   // end
 
   ros::shutdown();

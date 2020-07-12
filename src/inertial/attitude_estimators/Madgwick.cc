@@ -1,4 +1,4 @@
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 
 Madgwick::Madgwick(double gain){
     beta = gain;
@@ -24,15 +24,15 @@ Quaterniond Madgwick::get_local_orientation(){
   return local_q.normalized(); // rot from NWU frame to SDSLAM local
 }
 
-void Madgwick::set_orientation(Quaterniond orientation){
-  orientation.normalize(); // Necessary?
+void Madgwick::set_orientation(const Quaterniond & orientation){ 
+  Quaterniond orientation_norm = orientation.normalized(); // Necessary?
   q0 = orientation.w();
   q1 = orientation.x();
   q2 = orientation.y();
   q3 = orientation.z();
 }
 
-void Madgwick::set_orientation_from_frame(Matrix4d local_pose){
+void Madgwick::set_orientation_from_frame(const Matrix4d & local_pose){
   Matrix3d R;  // R = Rotx(-90)*Roty(90) | x->z; y->-x; z->-y
   R << 0,  0,  1,
       -1,  0,  0,
@@ -44,7 +44,7 @@ void Madgwick::set_orientation_from_frame(Matrix4d local_pose){
   set_orientation(Quaterniond(pose_rot));
 }
 
-void Madgwick::update(Vector3d accelerometer, Vector3d gyroscope, double dt) {
+void Madgwick::update(const Vector3d & accelerometer, const Vector3d & gyroscope, const double & dt) {
   double ax = accelerometer.x();
   double ay = accelerometer.y();
   double az = accelerometer.z();

@@ -430,6 +430,9 @@ Eigen::Vector3d Frame::UnprojectStereo(const int &i) {
 void Frame::Undistort(const cv::Mat& im, cv::Mat& im_out) {
   cv::Mat mK_cv = Converter::toCvMat(mK);
   cv::undistort(im, im_out, mK_cv, mDistCoef);
+  cv::imshow("Distorted", im);
+  cv::imshow("Undistorted", im_out);
+  cv::waitKey(1);
 }
 
 }  // namespace SD_SLAM

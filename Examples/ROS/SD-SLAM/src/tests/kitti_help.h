@@ -9,6 +9,8 @@ using namespace std;
 using namespace Eigen;
 
 struct IMUSensor{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   double time;
   Vector3d oxts_units;
   Vector3d euler_angles;
@@ -20,6 +22,8 @@ struct IMUSensor{
 
 class Kitti{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
   Matrix3d rotation_imu_velo();
   Matrix3d rotation_velo_cam();
   Matrix3d rotation_imu_cam();

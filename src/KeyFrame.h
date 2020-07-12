@@ -222,6 +222,12 @@ class KeyFrame {
   std::mutex mMutexConnections;
   std::mutex mMutexFeatures;
 
+  // KeyFrame Fake flag
+  bool _is_fake;
+ public:
+  inline void set_fake(const bool flag){_is_fake = flag;}
+  inline bool is_fake(){return _is_fake;}
+
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

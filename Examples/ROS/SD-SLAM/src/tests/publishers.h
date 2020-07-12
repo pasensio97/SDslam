@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include "src/inertial/IMU_Measurements.h"
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PositionEstimator.h"
 #include "inertial/tools/filters.h"
 #include <ros/ros.h>
@@ -22,6 +22,7 @@ class Imu_Publisher{
     int seq;
 
  public:
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Imu_Publisher(ros::NodeHandle & nodehandle, const string &frame, const string &topic):
     pub(nodehandle.advertise<sensor_msgs::Imu>(topic, 100)), frame_id(frame), seq(0)
   {}
@@ -37,6 +38,7 @@ class TF_Publisher {
   tf::TransformBroadcaster _br;
 
  public:
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   const std::string base_frame;
   const std::string child_frame;
 
@@ -57,6 +59,7 @@ class Odom_Publisher {
   const std::string _child_frame;
 
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Odom_Publisher(ros::NodeHandle & n, const string & base_frame, const string & child_frame):
     _pub(n.advertise<nav_msgs::Odometry>(child_frame, 10)),
 		_base_frame(base_frame), _child_frame(child_frame)
@@ -82,6 +85,7 @@ class PublisherData{
   Imu_Publisher imu_pub_position;
 
  public:
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   PublisherData(ros::NodeHandle & n, 
                 const string & base_frame, 
                 const string & data_name):

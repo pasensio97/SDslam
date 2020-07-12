@@ -24,7 +24,7 @@
 
 #include "Optimizer.h"
 #include <mutex>
-#include <Eigen/StdVector>
+
 #include "Converter.h"
 #include "extra/g2o/core/block_solver.h"
 #include "extra/g2o/core/optimization_algorithm_levenberg.h"

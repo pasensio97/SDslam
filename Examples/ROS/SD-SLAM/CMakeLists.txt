@@ -48,6 +48,9 @@ target_link_libraries(PUB_LIB ${LIBS})
 add_library(KITTI_LIB ${PROJECT_SOURCE_DIR}/src/tests/kitti_help.cc)
 target_link_libraries(KITTI_LIB ${LIBS})
 
+add_library(EUROC_LIB ${PROJECT_SOURCE_DIR}/src/tests/euroc_reader.cc)
+target_link_libraries(EUROC_LIB ${LIBS})
+
 # Node for monocular camera
 rosbuild_add_executable(Monocular
   src/ros_monocular.cc
@@ -84,16 +87,22 @@ rosbuild_add_executable(IMU_TEST
 )
 target_link_libraries(IMU_TEST ${LIBS})
 
-# Node for debug imu tools
+# Node for inertial kitti 
 rosbuild_add_executable(KITTI_TEST
 src/fusion_kitti_imu_test.cc
 )
 target_link_libraries(KITTI_TEST ${LIBS} PUB_LIB KITTI_LIB)
 
+# Node for Euroc test
+rosbuild_add_executable(EUROC_TEST
+src/fusion_euroc.cc
+)
+target_link_libraries(EUROC_TEST ${LIBS} PUB_LIB EUROC_LIB)
+
 rosbuild_add_executable(Tests
 src/ros_tests.cc
 )
-target_link_libraries(Tests ${LIBS} PUB_LIB KITTI_LIB)
+target_link_libraries(Tests ${LIBS} PUB_LIB KITTI_LIB EUROC_LIB) 
 
 # Node for debug imu tools
 rosbuild_add_executable(EUROC_INERTIAL

@@ -103,12 +103,15 @@ LIST(APPEND SOURCEFILES
 
   # Inertial tools
   src/inertial/IMU_Measurements.cc
-  src/inertial/Madgwick.cc
-  src/inertial/Madgwick_ros.cc
   src/inertial/PoseEstimator.cc
   src/inertial/PositionEstimator.cc
   src/inertial/tools/filters.cc
   src/inertial/PredictionModels.cc
+  src/inertial/tools/Estimator.cc
+
+  src/inertial/attitude_estimators/Madgwick.cc
+  src/inertial/position_estimators/GPS.cc
+  src/inertial/position_estimators/AccIntegrator.cc
 
 )
 

@@ -40,7 +40,7 @@
 #include "inertial/IMU_Measurements.h"
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
-#include <inertial/Madgwick.h>
+#include <inertial/attitude_estimators/Madgwick.h>
 
 using namespace std;
 

@@ -41,7 +41,7 @@
 #include "System.h"
 #include "sensors/EKF.h"
 #include "inertial/IMU_Measurements.h"
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PredictionModels.h"
 
 namespace SD_SLAM {
@@ -143,7 +143,7 @@ class Tracking {
   Matrix4d test_gps_pose, test_ekf_pose;
   void estimate_rotation_between_gps_and_slamworld();
   void estimate_rotation_between_gps_and_slamworld(Frame &curr_frame);
-  void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
+
   Matrix4d predict_new_pose_with_gps();
   inline void set_first_gps_pose(const Matrix4d & pose){__first_gps_pose = pose;}
   inline Matrix3d R_first_gps(){return __first_gps_pose.block<3,3>(0,0);}
@@ -154,12 +154,20 @@ class Tracking {
   Matrix4d initial_gps_wpose;
   Frame newInitFrame, newCurrFrame;
   int nKFs_on_reinit = 0;
+
+  bool create_new_map(Frame & first_frame, Frame & second_frame,  Map* new_map);
+
   // --------------- Prediciotn models ----------------------------------------------
   IMU_model imu_model = IMU_model(0.0085);
-
+  Matrix4d curr_imu_prediction;
+  
   new_IMU_model new_imu_model = new_IMU_model(1.0, false, 0.0085);
+  new_IMU_model imu_model_reinit = new_IMU_model(1.0, false, 0.0085);
   Matrix4d mIniPoseInvIMU;
   
+  new_IMU_model imu_model_scale = new_IMU_model(1.0, false, 0.0085);
+
+
   GPS_IMU_model gps_imu_model = GPS_IMU_model(0.0085);
   bool used_imu_model = false;
   IMU_Measurements last_imu;
@@ -167,7 +175,9 @@ class Tracking {
   std::string model_type = "gps"; // mono, gps, imu, imu_s
   int its = 0;
 
+  void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
   double estimate_initial_scale_imu(KeyFrame* curr_kf, KeyFrame* last_kf);
+  KeyFrame* mpFirstReloadKeyFrame = nullptr;
   // ------------------------ end gps ----------------------------------
   Quaterniond _att_test_gps;
   Vector3d _pos_test_gps;
@@ -212,7 +222,8 @@ class Tracking {
   bool TrackVisual(Eigen::Matrix4d predicted_pose); // code cte in TrackWithNewIMUModel
 
   bool Relocalization();
-
+  bool RelocalizationIMU();
+  
   void UpdateLocalMap();
   void UpdateLocalPoints();
   void UpdateLocalKeyFrames();
@@ -222,7 +233,7 @@ class Tracking {
 
   bool NeedNewKeyFrame();
   bool NeedNewKeyFrame_test();
-  void CreateNewKeyFrame();
+  void CreateNewKeyFrame(bool is_fake = false);
 
   // Other Thread Pointers
   LocalMapping* mpLocalMapper;

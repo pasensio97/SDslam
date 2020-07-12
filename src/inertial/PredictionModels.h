@@ -3,7 +3,7 @@
 #define SD_SLAM_PREDICTIONMODELS_H_
 
 #include <Eigen/Dense>
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PositionEstimator.h"
 #include "Frame.h"
 #include "inertial/tools/filters.h"
@@ -17,6 +17,7 @@ class GT_PredictionModel{
   Matrix3d rotation_gps_to_slam;
 
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   void estimate_rotation_gps_to_slam(Frame & first_frame, Frame & curr_frame);
   Matrix4d predict(Frame & curr_frame, Frame & last_frame);
 };
@@ -28,6 +29,7 @@ class SyntheticSensor_PredictionModel{
   Madgwick att_estimator;
 
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   SyntheticSensor_PredictionModel(double madgwick_gain):
     pos_estimator(true),
     att_estimator(madgwick_gain) 
@@ -55,6 +57,8 @@ class SyntheticSensor_PredictionModel{
 class IMU_model{
 
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   PositionEstimator _pos_estimator;
   Madgwick _att_estimator;
   Matrix3d _R_imu2w;
@@ -73,8 +77,8 @@ class IMU_model{
   IMU_model(const double & mad_gain);
 
   inline void set_remove_gravity(bool flag){_remove_gravity = flag;}
-  inline void set_rotation_imu_to_slamworld(Matrix3d rot){
-    _R_imu2w = rot;
+  inline void set_rotation_imu_to_slamworld(const Matrix3d & rot){
+    _R_imu2w = Matrix3d(rot);
   }
   inline void set_ratio(double ratio){
     _ratio = ratio;
@@ -93,39 +97,55 @@ class new_IMU_model{
   bool _acc_due_grav;
   Madgwick _att_estimator;
   Vector3d _gravity;
-  Matrix3d _R_imu_to_cam;
+  Matrix3d _R_imu_to_world;
   double _scale;
   Vector3d _position;
   Vector3d _velocity;
   Vector3d _last_velocity;
 
   Vector3d _remove_gravity(const Vector3d & acc, const Quaterniond & attitude);
+  Vector3d _remove_gravity_test(const Vector3d & acc, const Quaterniond & attitude);
+  Vector3d _remove_gravity_test_2(const Vector3d & acc, const Quaterniond & attitude);
   void _update_poses();
  public:
-
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
   Matrix4d pose_cam, pose_world, pose_imu;
 
   new_IMU_model(const double & acc_lpf_gain, const bool &  remove_gravity, const double & mad_gain);
-  inline void set_rotation_imu_cam(const Matrix3d &R){_R_imu_to_cam = R;};
+  inline void set_rotation_imu_to_world(const Matrix3d &R){_R_imu_to_world = R;};
   inline void set_gravity(Vector3d & g){_gravity = g;};
   inline void set_scale(double & scale){_scale = scale;};
   inline void set_remove_gravity_flag(const bool flag){_acc_due_grav = flag;};
+  inline void set_att_gain(double gain){_att_estimator.set_gain(gain);};
+  inline void set_attitude(const Quaterniond & att){_att_estimator.set_orientation(att);};
 
-  inline double get_scale(){return _scale;};
+  inline Matrix3d get_rotation_imu_to_world(){return Matrix3d(_R_imu_to_world);};
+  inline bool is_gravity_removed(){return _acc_due_grav;};
+  inline double get_scale_factor(){return _scale;};
+  inline double att_gain(){return _att_estimator.gain();};
+  inline Madgwick get_att_estimator(){return _att_estimator;};
+
   inline Matrix4d get_pose_cam(){return Matrix4d(pose_cam);};
   inline Matrix4d get_pose_world(){return Matrix4d(pose_world);};
+
+  // Test
+  inline void set_velocity(const Vector3d & vel){_velocity = Vector3d(vel)*_scale;}
 
   /**
    * imu must be stay on NWU coordinate system
   */
   Matrix4d predict(IMU_Measurements & imu, double & dt);
   void correct_pose(Frame & curr_frame, Frame & last_frame, double dt);
+  void reset();
 };
 
 
 class GPS_IMU_model{
   
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   Madgwick _att_estimator;
   Matrix4d _pose, _wpose;
 

@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <fstream>
 #include "inertial/IMU_Measurements.h"
-#include "inertial/Madgwick.h"
+#include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PositionEstimator.h"
 #include "inertial/tools/filters.h"
 #include <ros/ros.h>

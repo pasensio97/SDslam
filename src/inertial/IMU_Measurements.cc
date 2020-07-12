@@ -8,13 +8,13 @@ IMU_Measurements::IMU_Measurements(){
   _angular_velocity = Vector3d(0,0,0);
 }
 
-IMU_Measurements::IMU_Measurements(const double timestamp, 
-                                   const Eigen::Vector3d acceleration, 
-                                   const Eigen::Vector3d angular_velocity)
+IMU_Measurements::IMU_Measurements(const double &timestamp, 
+                                   const Eigen::Vector3d &acceleration, 
+                                   const Eigen::Vector3d &angular_velocity)
 {
   _timestamp = timestamp;
-  _acceleration = acceleration;
-  _angular_velocity = angular_velocity;
+  _acceleration = Vector3d(acceleration);
+  _angular_velocity = Vector3d(angular_velocity);
 }
 
 IMU_Measurements IMU_Measurements::apply_R(const Eigen::Matrix3d& R){

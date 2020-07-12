@@ -256,10 +256,12 @@ Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements
   }
 
   Timer total(true);
-
+  cout << "settings imu measurements... ";
   mpTracker->SetIMUMeasurements(measurements);
+  cout << "done" << endl;
+  cout << "Grab image fusion... ";
   Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, gps_pose);
-
+  cout << "done!" << endl;
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
 
@@ -269,7 +271,7 @@ Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements
   mTrackingState = mpTracker->GetState();
   mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
   mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
-
+  cout << "Returning... " << endl;
   return Tcw;
 }
 
@@ -648,7 +650,7 @@ void System::save_as_tum(const std::string &filename) {
 
   double scale = 1.0;
   if (mpTracker->model_type == "imu_s" || mpTracker->model_type == "imu"){
-    scale = 1.0 / mpTracker->new_imu_model.get_scale();
+    //scale = 1.0 / mpTracker->new_imu_model.get_scale_factor();
     cout << "Scale factor: " << scale << endl;
   }
   std::ofstream f;

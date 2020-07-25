@@ -648,14 +648,10 @@ void System::save_as_tum(const std::string &filename) {
   vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
 
-  double scale = 1.0;
-  if (mpTracker->model_type == "imu_s" || mpTracker->model_type == "imu"){
-    //scale = 1.0 / mpTracker->new_imu_model.get_scale_factor();
-    cout << "Scale factor: " << scale << endl;
-  }
-  std::ofstream f;
+  std::ofstream f, f_aux;
   f.open(filename.c_str());
-  std::string output;
+  f_aux.open((filename+"_scale_and_fakes.txt").c_str());
+
 
   for(size_t i=0; i<vpKFs.size(); i++) {
     KeyFrame* pKF = vpKFs[i];
@@ -665,19 +661,20 @@ void System::save_as_tum(const std::string &filename) {
 
     Eigen::Matrix4d pose = pKF->GetPoseInverse();
     Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
-    Eigen::Vector3d t = pose.block<3, 1>(0, 3) * scale;
-
-    // f << setprecision(6) << *lT << " " <<  setprecision(9) << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
-    
+    Eigen::Vector3d t = pose.block<3, 1>(0, 3);
+  
     f << std::setprecision(6) 
       << pKF->mTimestamp << " "
       << std::setprecision(9) 
       << t.x() << " " << t.y() << " " << t.z() << " " 
       << q.x() << " " << q.y() << " " << q.z() << " " << q.w() 
       << endl;
+
+    f_aux << pKF->is_fake() << " " << std::setprecision(6) << pKF->inertial_scale << endl;
   }
 
   f.close();
+  f_aux.close();
   std::cout << "Trajectory saved!" << std::endl;
 
 }

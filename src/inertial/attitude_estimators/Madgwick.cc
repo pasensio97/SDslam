@@ -10,7 +10,23 @@ const Quaterniond Madgwick::get_orientation(){
   return Quaterniond(q0, q1, q2, q3).normalized();
 }
 
+Quaterniond Madgwick::get_world_orientation(){
+  // NWU to Slam World
+  Quaterniond q = get_orientation();
+
+  Matrix3d R;  // R = Rotx(-90)*Roty(90) | x->z; y->-x; z->-y
+  R << 0,  0,  1,
+      -1,  0,  0,
+       0, -1,  0;
+
+  Matrix3d pose_rot;
+  pose_rot = R.transpose() * q.toRotationMatrix() * R;
+  Quaterniond world_q(pose_rot);
+  return world_q.normalized(); 
+}
+
 Quaterniond Madgwick::get_local_orientation(){
+  // NWU to Slam cam
   Quaterniond q = get_orientation();
 
   Matrix3d R;  // R = Rotx(-90)*Roty(90) | x->z; y->-x; z->-y

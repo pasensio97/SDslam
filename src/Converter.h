@@ -51,6 +51,9 @@ class Converter {
   static Eigen::Matrix<double, 4, 4> toMatrix4d(const g2o::SE3Quat &SE3);
   static Eigen::Matrix<double, 4, 4> toMatrix4d(const g2o::Sim3 &Sim3);
   static Eigen::Matrix<double, 4, 4> toSE3(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &t);
+  static Eigen::Matrix<double, 4, 4> world_to_cam(const Eigen::Matrix<double, 4, 4> &world_pose);
+  static Eigen::Matrix<double, 4, 4> world_to_cam(const Eigen::Vector3d &position, const Eigen::Matrix<double, 3, 3> &orientation);
+  static Eigen::Matrix<double, 4, 4> world_to_cam(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation);
 };
 
 }  // namespace SD_SLAM

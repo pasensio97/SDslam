@@ -601,20 +601,34 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
       LOGD("Global Bundle Adjustment finished");
       LOGD("Updating map ...");
       mpLocalMapper->RequestStop();
+      LOGD("Requested stop ...");
       // Wait until Local Mapping has effectively stopped
 
       while (!mpLocalMapper->isStopped() && !mpLocalMapper->isFinished()) {
+        LOGD("waiting stop ...");
         usleep(1000);
       }
-
+      std::cout << "[TEST] MAP STOPED" << std::endl;
+      std::cout << "[TEST] LOCKING... " ;
       // Get Map Mutex
       unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
-
+      std::cout << " DONE!" << std::endl;
       // Correct keyframes starting at map first keyframe
       list<KeyFrame*> lpKFtoCheck(mpMap->mvpKeyFrameOrigins.begin(), mpMap->mvpKeyFrameOrigins.end());
 
+      std::cout << "[TEST] CORRECTING KEYFRAMES...\n ";
+      int kp_fakes_counts = 0; 
+      set<KeyFrame*> test_set;
       while (!lpKFtoCheck.empty()) {
+        std::cout << "[TEST] Pendientes por checkear" << lpKFtoCheck.size() << std::endl;
         KeyFrame* pKF = lpKFtoCheck.front();
+        if(test_set.count(pKF)){
+          lpKFtoCheck.pop_front();
+          continue;
+        }else{
+          test_set.insert(pKF);
+        }
+        if (pKF->is_fake()){ kp_fakes_counts++;}
         const set<KeyFrame*> sChilds = pKF->GetChilds();
         Eigen::Matrix4d Twc = pKF->GetPoseInverse();
         for (set<KeyFrame*>::const_iterator sit = sChilds.begin();sit != sChilds.end();sit++) {
@@ -631,7 +645,8 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
         pKF->SetPose(pKF->mTcwGBA);
         lpKFtoCheck.pop_front();
       }
-
+      std::cout << "[TEST]FAKE KFS UPDATED: " << kp_fakes_counts << std::endl;
+      std::cout << "DoNe!\n[TEST] CORRECTING KEYMAPS... ";
       // Correct MapPoints
       const vector<MapPoint*> vpMPs = mpMap->GetAllMapPoints();
 
@@ -664,7 +679,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
           pMP->SetWorldPos(Rwc*Xc+twc);
         }
       }
-
+      std::cout << "DONE!" << std::endl;
       mpMap->InformNewBigChange();
 
       mpLocalMapper->Release();

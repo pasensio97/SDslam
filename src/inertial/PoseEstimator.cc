@@ -1,6 +1,5 @@
 
 #include "PoseEstimator.h"
-#include <Eigen/Dense>
 #include <iostream>
 
 const double COV_POS_2 = 0.05;

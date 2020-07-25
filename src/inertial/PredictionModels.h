@@ -7,6 +7,8 @@
 #include "inertial/PositionEstimator.h"
 #include "Frame.h"
 #include "inertial/tools/filters.h"
+#include <iostream>
+#include <vector>
 
 using namespace Eigen;
 using namespace SD_SLAM;
@@ -91,6 +93,8 @@ class IMU_model{
 
 
 class new_IMU_model{
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
   LowPassFilter _acc_lpf;
@@ -101,15 +105,20 @@ class new_IMU_model{
   double _scale;
   Vector3d _position;
   Vector3d _velocity;
+
+  Vector3d _last_position;
   Vector3d _last_velocity;
+
+
+  std::vector<double> _scale_buffer;
+  
 
   Vector3d _remove_gravity(const Vector3d & acc, const Quaterniond & attitude);
   Vector3d _remove_gravity_test(const Vector3d & acc, const Quaterniond & attitude);
   Vector3d _remove_gravity_test_2(const Vector3d & acc, const Quaterniond & attitude);
   void _update_poses();
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   
+ public:
   Matrix4d pose_cam, pose_world, pose_imu;
 
   new_IMU_model(const double & acc_lpf_gain, const bool &  remove_gravity, const double & mad_gain);
@@ -128,10 +137,19 @@ class new_IMU_model{
 
   inline Matrix4d get_pose_cam(){return Matrix4d(pose_cam);};
   inline Matrix4d get_pose_world(){return Matrix4d(pose_world);};
-
+  inline Matrix4d get_pose_imu(){return Matrix4d(pose_imu);};
   // Test
-  inline void set_velocity(const Vector3d & vel){_velocity = Vector3d(vel)*_scale;}
 
+  inline void set_velocity(const Vector3d & vel){_velocity = Vector3d(vel)*_scale;}
+  inline Vector3d get_position_imu(){return Vector3d(_position);}
+  inline Vector3d get_position_slam(){return _R_imu_to_world * _position;}
+  inline Vector3d get_last_position_imu(){return Vector3d(_last_position);}
+  inline Vector3d get_last_position_slam(){return _R_imu_to_world * _last_position;}
+
+  double estimate_scale(Frame & curr_frame, Frame & last_frame, bool add_to_buffer=true);
+  inline void add_scale_to_buffer(double scale){_scale_buffer.push_back(scale);}
+  double scale_buffer_mean();
+  void scale_buffer_clear();
   /**
    * imu must be stay on NWU coordinate system
   */

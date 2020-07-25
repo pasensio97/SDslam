@@ -17,6 +17,7 @@ class Madgwick{
   void set_orientation(const Quaterniond & orientation);
   void set_orientation_from_frame(const Matrix4d & local_pose);
   const Quaterniond get_orientation();
+  Quaterniond get_world_orientation();
   Quaterniond get_local_orientation();
   void update(const Vector3d & accelerometer, const Vector3d & gyroscope, const double & dt);
   double invSqrt(double x);

@@ -164,7 +164,7 @@ class Tracking {
   new_IMU_model new_imu_model = new_IMU_model(1.0, false, 0.0085);
   new_IMU_model imu_model_reinit = new_IMU_model(1.0, false, 0.0085);
   Matrix4d mIniPoseInvIMU;
-  
+  int _frames_last_fake_kf = 0;
   new_IMU_model imu_model_scale = new_IMU_model(1.0, false, 0.0085);
 
 
@@ -176,8 +176,16 @@ class Tracking {
   int its = 0;
 
   void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
-  double estimate_initial_scale_imu(KeyFrame* curr_kf, KeyFrame* last_kf);
   KeyFrame* mpFirstReloadKeyFrame = nullptr;
+  double base_scale;
+  bool update_with_base_scale=false;
+  bool update_scale=true;
+  uint KF_to_estimate_scale = 10;
+  bool initial_scale_with_multiples_kf = false;
+  Matrix4d last_kf_imu_world_pose;
+  std::vector<double> initial_scale_buffer;
+
+  void apply_transform(Map* &map, const Quaterniond & R, const Vector3d & t, const double & scale);
   // ------------------------ end gps ----------------------------------
   Quaterniond _att_test_gps;
   Vector3d _pos_test_gps;
@@ -196,19 +204,14 @@ class Tracking {
   void Track_IMU_Reloc();
   void Track_IMU_Reinit();
 
-  void Track_GPS_Reloc();
-  void Track_GPS_Reinit();
-
   // Map initialization for stereo and RGB-D
   void StereoInitialization();
 
   // Map initialization for monocular
   void MonocularInitialization();
   void MonocularInitializationIMU();
-  void MonocularGPSInitialization();
 
   void MonocularReInitializationIMU();
-  bool MonocularReInitializationGPS();
   void CreateInitialMapMonocular();
 
   // Initialization with pattern
@@ -220,6 +223,7 @@ class Tracking {
   bool TrackWithMotionModel();
   bool TrackWithNewIMUModel(); // in dev
   bool TrackVisual(Eigen::Matrix4d predicted_pose); // code cte in TrackWithNewIMUModel
+  int TrackMMVisual(Frame &frame); // code cte in TrackWithNewIMUModel
 
   bool Relocalization();
   bool RelocalizationIMU();

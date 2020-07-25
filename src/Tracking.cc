@@ -197,15 +197,14 @@ Eigen::Matrix4d Tracking::GrabImageFusion(const cv::Mat &im, const double dt, co
   mCurrentFrame.set_gps_pose(gps_pose);
 
   if (model_type == "mono"){Track();}
-  else if (model_type == "gps_reinit"){ Track_GPS_Reinit();}
-  else if(model_type == "gps_reloc"){ Track_GPS_Reloc();}
-  else if(model_type == "imu" || model_type == "imu_s"){
-    Track_IMU_Reinit(); //Track_IMU_Reloc();//
-  }
-  else{Track_test();}
-  //Track_IMU_Reloc();
-  //Track_GPS_Reinit();
-  
+  else{Track_IMU_Reinit();}
+  // else if (model_type == "gps_reinit"){ cout << "Erase mode" << endl; return Matrix4d::Identity();}
+  // else if(model_type == "gps_reloc"){ cout << "Erase mode" << endl; return Matrix4d::Identity();}
+  // else if(model_type == "imu" || model_type == "imu_s"){
+  //   Track_IMU_Reinit(); //Track_IMU_Reloc();//
+  // }
+  // else{Track();}
+
   return mCurrentFrame.GetPose();
 }
 
@@ -339,324 +338,22 @@ void Tracking::Track() {
   }
 }
 
+void Tracking::apply_transform(Map* &map, const Quaterniond & R, const Vector3d & t, const double & scale){
+  // on world
+  Matrix4d RTc; Matrix3d Rw; Vector3d Tw;
 
-void Tracking::Track_GPS_Reinit() {
-  // __model = 20;  
-  //__model = 14;  // for scale test
-  Matrix4d pose_gps_imu;
-  if (mState == OK ){  // && mCurrentFrame.mnId > mnLastRelocFrameId+2
-    LOGD("Estimate pose gps with last frame");
-    pose_gps_imu = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->scale_gps);  
-  }else if (mState == WAITING_RELOC){
-    LOGD("Estimate pose gps with last valid frame");
-    pose_gps_imu = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, last_valid_frame, mpReferenceKF->scale_gps);
-  }
-
-  if (mState==NO_IMAGES_YET)
-    mState = NOT_INITIALIZED;
-
-  mLastProcessedState = mState;
-
-  // Get Map Mutex -> Map cannot be changed
-  unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
-
-  if (mState==NOT_INITIALIZED) {
-    if (mSensor==System::RGBD)
-      StereoInitialization();
-    else {
-      if (usePattern)
-        PatternInitialization();
-      else
-        MonocularInitialization();
-    }
-
-    if (mState!=OK)
-      return;
-
-  } else{
-    used_imu_model = false;
-    // System is initialized. Track Frame.
-    bool bOK;
-    // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
-    if (mState==OK) {
-      // Local Mapping might have changed some MapPoints tracked in last frame
-      CheckReplacedInLastFrame();
-
-      if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
-        bOK = TrackReferenceKeyFrame();
-      } else {
-        bOK = TrackWithNewIMUModel();
-        if (!bOK) {
-          bOK = TrackReferenceKeyFrame();
-          motion_model_->Restart();
-          if (!bOK){
-            last_valid_frame = Frame(mLastFrame);
-          }
-        }
-      }
-    } else if (mState==WAITING_RELOC) {
-      // Publicar posición (GPS/IMU int) mientras la parte visual trata de relocalizarse
-      used_imu_model = true;
-    
-      bOK = MonocularReInitializationGPS();
-      motion_model_->Restart();
-
-      if (bOK){
-        cout << "\n\tRELOCATE\n" << endl; 
-      }else{
-        mCurrentFrame.SetPose(pose_gps_imu);
-      }
-    }
-    else {
-      bOK = Relocalization();
-      motion_model_->Restart();
-    }
-
-    mCurrentFrame.mpReferenceKF = mpReferenceKF;
-
-    // If we have an initial estimation of the camera pose and matching. Track the local map.
-    if (bOK)
-      bOK = TrackLocalMap();
-
-    if (bOK)
-      mState = OK;
-    else{
-      mCurrentFrame.SetPose(pose_gps_imu);
-      mState = WAITING_RELOC;
-    }
-    // If tracking were good, check if we insert a keyframe
-    if (bOK) {
-
-      // Update motion sensor
-      if (!mLastFrame.GetPose().isZero())
-        motion_model_->Update(mCurrentFrame.GetPose(), measurements_);
-      else
-        motion_model_->Restart();
-
-      // Clean VO matches
-      for (int i = 0; i<mCurrentFrame.N; i++) {
-        MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
-        if (pMP)
-          if (pMP->Observations()<1) {
-            mCurrentFrame.mvbOutlier[i] = false;
-            mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-          }
-      }
-
-      // Delete temporal MapPoints
-      for (list<MapPoint*>::iterator lit = mlpTemporalPoints.begin(), lend =  mlpTemporalPoints.end(); lit!=lend; lit++) {
-        MapPoint* pMP = *lit;
-        delete pMP;
-      }
-      mlpTemporalPoints.clear();
-
-      // Check if we need to insert a new keyframe
-      if (NeedNewKeyFrame())
-        CreateNewKeyFrame();
-
-      // We allow points with high innovation (considererd outliers by the Huber Function)
-      // pass to the new keyframe, so that bundle adjustment will finally decide
-      // if they are outliers or not. We don't want next frame to estimate its position
-      // with those points so we discard them in the frame.
-      for (int i = 0; i<mCurrentFrame.N; i++) {
-        if (mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
-          mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-      }
-    }
-
-    // Reset if the camera get lost soon after initialization
-    if (mState==LOST || mState==WAITING_RELOC) {
-      if (mpMap->KeyFramesInMap()<=5) {
-        LOGD("Track lost soon after initialisation, reseting...");
-        mpSystem->Reset();
-        return;
-      }
-    }
-
-    if (!mCurrentFrame.mpReferenceKF)
-      mCurrentFrame.mpReferenceKF = mpReferenceKF;
-
-    mLastFrame = Frame(mCurrentFrame);
-  }
-
-  // Store relative pose
-  if (!mCurrentFrame.GetPose().isZero()) {
-    Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
-    lastRelativePose_ = Tcr;
+  vector<KeyFrame*> kfs = map->GetAllKeyFrames();
+  // Search candidates to be a loop
+  for (size_t i = 0; i<kfs.size(); i++) {
+    KeyFrame* kf = kfs[i];
+    Rw = R * kf->GetPoseInverse().block<3,3>(0,0);
+    Tw = R * (kf->GetPoseInverse().block<3,1>(0,3) * scale) + t;
+    //map->GetAllKeyFrames()[0]->SetPose(Converter::world_to_cam(Rw, Tw));
   }
 }
-
-
-void Tracking::Track_test() {
-  if (mState==NO_IMAGES_YET)
-    mState = NOT_INITIALIZED;
-
-  mLastProcessedState = mState;
-
-  // Get Map Mutex -> Map cannot be changed
-  unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
-
-  if (mState==NOT_INITIALIZED) {
-    if (mSensor==System::RGBD)
-      StereoInitialization();
-    else {
-      if (usePattern)
-        PatternInitialization();
-      else
-        MonocularInitialization();
-    }
-
-    if (mState!=OK)
-      return;
-
-  } else if (mState == OK_GPS){
-    used_imu_model = true;
-    Matrix4d pose_gps_imu = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, last_valid_frame, mpReferenceKF->scale_gps);
-    cout << "\nGPS POS: " << pose_gps_imu.block<3,1>(0,3).transpose() << endl;
-    //Matrix4d pose_gps_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
-    
-    //MonocularInitialization();
-    MonocularReInitializationGPS();  // reinit
-    //bOK = false;  // reinit
-    //bOK = Relocalization();  //** RELOC
-    motion_model_->Restart();
-    if (mState != OK){
-      mCurrentFrame.SetPose(pose_gps_imu);
-      //mCurrentFrame.SetPose(Matrix4d::Identity());
-      return;
-    }else{
-      cout << "\n\tRELOCATE!!!!\n" << endl;
-      cout << "mcurrentframe pos on relocate: " << mCurrentFrame.GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-    }
-
-  } else {
-    // System is initialized. Track Frame.
-    bool bOK;
-
-    // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
-    if (mState==OK) {
-      // Local Mapping might have changed some MapPoints tracked in last frame
-      CheckReplacedInLastFrame();
-
-      if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
-        LOGD("Tracking with reference keyframe");
-        bOK = TrackReferenceKeyFrame();
-      } else {
-        LOGD("Tracking with motion model");
-        if (mSensor == System::MONOCULAR_IMU_NEW || mSensor == System::FUSION_DATA_AND_GT)
-          bOK = TrackWithNewIMUModel();
-        else
-          bOK = TrackWithMotionModel();
-        if (!bOK) {
-          LOGD("Failed Track TrackWithMotionModel. Trying to track with Reference key frame");
-          bOK = TrackReferenceKeyFrame();
-          motion_model_->Restart();
-          if (!bOK){
-             last_valid_frame = Frame(mLastFrame);
-          }
-        }
-      }
-      cout << "CURR POSE WORLD\n" << mCurrentFrame.GetPoseInverse() << endl << endl;
-    }
-    else {
-      bOK = Relocalization();
-      motion_model_->Restart();
-    }
-
-    mCurrentFrame.mpReferenceKF = mpReferenceKF;
-
-    // If we have an initial estimation of the camera pose and matching. Track the local map.
-    if (bOK)
-      bOK = TrackLocalMap();
-
-    if (bOK)
-      mState = OK;
-    else{
-      if (mSensor == System:: MONOCULAR_IMU_NEW){
-
-        mState = OK_GPS;
-        if(mLastProcessedState == OK && mCurrentFrame.mnId > mnLastRelocFrameId+5){
-          LOGD("SAVING LAST FRAME AS REFERENCE FOR GPS");
-          last_valid_frame = Frame(mLastFrame);
-        }
-      }
-      else
-       mState = LOST;
-    }
-    // If tracking were good, check if we insert a keyframe
-    if (bOK) {
-
-      // Update motion sensor
-      if (!mLastFrame.GetPose().isZero()){
-        motion_model_->Update(mCurrentFrame.GetPose(), measurements_);
-        //imu_model.correct_pose(mCurrentFrame, mLastFrame, dt_);
-        gps_imu_model._att_estimator.set_orientation_from_frame(mCurrentFrame.GetPose());
-        madgwick_.set_orientation_from_frame(mCurrentFrame.GetPose());
-      }
-
-      else
-        motion_model_->Restart();
-
-      // Clean VO matches
-      for (int i = 0; i<mCurrentFrame.N; i++) {
-        MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
-        if (pMP)
-          if (pMP->Observations()<1) {
-            mCurrentFrame.mvbOutlier[i] = false;
-            mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-          }
-      }
-
-      // Delete temporal MapPoints
-      for (list<MapPoint*>::iterator lit = mlpTemporalPoints.begin(), lend =  mlpTemporalPoints.end(); lit!=lend; lit++) {
-        MapPoint* pMP = *lit;
-        delete pMP;
-      }
-      mlpTemporalPoints.clear();
-
-      // Check if we need to insert a new keyframe
-      if (NeedNewKeyFrame()){
-        CreateNewKeyFrame();
-      }
-      // We allow points with high innovation (considererd outliers by the Huber Function)
-      // pass to the new keyframe, so that bundle adjustment will finally decide
-      // if they are outliers or not. We don't want next frame to estimate its position
-      // with those points so we discard them in the frame.
-      for (int i = 0; i<mCurrentFrame.N; i++) {
-        if (mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
-          mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-      }
-    }
-
-    // Reset if the camera get lost soon after initialization
-    if (mState==LOST) {
-      if (mpMap->KeyFramesInMap()<=5) {
-        LOGD("Track lost soon after initialisation, reseting...");
-        mpSystem->Reset();
-        return;
-      }
-    }
-
-    if (!mCurrentFrame.mpReferenceKF)
-      mCurrentFrame.mpReferenceKF = mpReferenceKF;
-
-    mLastFrame = Frame(mCurrentFrame);
-  }
-
-  // Store relative pose
-  if (!mCurrentFrame.GetPose().isZero()) {
-    Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
-    lastRelativePose_ = Tcr;
-  }
-}
-
-
-
-
-
-
 
 void Tracking::Track_IMU_Reinit() {
+  cout << "[INFO] Tracking with IMU and Reinitilialization." << endl;
   __model = 0; 
 
   if (mState==NO_IMAGES_YET)
@@ -703,7 +400,11 @@ void Tracking::Track_IMU_Reinit() {
         }
       }
       if (bOK){
-        new_imu_model.correct_pose(mCurrentFrame, mLastFrame, dt_);
+        if (mpMap->KeyFramesInMap() <= KF_to_estimate_scale){
+          new_imu_model.estimate_scale(mCurrentFrame, mLastFrame);
+        }else{
+          new_imu_model.correct_pose(mCurrentFrame, mLastFrame, dt_);
+        }
       }
     } else if (mState==OK_IMU) {
       // Publicar posición (GPS/IMU int) mientras la parte visual trata de relocalizarse
@@ -725,12 +426,13 @@ void Tracking::Track_IMU_Reinit() {
           fill(mvIniMatches.begin(), mvIniMatches.end(),-1);
           mvIniP3D.clear();
         }else{
-          KeyFrame* kp_aux = mpLastKeyFrame;
-          cout << "[TEST] Last KF is fake? " << kp_aux->is_fake() << endl;
-          CreateNewKeyFrame(true);
-          //mpReferenceKF->set_fake(true);
-          cout << "[TEST] mLastProcessedState: " << mLastProcessedState << endl;
-          cout << "[TEST] current       State: " << mState << endl;
+          if (_frames_last_fake_kf >= 5){
+            _frames_last_fake_kf = 0;
+            KeyFrame* kp_aux = mpLastKeyFrame;
+            CreateNewKeyFrame(true);
+          }else{
+            _frames_last_fake_kf++;
+          }
           // if (not kp_aux->is_fake()){
           //   mpMap->last_vision_frame_test = kp_aux;
           // //   cout << "Creating first IMU KF" << endl;
@@ -792,7 +494,6 @@ void Tracking::Track_IMU_Reinit() {
       // Check if we need to insert a new keyframe
       if (NeedNewKeyFrame()){
         // Estimate scale, rotation, and correct pose (?)
-        cout << "SCALE IS " << new_imu_model.get_scale_factor() << endl;
         CreateNewKeyFrame();
       }
 
@@ -1014,10 +715,26 @@ void Tracking::MonocularReInitializationIMU() {
       cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tTotal KFs in new map (expected 2): " << _new_map->GetAllKeyFrames().size() << endl;
-      //Optimizer::GlobalBundleAdjustemnt(_new_map, 20); 
+      Optimizer::GlobalBundleAdjustemnt(_new_map, 20); 
       cout << "\tAFTER:" << endl;
       cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+
+      // Move to origin again (if use GlobalBundleAdjustemnt)
+      // Vector3d to_move = new_pKFini->GetPoseInverse().block<3,1>(0,3);
+      // Matrix4d pose_init_after_ba = new_pKFini->GetPose();
+      // Matrix4d pose_curr_after_ba = new_pKFcur->GetPose();
+
+      // pose_init_after_ba.block<3,1>(0,3) = Vector3d(0,0,0);
+      // pose_curr_after_ba.block<3,1>(0,3) = -new_pKFcur->GetRotation() * (new_pKFcur->GetPoseInverse().block<3,1>(0,3) - to_move);
+      // new_pKFini->SetPose(pose_init_after_ba);
+      // new_pKFcur->SetPose(pose_curr_after_ba);
+      // cout << "\tAFTER MOVING TO ORIGIN AGAIN:" << endl;
+      // cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      // cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+
+      // ---
+
 
       // Set median depth to 1
       float medianDepth = new_pKFini->ComputeSceneMedianDepth(2);
@@ -1086,7 +803,7 @@ void Tracking::MonocularReInitializationIMU() {
 
       Vector3d vector_vision = current.GetPoseInverse().block<3,1>(0,3) - initial.GetPoseInverse().block<3,1>(0,3);
       Vector3d vector_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
-      double diff_vector = abs(angle(vector_imu, vector_vision, true));
+      double diff_vector = abs(Estimator::angle(vector_imu, vector_vision, true));
       cout << "\n[Angle between IMU estimation vs Triangulation] " << diff_vector << endl;
       cout << "\t\t Vision 0: " << initial.GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\t\t Vision 1: " << current.GetPoseInverse().block<3,1>(0,3).transpose() << endl;
@@ -1137,7 +854,7 @@ void Tracking::MonocularReInitializationIMU() {
 
         //Create MapPoint.
         Eigen::Vector3d worldPos(Converter::toVector3d(mvIniP3D[i]));
-        Vector3d new_pos_3d = R * worldPos * invMedianDepth + T;;
+        Vector3d new_pos_3d = R * (worldPos) * invMedianDepth + T; // R * (worldPos-to_move) * invMedianDepth + T;;
         MapPoint* pMP = new MapPoint(new_pos_3d, pKFcur, mpMap);
 
         pKFini->AddMapPoint(pMP, i);
@@ -1160,16 +877,70 @@ void Tracking::MonocularReInitializationIMU() {
       
       pKFini->UpdateConnections();
       pKFcur->UpdateConnections();
-      pKFini->ChangeParent(mpReferenceKF);
 
       mpFirstReloadKeyFrame = mpReferenceKF;
       cout << "[boubdleajustement mMap]\n\tBEFORE:" << endl;
       cout << "\tInit (world): " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      //Optimizer::GlobalBundleAdjustemnt(mpMap, 20); 
+      Optimizer::GlobalBundleAdjustemnt(mpMap, 20); 
       cout << "\tAFTER:" << endl;
       cout << "\tInit (world): " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+
+
+      cout << "[TEST] Scale test... " << endl;
+      Vector3d start_imu = mIniPoseInvIMU.block<3,1>(0,3)                 * (1.0 / new_imu_model.get_scale_factor());
+      Vector3d end_imu =   new_imu_model.get_pose_world().block<3,1>(0,3) * (1.0 / new_imu_model.get_scale_factor());
+      cout << "\tIMU_0: " << mIniPoseInvIMU.block<3,1>(0,3).transpose() << "( " << start_imu.transpose() << " )" << endl;
+      cout << "\tIMU_1: " << new_imu_model.get_pose_world().block<3,1>(0,3).transpose() << "( " << end_imu.transpose() << " )" << endl;
+      cout << "\tVision_0: " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      cout << "\tVision_1: " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl << endl;
+
+      Vector3d mu = Estimator::correction_scale_factor(
+                start_imu, end_imu,
+                pKFini->GetPoseInverse().block<3,1>(0,3), pKFcur->GetPoseInverse().block<3,1>(0,3),       
+                new_imu_model.get_scale_factor());
+
+      // Scalate curr position 
+      Vector3d tw_0 = pKFini->GetPoseInverse().block<3,1>(0,3);
+      Vector3d new_tw(0,0,0);
+      // for(int i=0; i<3; i++){
+      //   new_tw[i] = tw[i] * mu[i];
+      // } 
+      Vector3d delta_vision = pKFcur->GetPoseInverse().block<3,1>(0,3) - pKFini->GetPoseInverse().block<3,1>(0,3);
+      Vector3d delta_imu = end_imu - start_imu;
+      double lambda_a = new_imu_model.get_scale_factor();
+      double lambda_b = Estimator::scale(delta_imu, delta_vision);
+      Vector3d incremento = delta_vision * (lambda_a / lambda_b);
+      new_tw = tw_0 + incremento;
+
+      pKFcur->SetPose( Converter::world_to_cam(new_tw, pKFcur->GetPoseInverse().block<3,3>(0,0)) );
+
+     
+      // Scalate points
+      vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
+      for (size_t iMP = 0; iMP<vpAllMapPoints.size(); iMP++) {
+        if (vpAllMapPoints[iMP]) {
+          MapPoint* pMP = vpAllMapPoints[iMP];
+          Vector3d MPw = pMP->GetWorldPos();
+          incremento = (MPw - pKFini->GetPoseInverse().block<3,1>(0,3)) * (lambda_a / lambda_b);
+          MPw = pKFini->GetPoseInverse().block<3,1>(0,3) + incremento;
+          // for(int i=0; i<3; i++){
+          //   MPw[i] = MPw[i] * mu[i];
+          // } 
+          pMP->SetWorldPos(MPw);
+        }
+      }
+
+      
+      // delta_vision = pKFcur->GetPoseInverse().block<3,1>(0,3) - pKFini->GetPoseInverse().block<3,1>(0,3);
+      // // Vector3d delta_imu = end_imu - start_imu;
+      // // //cout << "\t-Old magnitude: " << (tw - pKFini->GetPoseInverse().block<3,1>(0,3)).norm() << endl;
+      // // cout << "\t-New magnitude: " << delta_vision.norm() << endl << endl;
+      // cout << "\t-Expected scale: " << lambda_a << endl;
+      // cout << "\t-Current scale : " << Estimator::scale(delta_imu, delta_vision) << endl;
+      // // cout << "\t-Current scale inv : " << Estimator::scale(delta_vision, delta_imu) << endl << endl;;
+
 
       // float medianDepth2 = pKFini->ComputeSceneMedianDepth(2);
       // float invMedianDepth2 = 1.0f/medianDepth2;
@@ -1198,9 +969,10 @@ void Tracking::MonocularReInitializationIMU() {
       // Vector3d new_delta_vision = pKFcur->GetPoseInverse().block<3, 1>(0, 3) - pKFini->GetPoseInverse().block<3, 1>(0, 3);
       // double test_scale = scale(delta_imu, new_delta_vision);
       // cout << "[SCALE]\n\t * Expected: " << expected_scale << "\n\t * Current: " << test_scale << endl;
-
-
-
+      pKFini->ChangeParent(mpReferenceKF);
+      pKFcur->ChangeParent(pKFini);
+      mpFirstReloadKeyFrame = pKFini;
+      cout << "PARENT: " << pKFini->GetParent() << endl;
       // X) Update local map
       // Add both KF to local map
       //mpLocalMapper->Release();
@@ -1221,6 +993,7 @@ void Tracking::MonocularReInitializationIMU() {
       mLastFrame = Frame(mCurrentFrame);
 
       mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+      // mpMap->mvpKeyFrameOrigins.push_back(pKFini);
       nKFs_on_reinit = mpMap->KeyFramesInMap();
       cout << "Map points tracks: " << mpReferenceKF->TrackedMapPoints(3) << endl;
       // Update tracking flags
@@ -1242,12 +1015,12 @@ void Tracking::MonocularReInitializationIMU() {
 
       // -----------------------------------------------------------------------------------------------
       // cout << "\n[CORRECTION SCALE FACTOR]" << endl;
-      Vector3d delta_vision = mCurrentFrame.GetPoseInverse().block<3,1>(0,3) - mInitialFrame.GetPoseInverse().block<3,1>(0,3);
-      Vector3d delta_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
-      delta_imu *= (1.0 / new_imu_model.get_scale_factor());
+      // Vector3d delta_vision = mCurrentFrame.GetPoseInverse().block<3,1>(0,3) - mInitialFrame.GetPoseInverse().block<3,1>(0,3);
+      // Vector3d delta_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
+      // delta_imu *= (1.0 / new_imu_model.get_scale_factor());
 
-      // double expected_scale = new_imu_model.get_scale_factor();
-      double curr_scale = scale(delta_imu, delta_vision);
+      // // double expected_scale = new_imu_model.get_scale_factor();
+      // double curr_scale = Estimator::scale(delta_imu, delta_vision);
       // cout << "\tExpected scale: " << expected_scale << endl;
       // cout << "\tCurrent scale:  " << curr_scale << endl;
 
@@ -1261,7 +1034,7 @@ void Tracking::MonocularReInitializationIMU() {
       // double test_scale = scale(delta_imu, new_delta_vision);
       // cout << "\tCurrent scale after apply correction: " << test_scale << endl;
 
-      new_imu_model.set_scale(curr_scale);
+      //new_imu_model.set_scale(curr_scale);
 
       //UpdateLocalMap();
       mState = OK;
@@ -1434,153 +1207,6 @@ void Tracking::Track_IMU_Reloc() {
 }
 
 // -----------------------------------------------------------------------------
-void Tracking::Track_GPS_Reloc() {
-  __model = 0;  // aunque se podría usar con otros.
-  Matrix4d pose_gps_imu;
-  if (mState == OK){
-    LOGD("Estimate pose gps with last frame");
-    pose_gps_imu = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->scale_gps);  
-  }else if (mState == WAITING_RELOC){
-    LOGD("Estimate pose gps with last valid frame");
-    pose_gps_imu = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, last_valid_frame, mpReferenceKF->scale_gps);
-  }
-
-  if (mState==NO_IMAGES_YET)
-    mState = NOT_INITIALIZED;
-
-  mLastProcessedState = mState;
-
-  // Get Map Mutex -> Map cannot be changed
-  unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
-
-  if (mState==NOT_INITIALIZED) {
-    if (mSensor==System::RGBD)
-      StereoInitialization();
-    else {
-      if (usePattern)
-        PatternInitialization();
-      else
-        MonocularInitialization();
-    }
-
-    if (mState!=OK)
-      return;
-
-  } else{
-    used_imu_model = false;
-    // System is initialized. Track Frame.
-    bool bOK;
-    // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
-    if (mState==OK) {
-      // Local Mapping might have changed some MapPoints tracked in last frame
-      CheckReplacedInLastFrame();
-
-      if (!motion_model_->Started() || mCurrentFrame.mnId < mnLastRelocFrameId+2) {
-        bOK = TrackReferenceKeyFrame();
-      } else {
-        bOK = TrackWithNewIMUModel();
-        if (!bOK) {
-          bOK = TrackReferenceKeyFrame();
-          motion_model_->Restart();
-          if (!bOK){
-            last_valid_frame = Frame(mLastFrame);
-          }
-        }
-      }
-    } else if (mState==WAITING_RELOC) {
-      // Publicar posición (GPS/IMU int) mientras la parte visual trata de relocalizarse
-      used_imu_model = true;
-    
-      bOK = Relocalization();  
-      motion_model_->Restart();
-
-      if (bOK){
-        cout << "\n\tRELOCATE\n" << endl; 
-      }else{
-        mCurrentFrame.SetPose(pose_gps_imu);
-      }
-    }
-    else {
-      bOK = Relocalization();
-      motion_model_->Restart();
-    }
-
-    mCurrentFrame.mpReferenceKF = mpReferenceKF;
-
-    // If we have an initial estimation of the camera pose and matching. Track the local map.
-    if (bOK)
-      bOK = TrackLocalMap();
-
-    if (bOK)
-      mState = OK;
-    else{
-       mState = WAITING_RELOC;
-    }
-    // If tracking were good, check if we insert a keyframe
-    if (bOK) {
-
-      // Update motion sensor
-      if (!mLastFrame.GetPose().isZero())
-        motion_model_->Update(mCurrentFrame.GetPose(), measurements_);
-      else
-        motion_model_->Restart();
-
-      // Clean VO matches
-      for (int i = 0; i<mCurrentFrame.N; i++) {
-        MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
-        if (pMP)
-          if (pMP->Observations()<1) {
-            mCurrentFrame.mvbOutlier[i] = false;
-            mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-          }
-      }
-
-      // Delete temporal MapPoints
-      for (list<MapPoint*>::iterator lit = mlpTemporalPoints.begin(), lend =  mlpTemporalPoints.end(); lit!=lend; lit++) {
-        MapPoint* pMP = *lit;
-        delete pMP;
-      }
-      mlpTemporalPoints.clear();
-
-      // Check if we need to insert a new keyframe
-      if (NeedNewKeyFrame())
-        CreateNewKeyFrame();
-
-      // We allow points with high innovation (considererd outliers by the Huber Function)
-      // pass to the new keyframe, so that bundle adjustment will finally decide
-      // if they are outliers or not. We don't want next frame to estimate its position
-      // with those points so we discard them in the frame.
-      for (int i = 0; i<mCurrentFrame.N; i++) {
-        if (mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
-          mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
-      }
-    }
-
-    // Reset if the camera get lost soon after initialization
-    if (mState==LOST || mState==WAITING_RELOC) {
-      if (mpMap->KeyFramesInMap()<=5) {
-        LOGD("Track lost soon after initialisation, reseting...");
-        mpSystem->Reset();
-        return;
-      }
-    }
-
-    if (!mCurrentFrame.mpReferenceKF)
-      mCurrentFrame.mpReferenceKF = mpReferenceKF;
-
-    mLastFrame = Frame(mCurrentFrame);
-  }
-
-  // Store relative pose
-  if (!mCurrentFrame.GetPose().isZero()) {
-    Eigen::Matrix4d Tcr = mCurrentFrame.GetPose()*mCurrentFrame.mpReferenceKF->GetPoseInverse();
-    lastRelativePose_ = Tcr;
-  }
-}
-
-
-
-
 
 void Tracking::StereoInitialization() {
   if (mCurrentFrame.N>500) {
@@ -1690,15 +1316,6 @@ void Tracking::MonocularInitialization() {
       Tcw.block<3, 1>(0, 3) = tcw;
       mCurrentFrame.SetPose(Tcw);
       CreateInitialMapMonocular();
-
-      if (mState == OK){
-        estimate_rotation_between_gps_and_slamworld();
-        estimate_scale(mpMap->GetKeyFrame(1), mpMap->GetKeyFrame(0));
-      }
-
-      
-      //_att_test_gps = Quaterniond(mCurrentFrame.GetRotation());
-      //_att_test_gps.normalize();
     }
   }
 }
@@ -1766,315 +1383,23 @@ void Tracking::MonocularInitializationIMU() {
       CreateInitialMapMonocular();
 
       if (mState == OK){
-        double scale = estimate_initial_scale_imu(mpMap->GetKeyFrame(1), mpMap->GetKeyFrame(0));
-        cout << "\n\tNew scale IMU-VISION: " << scale << endl << endl;
-        new_imu_model.set_scale(scale);     
-      }
+        Vector3d delta_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
+        Vector3d delta_v =   mpMap->GetKeyFrame(1)->GetPoseInverse().block<3,1>(0,3) - mpMap->GetKeyFrame(0)->GetPoseInverse().block<3,1>(0,3);
 
-      
-      //_att_test_gps = Quaterniond(mCurrentFrame.GetRotation());
-      //_att_test_gps.normalize();
+        double scale = Estimator::scale(delta_imu, delta_v);
+        cout << "\n\tInitial scale IMU-VISION: " << scale << endl;
+        if (initial_scale_with_multiples_kf){
+          initial_scale_buffer.push_back(scale);
+        }else{
+          base_scale = scale;
+          new_imu_model.set_scale(scale);   
+          mpMap->GetKeyFrame(0)->inertial_scale = scale;
+          mpMap->GetKeyFrame(1)->inertial_scale = scale;
+        }
+        last_kf_imu_world_pose = new_imu_model.get_pose_world();
+      }
     }
   }
-}
-
-
-double Tracking::estimate_initial_scale_imu(KeyFrame* kf_curr, KeyFrame* kf_ini){
-  Vector3d delta_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
-  Vector3d delta_v = kf_curr->GetPoseInverse().block<3,1>(0,3) - kf_ini->GetPoseInverse().block<3,1>(0,3);
-  return (delta_v.norm() == 0 || delta_imu.norm() == 0) ? 1 : 1.0/(delta_imu.norm() / delta_v.norm());
-}
-
-bool Tracking::MonocularReInitializationGPS() {
-  cout << "[[MONOCULAR INITIALIZER GPS]]" << endl;
-  if (!mpInitializer) {
-    // Set Reference Frame
-    if (mCurrentFrame.mvKeys.size()>100) {
-      mvIniP3D.clear();
-      initial_gps_wpose = gps_imu_model.get_world_pose();
-      mInitialFrame = Frame(mCurrentFrame);
-      mLastFrame = Frame(mCurrentFrame);
-      mvbPrevMatched.resize(mCurrentFrame.mvKeysUn.size());
-      for (size_t i = 0; i<mCurrentFrame.mvKeysUn.size(); i++)
-        mvbPrevMatched[i] = mCurrentFrame.mvKeysUn[i].pt;
-
-      if (mpInitializer)
-        delete mpInitializer;
-
-      mpInitializer =  new Initializer(mCurrentFrame, 1.0, 200);
-
-      fill(mvIniMatches.begin(), mvIniMatches.end(),-1);
-    }
-    return false;
-
-  } else {
-    // Try to initialize
-    if ((int)mCurrentFrame.mvKeys.size()<=100) {
-      delete mpInitializer;
-      mpInitializer = static_cast<Initializer*>(NULL);
-      fill(mvIniMatches.begin(), mvIniMatches.end(),-1);
-      return false;
-    }
-
-    // Find correspondences
-    ORBmatcher matcher(0.9, true);
-    int nmatches = matcher.SearchForInitialization(mInitialFrame, mCurrentFrame, mvbPrevMatched, mvIniMatches, 100);  
-    
-    cout << "\tTrying to relocalizate. Matches num: " << nmatches << endl;
-    // Check if there are enough correspondences
-    if (nmatches<100) {
-      delete mpInitializer;
-      mpInitializer = static_cast<Initializer*>(NULL);
-      return false;
-    }
-      
-    Eigen::Matrix3d Rcw; // Current Camera Rotation
-    Eigen::Vector3d tcw; // Current Camera Translation
-    vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
-
-    fill(mInitialFrame.mvpMapPoints.begin(), mInitialFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
-    fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
-    if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated)) {
-      for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++) {
-        if (mvIniMatches[i] >= 0 && !vbTriangulated[i]) {
-          mvIniMatches[i]=-1;
-          nmatches--;
-        }
-      }
-
-      //mCurrentFrame.mvbOutlier
-
-      Frame initial = Frame(mInitialFrame);
-      Frame curr    = Frame(mCurrentFrame);
-
-      initial.SetPose(Eigen::Matrix4d::Identity());
-      Eigen::Matrix4d Tcw;
-      Tcw.setIdentity();
-      Tcw.block<3, 3>(0, 0) = Rcw;
-      Tcw.block<3, 1>(0, 3) = tcw;
-      curr.SetPose(Tcw);
-
-      // --- CREATE INITIAL MAP ---
-      _new_map = new Map();
-
-      // Create KeyFrames
-      KeyFrame* new_pKFini = new KeyFrame(initial, _new_map);
-      KeyFrame* new_pKFcur = new KeyFrame(curr, _new_map);
-      // --
-      // Insert KFs in the map
-      _new_map->AddKeyFrame(new_pKFini);
-      _new_map->AddKeyFrame(new_pKFcur);
-
-      // Create MapPoints and asscoiate to keyframes
-      for (size_t i = 0; i<mvIniMatches.size(); i++) {
-        if (mvIniMatches[i] < 0)
-          continue;
-
-        //Create MapPoint.
-        Eigen::Vector3d worldPos(Converter::toVector3d(mvIniP3D[i]));
-        MapPoint* pMP = new MapPoint(worldPos, new_pKFcur, _new_map);
-
-        new_pKFini->AddMapPoint(pMP, i);
-        pMP->AddObservation(new_pKFini, i);
-        new_pKFcur->AddMapPoint(pMP, mvIniMatches[i]);
-        pMP->AddObservation(new_pKFcur, mvIniMatches[i]);
-
-        pMP->ComputeDistinctiveDescriptors();
-        pMP->UpdateNormalAndDepth();
-
-        //Fill Current Frame structure
-        curr.mvpMapPoints[mvIniMatches[i]] = pMP;
-        curr.mvbOutlier[mvIniMatches[i]] = false;
-
-        //Add to Map
-        _new_map->AddMapPoint(pMP);
-      }
-
-      // Update Connections
-      new_pKFini->UpdateConnections();
-      new_pKFcur->UpdateConnections();
-
-      cout << "Tracked map points: " << new_pKFcur->TrackedMapPoints(1) << endl;
-      // Bundle Adjustment
-      LOGD("New Map created with %lu points", _new_map->MapPointsInMap());
-      cout << "before boubdleajustement" << endl;
-      cout << "Init (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "Curr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      Optimizer::GlobalBundleAdjustemnt(_new_map, 20); 
-      cout << "after boubdleajustement" << endl;
-      cout << "Init (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "Curr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
-      // Set median depth to 1
-      float medianDepth = new_pKFini->ComputeSceneMedianDepth(2);
-      float invMedianDepth = 1.0f/medianDepth;
-      cout << "Median depth: " << medianDepth << endl; 
-      cout << "Tracked map points: " << new_pKFcur->TrackedMapPoints(1) << endl;
-      if (medianDepth < 0 || new_pKFcur->TrackedMapPoints(1)<100) {
-        LOGE("Wrong initialization, reseting new map...");
-        return false;
-      }
-
-      LOGD("New map initializate correctly");
-      // return true;
-
-      // Scale initial baseline
-      Eigen::Matrix4d Tc2w = new_pKFcur->GetPose();
-      Tc2w.block<3, 1>(0, 3) = Tc2w.block<3, 1>(0, 3)*invMedianDepth;
-      new_pKFcur->SetPose(Tc2w);
-
-      cout << "GPS INIT POSE(world):\n " << initial_gps_wpose.block<3,1>(0,3).transpose() <<  endl;
-      cout << "GPS CURR POSE(world):\n " << gps_imu_model.get_world_pose().block<3,1>(0,3).transpose() <<  endl;
-      
-      // estimate R gps-slam
-      // estimate scale gps-slam
-
-      // rotate and translate pKFini, pKFcur, mInitialFrame, mCurrentFrame
-      cout << "Resume rotation of new triangulation: " << endl;
-      Matrix3d R = initial_gps_wpose.block<3,3>(0,0); // rotation (orientation gps) in world
-      Vector3d T = initial_gps_wpose.block<3,1>(0,3); // traslation (pos gps) in world
-      Matrix4d RTc; Matrix3d Rw; Vector3d Tw;
-
-      RTc = new_pKFini->GetPose();
-      cout << "INIT pose (world):\n" << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      Rw = R * new_pKFini->GetPoseInverse().block<3,3>(0,0);
-      Tw = R * new_pKFini->GetPoseInverse().block<3,1>(0,3) + T;
-      RTc.block<3, 3>(0, 0) = Rw.inverse();
-      RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
-      new_pKFini->SetPose(RTc);
-      initial.SetPose(new_pKFini->GetPose());
-      cout << "INIT new pose (world):\n" << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "INIT new pose (local):\n" << new_pKFini->GetPose().block<3,1>(0,3).transpose() << endl;
-
-      cout << "CURR pose (world):\n" << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      RTc = new_pKFcur->GetPose();
-      Rw = R * new_pKFcur->GetPoseInverse().block<3,3>(0,0);
-      Tw = R * new_pKFcur->GetPoseInverse().block<3,1>(0,3) + T;
-      RTc.block<3, 3>(0, 0) = Rw.inverse();
-      RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
-      new_pKFcur->SetPose(RTc);
-      curr.SetPose(new_pKFcur->GetPose());
-      cout << "CURR new pose (world):\n" << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "CURR new pose (local):\n" << new_pKFcur->GetPose().block<3,1>(0,3).transpose() << endl;
-      
-      // Scale points
-      vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
-      for (size_t iMP = 0; iMP<vpAllMapPoints.size(); iMP++) {
-        if (vpAllMapPoints[iMP]) {
-          MapPoint* pMP = vpAllMapPoints[iMP];
-          pMP->SetWorldPos(R*pMP->GetWorldPos()*invMedianDepth + T);
-        }
-      }
-
-      // new map with points and poses, rotated, translated and scalated.
-      // Need to create and add points to real map
-      // RESUME
-      mInitialFrame.SetPose(new_pKFini->GetPose());
-      mCurrentFrame.SetPose(new_pKFcur->GetPose());
-
-      KeyFrame* pKFini = new KeyFrame(mInitialFrame, mpMap);
-      KeyFrame* pKFcur = new KeyFrame(mCurrentFrame, mpMap);
-      mpMap->AddKeyFrame(pKFini);
-      mpMap->AddKeyFrame(pKFcur);
-
-      cout << "RESUME (expected vs poseframe vs poseKF" << endl;
-      cout << "Init:\n\t" << initial_gps_wpose.block<3,1>(0,3).transpose() 
-                << "\n\t" << mInitialFrame.GetPoseInverse().block<3,1>(0,3).transpose() 
-                << "\n\t" << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "Curr:\n\t" << gps_imu_model.get_world_pose().block<3,1>(0,3).transpose() 
-                << "\n\t" << mCurrentFrame.GetPoseInverse().block<3,1>(0,3).transpose() 
-                << "\n\t" << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
-      //mvpLocalMapPoints.clear();
-      for (size_t i = 0; i<mvIniMatches.size(); i++) {
-        if (mvIniMatches[i] < 0)
-          continue;
-
-        //Create MapPoint.
-        Eigen::Vector3d worldPos(Converter::toVector3d(mvIniP3D[i]));
-
-        MapPoint* pMP = new MapPoint(worldPos, pKFcur, mpMap);
-
-        pKFini->AddMapPoint(pMP, i);
-        pKFcur->AddMapPoint(pMP, mvIniMatches[i]);
-
-        pMP->AddObservation(pKFini, i);
-        pMP->AddObservation(pKFcur, mvIniMatches[i]);
-
-        pMP->ComputeDistinctiveDescriptors();
-        pMP->UpdateNormalAndDepth();
-
-        //Fill Current Frame structure
-        mCurrentFrame.mvpMapPoints[mvIniMatches[i]] = pMP;
-        mCurrentFrame.mvbOutlier[mvIniMatches[i]] = false;
-
-        //Add to Map
-        mpMap->AddMapPoint(pMP);
-        //mvpLocalMapPoints.push_back(pMP);
-      }
-
-      pKFini->UpdateConnections();
-      pKFcur->UpdateConnections();
-      cout << "Before BundleAjust: " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "Before BundleAjust: " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      Optimizer::GlobalBundleAdjustemnt(mpMap, 20); // Esto descoloca las poses generadas. Ademas ya se realiza en new_map
-      cout << "After  BundleAjust: " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "After  BundleAjust: " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
-      // X) Update local map
-      // Add both KF to local map
-      //mpLocalMapper->Release();
-      mpLocalMapper->InsertKeyFrame(pKFini);
-      mpLocalMapper->InsertKeyFrame(pKFcur);
-
-      mInitialFrame.SetPose(pKFini->GetPose());
-      mCurrentFrame.SetPose(pKFcur->GetPose());
-
-      mvpLocalKeyFrames.clear();
-      mvpLocalKeyFrames.push_back(pKFcur);
-      mvpLocalKeyFrames.push_back(pKFini);
-      
-      mvpLocalMapPoints = mpMap->GetAllMapPoints();
-
-
-      // Update reference points of map
-      mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-      mpMap->mvpKeyFrameOrigins.push_back(pKFini);
-
-      // Update tracking flags
-      mInitialFrame.mpReferenceKF = pKFini;
-
-      mpReferenceKF = pKFcur;
-      mCurrentFrame.mpReferenceKF = pKFcur;
-
-      mpLastKeyFrame = pKFcur;
-      mnLastKeyFrameId = mCurrentFrame.mnId;
-
-      mnLastRelocFrameId = mCurrentFrame.mnId;
-
-      mLastFrame = Frame(mCurrentFrame);
-
-    
-      // Estimate new gps scale
-      estimate_scale(pKFcur, pKFini);
-      
-      mState = OK;
-      return true;
-      }
-      return false;
-  }
-  return false;
-}
-
-
-void Tracking::estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf){
-  // En los cierres de bucle que pasa con mLastFK?
-  Vector3d delta_v = curr_kf->GetPoseInverse().block<3,1>(0,3) - last_kf->GetPoseInverse().block<3,1>(0,3);
-  Vector3d delta_gps = curr_kf->t_gps() - last_kf->t_gps();
-
-  double scale = (delta_v.norm() == 0 || delta_gps.norm() == 0) ? 1 : delta_gps.norm() / delta_v.norm();
-  cout << "\n\tNew scale: " << scale << endl << endl;
-  curr_kf->scale_gps = scale;
 }
 
 void Tracking::estimate_rotation_between_gps_and_slamworld(){
@@ -2409,6 +1734,70 @@ bool Tracking::TrackVisual(Eigen::Matrix4d predicted_pose) {
 
 }
 
+
+int Tracking::TrackMMVisual(Frame &frame) {
+  Eigen::Matrix4d predicted_pose = frame.GetPose();
+
+  ORBmatcher matcher(0.9, true);
+
+  // Align current and last image
+  if (align_image_) {
+    ImageAlign image_align;
+    if (!image_align.ComputePose(frame, mLastFrame)) {
+      LOGE("Image align failed");
+      frame.SetPose(predicted_pose);
+    }
+  }
+
+  // Project points seen in previous frame
+  fill(frame.mvpMapPoints.begin(), frame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
+  int nmatches = matcher.SearchByProjection(frame, mLastFrame, threshold_, mSensor!=System::RGBD);
+  first_proj = nmatches;
+
+  // If few matches, ignores alignment and uses a wider window search
+  if (nmatches<20) {
+    LOGD("Not enough matches [%d], double threshold", nmatches);
+    frame.SetPose(predicted_pose);
+    fill(frame.mvpMapPoints.begin(), frame.mvpMapPoints.end(), static_cast<MapPoint*>(NULL));
+    nmatches = matcher.SearchByProjection(frame, mLastFrame, 2*threshold_, mSensor!=System::RGBD);
+    second_proj = nmatches;
+  }
+
+  if (nmatches<20) {
+    LOGD("Not enough matches [%d], tracking failed", nmatches);
+    return 0;
+  }
+
+  // Optimize frame pose with all matches
+  Optimizer::PoseOptimization(&frame);
+
+  // Discard outliers
+  int nmatchesMap = 0;
+  for (int i  = 0; i<frame.N; i++) {
+    if (frame.mvpMapPoints[i]) {
+      if (frame.mvbOutlier[i]) {
+        MapPoint* pMP = frame.mvpMapPoints[i];
+
+        frame.mvpMapPoints[i] = static_cast<MapPoint*>(NULL);
+        frame.mvbOutlier[i]=false;
+        pMP->mbTrackInView = false;
+        pMP->mnLastFrameSeen = frame.mnId;
+        nmatches--;
+      } else if (frame.mvpMapPoints[i]->Observations() > 0)
+        nmatchesMap++;
+    }
+  }
+
+  if (nmatchesMap<10) {
+    LOGD("Not enough inliers [%d], tracking failed", nmatchesMap);
+    return 0;
+  }
+
+  return nmatchesMap;
+
+}
+
+
 void _test_synthetic_imu(IMU_Measurements syn_imu, double dt,
                          Frame &current_frame, Frame &last_frame){
 
@@ -2428,263 +1817,290 @@ bool Tracking::TrackWithNewIMUModel() {
   UpdateLastFrame();
 
   // Predict pose with motion model
-  Eigen::Matrix4d predicted_pose = motion_model_->Predict(mLastFrame.GetPose());
-  LOGD("Predicted pose: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
-  print_pos_att(predicted_pose, "[MODEL EKF]");
-  Matrix3d Rpred = predicted_pose.block<3,3>(0,0);
-  // Update Madgwick
-  Quaterniond last_Rimu = madgwick_.get_local_orientation();
-  madgwick_.set_orientation_from_frame(mLastFrame.GetPose());
-  madgwick_.update(imu_measurements_.acceleration(), imu_measurements_.angular_velocity(), dt_); // ADD DT
-  Quaterniond curr_Rimu = madgwick_.get_local_orientation();
+  Eigen::Matrix4d predicted_pose_visual = motion_model_->Predict(mLastFrame.GetPose());
+  LOGD("Predicted pose (model cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_visual(0, 3), predicted_pose_visual(1, 3), predicted_pose_visual(2, 3));
+  Eigen::Matrix4d predicted_pose_inertial = new_imu_model.get_pose_cam();
+  LOGD("Predicted pose (model cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_inertial(0, 3), predicted_pose_inertial(1, 3), predicted_pose_inertial(2, 3));
 
-  // Check if movement is agresive or soft between t and t-1
-  double movement_threshold = 0.02; // 0.02
-  double angle = Quaterniond(mLastFrame.GetRotation()).angularDistance(madgwick_.get_local_orientation());
-  stay_in_curve = angle > movement_threshold;
+  Frame frame_visual(mCurrentFrame);
+  frame_visual.SetPose(predicted_pose_visual);
 
-  // Check if is cv or acceleration
-  bool stay_in_acc = false;
-  //stay_in_acc = abs(imu_measurements_.acceleration().norm() - last_imu.acceleration().norm()) > 0.75;
-  last_imu = imu_measurements_;
+  Frame frame_inertial(mCurrentFrame);
+  frame_inertial.SetPose(predicted_pose_inertial);
+
+  align_image_ = false;
+  int n_matches_visual = TrackMMVisual(frame_visual);
+  int n_matches_inertial = TrackMMVisual(frame_inertial);
+
+  cout << "\t[TEST] MATCHES WITH CTE VEL.: " << n_matches_visual << endl;
+  cout << "\t[TEST] MATCHES WITH INERTIAL: " << n_matches_inertial << endl;
   
-  // debug vars
-  first_proj = 0, second_proj = 0, inliers_on_pred = 0, inliers_on_localmap = 0;
+  if (n_matches_inertial > 0 && n_matches_inertial >= n_matches_visual){
+    mCurrentFrame = frame_inertial;
+    return true;
+  }
+  if (n_matches_visual > 0 && n_matches_visual > n_matches_inertial){
+    mCurrentFrame = frame_visual;
+    return true;
+  }
+  cout << "\t[TEST] NO SE PUDO TRACKEAR CON NINGUN MODELO" << endl;
+  return false;
 
-  // 
+  // print_pos_att(predicted_pose, "[MODEL EKF]");
+  // Matrix3d Rpred = predicted_pose.block<3,3>(0,0);
+  // // Update Madgwick
+  // Quaterniond last_Rimu = madgwick_.get_local_orientation();
+  // madgwick_.set_orientation_from_frame(mLastFrame.GetPose());
+  // madgwick_.update(imu_measurements_.acceleration(), imu_measurements_.angular_velocity(), dt_); // ADD DT
+  // Quaterniond curr_Rimu = madgwick_.get_local_orientation();
 
+  // // Check if movement is agresive or soft between t and t-1
+  // double movement_threshold = 0.02; // 0.02
+  // double angle = Quaterniond(mLastFrame.GetRotation()).angularDistance(madgwick_.get_local_orientation());
+  // stay_in_curve = angle > movement_threshold;
 
-  /*
-  Model 0: Monocular tracking
-  Model 1: Reemplazar la rotacion de la prediccion por la de la IMU si estamos en curva
-  Model 2: Reemplazar la rotacion de la prediccion por la de la IMU
-  Model 3: Usar rotación del GT (recogida por la variable )
-  ----
-  Using GT:  // ASEGURARSE QUE ESTAN EN EL MISMO SISTEMA DE COORDENADAS
-  Model 3: Reemplazar la rotacion de la prediccion con la rotacion del GT -> ¿Tambien se pierde asi?
-  Model 4: Usar como prediccion la traslacion del GT y la rotacion de la IMU -> No va a funcionar por la T
-  Model 5: -
-  Model 6: -
-  Model 7 (A): GT DATA
-  Model 8 (B): GT rot, acc_syn t
-  Model 9 (C): Synthetic data (with or wothout noise)
-  Model 10: Sensor (?)
+  // // Check if is cv or acceleration
+  // bool stay_in_acc = false;
+  // //stay_in_acc = abs(imu_measurements_.acceleration().norm() - last_imu.acceleration().norm()) > 0.75;
+  // last_imu = imu_measurements_;
   
-  */
-  int model = __model;
+  // // debug vars
+  // first_proj = 0, second_proj = 0, inliers_on_pred = 0, inliers_on_localmap = 0;
 
-  if (model == 0){
-    threshold_ = 8;
-    LOGD("[MODEL O] Monocular\
-          \n\t-Position: EKF constant velocity\
-          \n\t-Orientation: EKF constant velocity\
-          \n\t-Window size: %d", threshold_);
-  }
-  else if ((model == 1 && stay_in_curve) || model == 2){
-    LOGD("\t MODEL in curve!");
-    predicted_pose.block<3,3>(0,0) = curr_Rimu.toRotationMatrix();
-    //threshold_ = 32;
-  }
-  else if (model == 4){
-    threshold_ = 32;
-    LOGD("[MODEL 4] EKF-IMU TEST \
-          \n\t-Position: EKF\
-          \n\t-Orientation: IMU\
-          \n\t-Window size: %d", 
-          threshold_);
-    predicted_pose.block<3,3>(0,0) = curr_Rimu.toRotationMatrix();
-  }
-  else if (model == 5){
-    threshold_ = 32;
-    LOGD("[MODEL 7] EKF-GPS TEST \
-          \n\t-Position: EKF (constant velocity)\
-          \n\t-Orientation: GPS\
-          \n\t-Window size: %d", 
-          threshold_);
-    
-    Matrix4d estimate_gps = predict_new_pose_with_gps();
-    predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
-    //predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
-    LOGD("Pred. pose GPS: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
+  // // 
 
-  }
-  else if (model == 6){
-    threshold_ = 32;
-    LOGD("[MODEL 7] GT-EKF TEST \
-          \n\t-Position: GPS\
-          \n\t-Orientation: EKF constant velocity\
-          \n\t-Window size: %d", 
-          threshold_);
-    
-    Matrix4d estimate_gps = predict_new_pose_with_gps();
-    //predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
-    predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
-    LOGD("Pred. pose GPS: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
 
-    // debug
-    _att_test_gps = Quaterniond(estimate_gps.block<3,3>(0,0));
-    _pos_test_gps = estimate_gps.block<3,1>(0,3);
-  }
-  else if (model == 7){
-    threshold_ = 8;
-    LOGD("[MODEL 7] GT DATA \
-          \n\t-Position: GPS\
-          \n\t-Orientation: GPS\
-          \n\t-Window size: %d", 
-          threshold_);
-    
-
-    Matrix4d estimate_gps = predict_new_pose_with_gps();
-    predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
-    predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
-    LOGD("Pred. pose GPS: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
-
-    // debug
-    _att_test_gps = Quaterniond(estimate_gps.block<3,3>(0,0));
-    _pos_test_gps = estimate_gps.block<3,1>(0,3);
-
-  }else if (model == 8){
-    threshold_ = 32;
-    LOGD("[MODEL 8] \
-          \n\t-Position: GPS\
-          \n\t-Orientation: IMU (b=%.4f) \
-          \n\t-Window size: %d", 
-          madgwick_.gain(),threshold_);
-    //Quaterniond trans_Rimu = (curr_Rimu * last_Rimu.inverse()).normalized();
-    //Quaterniond estimate_att_imu = trans_Rimu * Quaterniond(mLastFrame.GetRotation()).normalized();
-
-    Matrix4d estimate_gps = predict_new_pose_with_gps();
-    predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
-    predicted_pose.block<3,3>(0,0) = curr_Rimu.toRotationMatrix();//estimate_att_imu.normalized().toRotationMatrix();
+  // /*
+  // Model 0: Monocular tracking
+  // Model 1: Reemplazar la rotacion de la prediccion por la de la IMU si estamos en curva
+  // Model 2: Reemplazar la rotacion de la prediccion por la de la IMU
+  // Model 3: Usar rotación del GT (recogida por la variable )
+  // ----
+  // Using GT:  // ASEGURARSE QUE ESTAN EN EL MISMO SISTEMA DE COORDENADAS
+  // Model 3: Reemplazar la rotacion de la prediccion con la rotacion del GT -> ¿Tambien se pierde asi?
+  // Model 4: Usar como prediccion la traslacion del GT y la rotacion de la IMU -> No va a funcionar por la T
+  // Model 5: -
+  // Model 6: -
+  // Model 7 (A): GT DATA
+  // Model 8 (B): GT rot, acc_syn t
+  // Model 9 (C): Synthetic data (with or wothout noise)
+  // Model 10: Sensor (?)
   
-  }
-  /*
-  else if (model == 9){
-    // vamoh a ver que pacha
-    threshold_ = 16;
+  // */
+  // int model = __model;
 
-    // Orientation with GT
-    Matrix4d estimate_gps = predict_new_pose_with_gps();
-    //predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
-
-    // Position with IMU
-    //imu_model.set_ratio(__ratio);
-    Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
-    predicted_pose.block<3,1>(0,3) = estimate_imu.block<3,1>(0,3);
-    predicted_pose = estimate_imu;
-
-    //print_pos_att(estimate_gps, "[MODEL GPS]");
-    print_pos_att(estimate_imu, "[MODEL IMU]");
-  }
-
-  else if (model == 10){
-    // kitti no tocar
-    Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
-    if (stay_in_curve || stay_in_acc){
-      used_imu_model = true;
-      threshold_ = 8;
-      print_pos_att(estimate_imu, "[MODEL IMU]");
-      predicted_pose = estimate_imu;
-    }else{
-      used_imu_model = false;
-      threshold_ = 8;
-    }
-  }
-
-  else if (model == 11){
-    // SOLO IMU
-    threshold_ = 8;
-    used_imu_model = true;
-    predicted_pose= imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
-
-    print_pos_att(predicted_pose, "[MODEL IMU]");
-  }
-
-  else if (model == 12){
-    imu_model._ratio = __ratio;
-    Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+  // if (model == 0){
+  //   threshold_ = 8;
+  //   LOGD("[MODEL O] Monocular\
+  //         \n\t-Position: EKF constant velocity\
+  //         \n\t-Orientation: EKF constant velocity\
+  //         \n\t-Window size: %d", threshold_);
+  // }
+  // else if ((model == 1 && stay_in_curve) || model == 2){
+  //   LOGD("\t MODEL in curve!");
+  //   predicted_pose.block<3,3>(0,0) = curr_Rimu.toRotationMatrix();
+  //   //threshold_ = 32;
+  // }
+  // else if (model == 4){
+  //   threshold_ = 32;
+  //   LOGD("[MODEL 4] EKF-IMU TEST \
+  //         \n\t-Position: EKF\
+  //         \n\t-Orientation: IMU\
+  //         \n\t-Window size: %d", 
+  //         threshold_);
+  //   predicted_pose.block<3,3>(0,0) = curr_Rimu.toRotationMatrix();
+  // }
+  // else if (model == 5){
+  //   threshold_ = 32;
+  //   LOGD("[MODEL 7] EKF-GPS TEST \
+  //         \n\t-Position: EKF (constant velocity)\
+  //         \n\t-Orientation: GPS\
+  //         \n\t-Window size: %d", 
+  //         threshold_);
     
-    if (stay_in_curve){
-      used_imu_model = true;
-      threshold_ = 8;
-      print_pos_att(estimate_imu, "[MODEL IMU]");
-      predicted_pose = estimate_imu;
-    }else{
-      used_imu_model = false;
-      threshold_ = 8;
-    }
-    its++;
-  }
+  //   Matrix4d estimate_gps = predict_new_pose_with_gps();
+  //   predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
+  //   //predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
+  //   LOGD("Pred. pose GPS: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
 
-  else if (model == 13){
-    used_imu_model = true; 
-    // Use EKF prediction but calculate gps position to represent on rviz
-    threshold_ = 8;
-    gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->scale_gps);
-    Matrix4d estimate_gps = predict_new_pose_with_gps();
-    Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+  // }
+  // else if (model == 6){
+  //   threshold_ = 32;
+  //   LOGD("[MODEL 7] GT-EKF TEST \
+  //         \n\t-Position: GPS\
+  //         \n\t-Orientation: EKF constant velocity\
+  //         \n\t-Window size: %d", 
+  //         threshold_);
+    
+  //   Matrix4d estimate_gps = predict_new_pose_with_gps();
+  //   //predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
+  //   predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
+  //   LOGD("Pred. pose GPS: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
+
+  //   // debug
+  //   _att_test_gps = Quaterniond(estimate_gps.block<3,3>(0,0));
+  //   _pos_test_gps = estimate_gps.block<3,1>(0,3);
+  // }
+  // else if (model == 7){
+  //   threshold_ = 8;
+  //   LOGD("[MODEL 7] GT DATA \
+  //         \n\t-Position: GPS\
+  //         \n\t-Orientation: GPS\
+  //         \n\t-Window size: %d", 
+  //         threshold_);
+    
+
+  //   Matrix4d estimate_gps = predict_new_pose_with_gps();
+  //   predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
+  //   predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
+  //   LOGD("Pred. pose GPS: [%.4f, %.4f, %.4f]", predicted_pose(0, 3), predicted_pose(1, 3), predicted_pose(2, 3));
+
+  //   // debug
+  //   _att_test_gps = Quaterniond(estimate_gps.block<3,3>(0,0));
+  //   _pos_test_gps = estimate_gps.block<3,1>(0,3);
+
+  // }else if (model == 8){
+  //   threshold_ = 32;
+  //   LOGD("[MODEL 8] \
+  //         \n\t-Position: GPS\
+  //         \n\t-Orientation: IMU (b=%.4f) \
+  //         \n\t-Window size: %d", 
+  //         madgwick_.gain(),threshold_);
+  //   //Quaterniond trans_Rimu = (curr_Rimu * last_Rimu.inverse()).normalized();
+  //   //Quaterniond estimate_att_imu = trans_Rimu * Quaterniond(mLastFrame.GetRotation()).normalized();
+
+  //   Matrix4d estimate_gps = predict_new_pose_with_gps();
+  //   predicted_pose.block<3,1>(0,3) = estimate_gps.block<3,1>(0,3);
+  //   predicted_pose.block<3,3>(0,0) = curr_Rimu.toRotationMatrix();//estimate_att_imu.normalized().toRotationMatrix();
+  
+  // }
+  // /*
+  // else if (model == 9){
+  //   // vamoh a ver que pacha
+  //   threshold_ = 16;
+
+  //   // Orientation with GT
+  //   Matrix4d estimate_gps = predict_new_pose_with_gps();
+  //   //predicted_pose.block<3,3>(0,0) = estimate_gps.block<3,3>(0,0);
+
+  //   // Position with IMU
+  //   //imu_model.set_ratio(__ratio);
+  //   Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+  //   predicted_pose.block<3,1>(0,3) = estimate_imu.block<3,1>(0,3);
+  //   predicted_pose = estimate_imu;
+
+  //   //print_pos_att(estimate_gps, "[MODEL GPS]");
+  //   print_pos_att(estimate_imu, "[MODEL IMU]");
+  // }
+
+  // else if (model == 10){
+  //   // kitti no tocar
+  //   Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+  //   if (stay_in_curve || stay_in_acc){
+  //     used_imu_model = true;
+  //     threshold_ = 8;
+  //     print_pos_att(estimate_imu, "[MODEL IMU]");
+  //     predicted_pose = estimate_imu;
+  //   }else{
+  //     used_imu_model = false;
+  //     threshold_ = 8;
+  //   }
+  // }
+
+  // else if (model == 11){
+  //   // SOLO IMU
+  //   threshold_ = 8;
+  //   used_imu_model = true;
+  //   predicted_pose= imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+
+  //   print_pos_att(predicted_pose, "[MODEL IMU]");
+  // }
+
+  // else if (model == 12){
+  //   imu_model._ratio = __ratio;
+  //   Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+    
+  //   if (stay_in_curve){
+  //     used_imu_model = true;
+  //     threshold_ = 8;
+  //     print_pos_att(estimate_imu, "[MODEL IMU]");
+  //     predicted_pose = estimate_imu;
+  //   }else{
+  //     used_imu_model = false;
+  //     threshold_ = 8;
+  //   }
+  //   its++;
+  // }
+
+  // else if (model == 13){
+  //   used_imu_model = true; 
+  //   // Use EKF prediction but calculate gps position to represent on rviz
+  //   threshold_ = 8;
+  //   gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->inertial_scale);
+  //   Matrix4d estimate_gps = predict_new_pose_with_gps();
+  //   Matrix4d estimate_imu = imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
      
-    Vector3d delta_t_gps = mCurrentFrame.t_gps() - mLastFrame.t_gps();
-    delta_t_gps /= mpReferenceKF->scale_gps;  // apply scale corerction
-    Vector3d last_t = -mLastFrame.GetRotation().transpose() * mLastFrame.GetPosition(); 
-    Vector3d new_t_w = last_t + delta_t_gps;
-    // A) GT att
-    //Vector3d new_t = -(estimate_gps.block<3,3>(0,0) * new_t_w);
+  //   Vector3d delta_t_gps = mCurrentFrame.t_gps() - mLastFrame.t_gps();
+  //   delta_t_gps /= mpReferenceKF->inertial_scale;  // apply scale corerction
+  //   Vector3d last_t = -mLastFrame.GetRotation().transpose() * mLastFrame.GetPosition(); 
+  //   Vector3d new_t_w = last_t + delta_t_gps;
+  //   // A) GT att
+  //   //Vector3d new_t = -(estimate_gps.block<3,3>(0,0) * new_t_w);
 
-    // B) IMU att
-    Vector3d new_t = -(estimate_imu.block<3,3>(0,0) * new_t_w);
+  //   // B) IMU att
+  //   Vector3d new_t = -(estimate_imu.block<3,3>(0,0) * new_t_w);
 
-    // C) GPS paper
-    //Quaterniond diff_R_gps = (Quaterniond(mCurrentFrame.R_gps()) * Quaterniond(mLastFrame.R_gps()).inverse()).normalized();
-    //Vector3d new_t = diff_R_gps * mLastFrame.GetPosition() + curr_R_gps.inverse() * tw;   
-
-
-    _att_test_gps = Quaterniond(estimate_imu.block<3,3>(0,0));
-    _pos_test_gps = new_t;
-  }
-  */
-  else if(model == 14){
-    predicted_pose = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->scale_gps);
-  }
-  else if( model == 20){
-    threshold_ = 8;
-    cout << "Prediction with GPS" << endl;
-    cout << "\t last pos: " << mLastFrame.GetPoseInverse().block<3,1>(0,3) << endl;
-    cout << "\t curr pos: " << mCurrentFrame.GetPoseInverse().block<3,1>(0,3) << endl;
-    predicted_pose = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->scale_gps);
-  }
-  else if( model == 30){
-    threshold_ = 8;
-    cout << "Prediction with IMU" << endl;
-    //predicted_pose = new_imu_model.predict(imu_measurements_, dt_);
-    // Model alredy predicted on track
-    predicted_pose = new_imu_model.get_pose_cam();
-  }
-  else{
-    // 
-    //imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
-    threshold_ = 8;
-  }
+  //   // C) GPS paper
+  //   //Quaterniond diff_R_gps = (Quaterniond(mCurrentFrame.R_gps()) * Quaterniond(mLastFrame.R_gps()).inverse()).normalized();
+  //   //Vector3d new_t = diff_R_gps * mLastFrame.GetPosition() + curr_R_gps.inverse() * tw;   
 
 
+  //   _att_test_gps = Quaterniond(estimate_imu.block<3,3>(0,0));
+  //   _pos_test_gps = new_t;
+  // }
+  // */
+  // else if(model == 14){
+  //   predicted_pose = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->inertial_scale);
+  // }
+  // else if( model == 20){
+  //   threshold_ = 8;
+  //   cout << "Prediction with GPS" << endl;
+  //   cout << "\t last pos: " << mLastFrame.GetPoseInverse().block<3,1>(0,3) << endl;
+  //   cout << "\t curr pos: " << mCurrentFrame.GetPoseInverse().block<3,1>(0,3) << endl;
+  //   predicted_pose = gps_imu_model.estimate_pose(imu_measurements_, dt_, mCurrentFrame, mLastFrame, mpReferenceKF->inertial_scale);
+  // }
+  // else if( model == 30){
+  //   threshold_ = 8;
+  //   cout << "Prediction with IMU" << endl;
+  //   //predicted_pose = new_imu_model.predict(imu_measurements_, dt_);
+  //   // Model alredy predicted on track
+  //   predicted_pose = new_imu_model.get_pose_cam();
+  // }
+  // else{
+  //   // 
+  //   //imu_model.predict(imu_measurements_, dt_, mCurrentFrame, mLastFrame);
+  //   threshold_ = 8;
+  // }
 
-  bool vision = TrackVisual(predicted_pose);
 
-  //TEST
-  /*
-  Vector3d tw = -mCurrentFrame.GetRotation().transpose() * mCurrentFrame.GetPosition();
-  Vector3d t =  -mCurrentFrame.GetRotation() * tw;
-  printf("\nx: %.3f vs %.3f\n", mCurrentFrame.GetPosition().x(), t.x());
-  printf("y: %.3f vs %.3f\n", mCurrentFrame.GetPosition().y(), t.y());
-  printf("z: %.3f vs %.3f\n\n", mCurrentFrame.GetPosition().z(), t.z());
-  */
-  // end test 
 
-  // save poses for create TFs
-  pred_ctevel_q = Quaterniond(Rpred);
-  pred_mad_q    = curr_Rimu;
-  pred_vision_q = Quaterniond(mCurrentFrame.GetRotation());
-  return vision;
+  // bool vision = TrackVisual(predicted_pose);
+
+  // //TEST
+  // /*
+  // Vector3d tw = -mCurrentFrame.GetRotation().transpose() * mCurrentFrame.GetPosition();
+  // Vector3d t =  -mCurrentFrame.GetRotation() * tw;
+  // printf("\nx: %.3f vs %.3f\n", mCurrentFrame.GetPosition().x(), t.x());
+  // printf("y: %.3f vs %.3f\n", mCurrentFrame.GetPosition().y(), t.y());
+  // printf("z: %.3f vs %.3f\n\n", mCurrentFrame.GetPosition().z(), t.z());
+  // */
+  // // end test 
+
+  // // save poses for create TFs
+  // pred_ctevel_q = Quaterniond(Rpred);
+  // pred_mad_q    = curr_Rimu;
+  // pred_vision_q = Quaterniond(mCurrentFrame.GetRotation());
+  // return vision;
 }
 
 
@@ -2902,17 +2318,48 @@ void Tracking::CreateNewKeyFrame(bool is_fake) {
   if (is_fake){
     pKF->set_fake(true);
     pKF->ChangeParent(mpReferenceKF);
+    pKF->inertial_scale = mpReferenceKF->inertial_scale;
+  }
+  
+  if (mSensor==System::MONOCULAR_IMU_NEW && !is_fake){
+    double mean_scale = new_imu_model.scale_buffer_mean();
+    new_imu_model.scale_buffer_clear();
+    cout << "\n\t[TEST] SCALE MEAN ON NEW KF: " << mean_scale << endl << endl;
+    if (initial_scale_with_multiples_kf && mpMap->KeyFramesInMap() <= KF_to_estimate_scale){
+      initial_scale_buffer.push_back(mean_scale);
+
+      if (mpMap->KeyFramesInMap() == KF_to_estimate_scale){
+        cout << "\n[TEST] ESTIMATE GLOBAL SCALE IMU-VISION " <<endl;
+        cout << "\t[TEST] VECTOR OF SCALES: \n";
+        for (double v : initial_scale_buffer){cout << "\t* " << v << endl;}
+        double global_scale = Estimator::mean(initial_scale_buffer);
+        cout << "\t[TEST] MEAN: " << global_scale << endl;
+        new_imu_model.set_scale(global_scale);
+        mpMap->GetKeyFrame(0)->inertial_scale = global_scale;
+        mpMap->GetKeyFrame(1)->inertial_scale = global_scale;
+      }
+    }
+    else{
+      double new_scale = new_imu_model.get_scale_factor();
+      double alpha = 0.01;
+      cout << "\t[TEST] CURR SCALE: " << new_scale << endl;
+      // Scale model already exists
+      if (update_with_base_scale){   
+        new_scale = new_scale + (new_scale-mean_scale);  
+      }
+      else if (update_scale){
+        new_scale = new_imu_model.get_scale_factor() * (1-alpha) + mean_scale * alpha;
+      }
+      cout << "\t[TEST] NEW SCALE: " << new_scale << endl;
+      new_imu_model.set_scale(new_scale);
+      pKF->inertial_scale = new_scale;
+    }
   }
 
-  //estimate_scale(pKF, mpReferenceKF);
   mpReferenceKF = pKF;
   mCurrentFrame.mpReferenceKF = pKF;
 
-  /*
-  if (mSensor==System::MONOCULAR_IMU_NEW) {
-    madgwick_.set_orientation_from_frame(mCurrentFrame.GetPose()); 
-  }
-  */
+
   if (mSensor==System::RGBD) {
     mCurrentFrame.UpdatePoseMatrices();
 

@@ -181,7 +181,7 @@ class KeyFrame {
   inline void set_gps_pose(const Eigen::Matrix4d & pose){gps_pose = pose;}
   inline Eigen::Matrix3d R_gps(){return gps_pose.block<3,3>(0,0);}
   inline Eigen::Vector3d t_gps(){return gps_pose.block<3,1>(0,3);}
-  double scale_gps;
+  double inertial_scale;
 
   // time
   double mTimestamp;

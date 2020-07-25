@@ -1,5 +1,8 @@
 
 #include "inertial/PredictionModels.h"
+#include "inertial/tools/Estimator.h"
+#include "src/Converter.h"
+#include <numeric>
 
 // GT_PredictionModel
 
@@ -187,6 +190,7 @@ new_IMU_model::new_IMU_model(const double & acc_lpf_gain, const bool &  remove_g
   _scale = 1.0;
 
   _position.setZero();
+  _last_position.setZero();
   _velocity.setZero();
   _last_velocity.setZero();
   pose_cam = Matrix4d::Identity();
@@ -235,6 +239,8 @@ Vector3d new_IMU_model::_remove_gravity(const Vector3d & acc, const Quaterniond 
 }
 
 Matrix4d new_IMU_model::predict(IMU_Measurements & imu, double & dt){
+  _last_position = Vector3d(_position);
+
   _att_estimator.update(imu.acceleration(), imu.angular_velocity(), dt);
 
   Vector3d acc = imu.acceleration();
@@ -252,31 +258,46 @@ Matrix4d new_IMU_model::predict(IMU_Measurements & imu, double & dt){
 }
 
 void new_IMU_model::_update_poses(){
-  Vector3d pos_w = _R_imu_to_world * (_position * _scale); // Pose IMU to world
-  Matrix3d att_c = _att_estimator.get_local_orientation().toRotationMatrix();
-
-  // Pose cam
-  pose_cam = Matrix4d::Identity();
-  pose_cam.block<3,3>(0,0) = att_c;
-  pose_cam.block<3,1>(0,3) = -(att_c * pos_w);
+  // Pose imu
+  pose_imu = Converter::toSE3(_att_estimator.get_orientation().toRotationMatrix(), _position);
 
   // Pose world
-  pose_world = Matrix4d::Identity();
-  pose_world.block<3,3>(0,0) = att_c.inverse();
-  pose_world.block<3,1>(0,3) = pos_w;
+  Vector3d pos_w = _R_imu_to_world * (_position * _scale); // Pose IMU to world
+  Matrix3d att_c = _att_estimator.get_local_orientation().toRotationMatrix();
+  pose_world = Converter::toSE3(att_c.inverse(), pos_w);
 
-  // Pose imu
-  pose_imu = Matrix4d::Identity();
-  pose_imu.block<3,3>(0,0) = _att_estimator.get_orientation().toRotationMatrix();
-  pose_imu.block<3,1>(0,3) = _position;
+  // Pose cam
+  pose_cam = Converter::toSE3(att_c, -(att_c * pos_w));
+}
+
+double new_IMU_model::estimate_scale(Frame & curr_frame, Frame & last_frame, bool add_to_buffer){
+  Vector3d curr_frame_wpos = curr_frame.GetPoseInverse().block<3,1>(0,3);
+  Vector3d last_frame_wpos = last_frame.GetPoseInverse().block<3,1>(0,3);
+  double scale = Estimator::scale(_R_imu_to_world * get_last_position_imu(),
+                                  _R_imu_to_world * get_position_imu(),
+                                  last_frame_wpos, 
+                                  curr_frame_wpos);
+  std::cout << "SLAM 0: " << last_frame_wpos.transpose() << std::endl;
+  std::cout << "SLAM 1: " << curr_frame_wpos.transpose() << std::endl;
+  std::cout << "IMU 0: " << (_R_imu_to_world * get_last_position_imu()).transpose() << std::endl;
+  std::cout << "IMU 1: " << (_R_imu_to_world * get_position_imu()).transpose() << std::endl;
+  std::cout << "[TEST] Estimate scale by motion model: " << scale << std::endl;
+  if (add_to_buffer){
+    _scale_buffer.push_back(scale);
+  }
+  return scale;
 }
 
 void new_IMU_model::correct_pose(Frame & curr_frame, Frame & last_frame, double dt){
-
+  Vector3d curr_frame_wpos = curr_frame.GetPoseInverse().block<3,1>(0,3);
+  Vector3d last_frame_wpos = last_frame.GetPoseInverse().block<3,1>(0,3);
+  
+  estimate_scale(curr_frame, last_frame);
   _att_estimator.set_orientation_from_frame(curr_frame.GetPose());
 
-  Vector3d curr_pos_imu = _R_imu_to_world.transpose() * (curr_frame.GetPoseInverse().block<3,1>(0,3) * (1.0 / _scale));
-  Vector3d last_pos_imu = _R_imu_to_world.transpose() * (last_frame.GetPoseInverse().block<3,1>(0,3) * (1.0 / _scale));
+  Vector3d curr_pos_imu = _R_imu_to_world.transpose() * (curr_frame_wpos / _scale);
+  Vector3d last_pos_imu = _R_imu_to_world.transpose() * (last_frame_wpos / _scale);
+
   // curr_pos_imu *= (1.0 / _scale);
   // last_pos_imu *= (1.0 / _scale);
   _position = curr_pos_imu;
@@ -284,6 +305,29 @@ void new_IMU_model::correct_pose(Frame & curr_frame, Frame & last_frame, double 
   std::cout << "IMU model vel: " << _velocity.transpose() << std::endl;
 
   _update_poses();
+}
+
+double new_IMU_model::scale_buffer_mean(){
+  if (_scale_buffer.empty()){
+    std::cout << "[TEST] ESTO NO DEBERIA DE OCURRIR" << std::endl;
+    return _scale; 
+  }
+
+  int n = _scale_buffer.size(); 
+  double mean = 0.0;
+  for (double scale_value : _scale_buffer){
+    mean += scale_value;
+  }
+  mean /= n; 
+  return mean;
+}
+
+void new_IMU_model::scale_buffer_clear(){
+  if (!_scale_buffer.empty()){
+    double last_scale = _scale_buffer.back();
+    _scale_buffer.clear();
+    _scale_buffer.push_back(last_scale);
+  }
 }
 
 /*

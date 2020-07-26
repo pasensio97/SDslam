@@ -48,7 +48,7 @@ class SyntheticSensor_PredictionModel{
     att_estimator.update(acc, gyr, dt);
     pose_predicted.block<3,3>(0,0) = att_estimator.get_local_orientation().toRotationMatrix();
 
-    // imu data on CAM... JOOOOODER!
+    // imu data on CAM...
     pos_estimator.update(imu_data.acceleration(), dt);
     pose_predicted.block<3,1>(0,3) = pos_estimator.position();
 
@@ -146,7 +146,7 @@ class new_IMU_model{
   inline Vector3d get_last_position_imu(){return Vector3d(_last_position);}
   inline Vector3d get_last_position_slam(){return _R_imu_to_world * _last_position;}
 
-  double estimate_scale(Frame & curr_frame, Frame & last_frame, bool add_to_buffer=true);
+  double estimate_scale(const Frame & curr_frame, const Frame & last_frame, bool add_to_buffer=true);
   inline void add_scale_to_buffer(double scale){_scale_buffer.push_back(scale);}
   double scale_buffer_mean();
   void scale_buffer_clear();
@@ -154,7 +154,7 @@ class new_IMU_model{
    * imu must be stay on NWU coordinate system
   */
   Matrix4d predict(IMU_Measurements & imu, double & dt);
-  void correct_pose(Frame & curr_frame, Frame & last_frame, double dt);
+  void correct_pose(const Frame & curr_frame, const Frame & last_frame, double dt, bool estimate_and_save_scale=true);
   void reset();
 };
 

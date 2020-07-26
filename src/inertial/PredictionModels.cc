@@ -199,10 +199,16 @@ new_IMU_model::new_IMU_model(const double & acc_lpf_gain, const bool &  remove_g
 }
 
 void new_IMU_model::reset(){
+  _scale = 1;
   _position.setZero();
   _velocity.setZero();
   _att_estimator.set_orientation(Quaterniond(1,0,0,0));
+
+  _last_position.setZero();
+  _last_velocity.setZero();
   
+  _scale_buffer = std::vector<double>();
+
   pose_cam = Matrix4d::Identity();
   pose_world = Matrix4d::Identity();
   pose_imu = Matrix4d::Identity();
@@ -270,7 +276,7 @@ void new_IMU_model::_update_poses(){
   pose_cam = Converter::toSE3(att_c, -(att_c * pos_w));
 }
 
-double new_IMU_model::estimate_scale(Frame & curr_frame, Frame & last_frame, bool add_to_buffer){
+double new_IMU_model::estimate_scale(const Frame & curr_frame, const Frame & last_frame, bool add_to_buffer){
   Vector3d curr_frame_wpos = curr_frame.GetPoseInverse().block<3,1>(0,3);
   Vector3d last_frame_wpos = last_frame.GetPoseInverse().block<3,1>(0,3);
   double scale = Estimator::scale(_R_imu_to_world * get_last_position_imu(),
@@ -288,13 +294,15 @@ double new_IMU_model::estimate_scale(Frame & curr_frame, Frame & last_frame, boo
   return scale;
 }
 
-void new_IMU_model::correct_pose(Frame & curr_frame, Frame & last_frame, double dt){
+void new_IMU_model::correct_pose(const Frame & curr_frame, const Frame & last_frame, double dt, bool estimate_and_save_scale){
   Vector3d curr_frame_wpos = curr_frame.GetPoseInverse().block<3,1>(0,3);
   Vector3d last_frame_wpos = last_frame.GetPoseInverse().block<3,1>(0,3);
   
-  estimate_scale(curr_frame, last_frame);
-  _att_estimator.set_orientation_from_frame(curr_frame.GetPose());
+  if (estimate_and_save_scale){
+    estimate_scale(curr_frame, last_frame);
+  }
 
+  _att_estimator.set_orientation_from_frame(curr_frame.GetPose());
   Vector3d curr_pos_imu = _R_imu_to_world.transpose() * (curr_frame_wpos / _scale);
   Vector3d last_pos_imu = _R_imu_to_world.transpose() * (last_frame_wpos / _scale);
 

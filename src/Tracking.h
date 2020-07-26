@@ -43,6 +43,7 @@
 #include "inertial/IMU_Measurements.h"
 #include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PredictionModels.h"
+#include "inertial/ScaleInitializer.h"
 
 namespace SD_SLAM {
 
@@ -177,13 +178,16 @@ class Tracking {
 
   void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
   KeyFrame* mpFirstReloadKeyFrame = nullptr;
-  double base_scale;
-  bool update_with_base_scale=false;
+
+  // Use BA on Reinit
+  bool _use_BA_on_reinit = false;
+  // Motion model for prediction
+  bool _use_hybrid_model = false;
+  // Scale model
   bool update_scale=true;
-  uint KF_to_estimate_scale = 10;
-  bool initial_scale_with_multiples_kf = false;
-  Matrix4d last_kf_imu_world_pose;
-  std::vector<double> initial_scale_buffer;
+  double _beta = 0;  //update factor 
+  ScaleInitializer::eModel _scale_model = ScaleInitializer::DIRECT_SINGLE;
+  ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 10); // min 10
 
   void apply_transform(Map* &map, const Quaterniond & R, const Vector3d & t, const double & scale);
   // ------------------------ end gps ----------------------------------

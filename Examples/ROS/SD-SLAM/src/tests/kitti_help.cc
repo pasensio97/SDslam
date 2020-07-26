@@ -54,6 +54,7 @@ vector<string> Kitti::load_imu_filenames(const string & filepath){
     }
     imu_filenames.push_back(imu_filename);
   }
+  cout << "* Total IMU files readed: " << imu_filenames.size() << endl;
   return imu_filenames;
 }
 
@@ -73,6 +74,7 @@ vector<string> Kitti::load_image_filenames(const string & filepath){
     }
     filenames.push_back(filename);
   }
+  cout << "* Total images files readed: " << filenames.size() << endl;
   return filenames;
 }
 

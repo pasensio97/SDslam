@@ -108,10 +108,12 @@ LIST(APPEND SOURCEFILES
   src/inertial/tools/filters.cc
   src/inertial/PredictionModels.cc
   src/inertial/tools/Estimator.cc
-
+  src/inertial/ScaleInitializer.cc
+  
   src/inertial/attitude_estimators/Madgwick.cc
   src/inertial/position_estimators/GPS.cc
   src/inertial/position_estimators/AccIntegrator.cc
+
 
 )
 

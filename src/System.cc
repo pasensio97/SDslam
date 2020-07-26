@@ -52,6 +52,8 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
     LOGD("Input sensor was set to Monocular-IMU");
   } else if (mSensor==MONOCULAR_IMU_NEW) {
     LOGD("Input sensor was set to Monocular-IMU-NEW");
+  } else if (mSensor==MONOCULAR_IMU_GPS) {
+    LOGD("Input sensor was set to Monocular-IMU-NEW");
   } else if (mSensor==FUSION_DATA_AND_GT) {
     LOGD("Input sensor was set to FUSION_DATA_AND_GT");
   }
@@ -238,7 +240,7 @@ Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements
                                        const double dt, const Matrix4d &gps_pose, double timestamp) {
   LOGD("Track monocular image with IMU measurements");
   mpTracker->curr_timestamp = timestamp;
-  if (mSensor!=MONOCULAR_IMU_NEW) {
+  if (mSensor!=MONOCULAR_IMU_NEW and mSensor!=MONOCULAR_IMU_GPS) {
     LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
     exit(-1);
   }

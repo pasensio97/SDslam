@@ -49,7 +49,8 @@ class System {
     RGBD = 1,
     MONOCULAR_IMU = 2,
     MONOCULAR_IMU_NEW = 3,
-    FUSION_DATA_AND_GT = 4
+    MONOCULAR_IMU_GPS = 4,
+    FUSION_DATA_AND_GT = 5
   };
 
  public:

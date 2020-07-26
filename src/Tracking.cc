@@ -355,6 +355,7 @@ void Tracking::apply_transform(Map* &map, const Quaterniond & R, const Vector3d 
 void Tracking::Track_IMU_Reinit() {
   cout << "[INFO] Tracking with IMU and Reinitilialization." << endl;
   __model = 0; 
+  used_imu_model = false;
 
   if (mState==NO_IMAGES_YET)
     mState = NOT_INITIALIZED;
@@ -379,7 +380,7 @@ void Tracking::Track_IMU_Reinit() {
   else{
     curr_imu_prediction = new_imu_model.predict(imu_measurements_, dt_); 
     //if(mState!=NOT_INITIALIZED && mpMap->GetAllKeyFrames().size() > 20){ mState = OK_IMU;}
-    used_imu_model = false;
+    
     // System is initialized. Track Frame.
     bool bOK;
     // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
@@ -400,10 +401,10 @@ void Tracking::Track_IMU_Reinit() {
         }
       }
       if (bOK){
-        if (mpMap->KeyFramesInMap() <= KF_to_estimate_scale){
-          new_imu_model.estimate_scale(mCurrentFrame, mLastFrame);
-        }else{
+        if (_scale_initializer.is_initialized()){
           new_imu_model.correct_pose(mCurrentFrame, mLastFrame, dt_);
+        }else{
+          new_imu_model.estimate_scale(mCurrentFrame, mLastFrame);
         }
       }
     } else if (mState==OK_IMU) {
@@ -711,15 +712,15 @@ void Tracking::MonocularReInitializationIMU() {
 
       // Bundle Adjustment
       LOGD("New Map created with %lu points", _new_map->MapPointsInMap());
-      cout << "[boubdleajustement]\n\tBEFORE:" << endl;
-      cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "\tTotal KFs in new map (expected 2): " << _new_map->GetAllKeyFrames().size() << endl;
-      Optimizer::GlobalBundleAdjustemnt(_new_map, 20); 
-      cout << "\tAFTER:" << endl;
-      cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
+      if (_use_BA_on_reinit){
+        cout << "[boubdleajustement]\n\tBEFORE:" << endl;
+        cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+        cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+        Optimizer::GlobalBundleAdjustemnt(_new_map, 20); 
+        cout << "\tAFTER:" << endl;
+        cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+        cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      }
       // Move to origin again (if use GlobalBundleAdjustemnt)
       // Vector3d to_move = new_pKFini->GetPoseInverse().block<3,1>(0,3);
       // Matrix4d pose_init_after_ba = new_pKFini->GetPose();
@@ -817,13 +818,13 @@ void Tracking::MonocularReInitializationIMU() {
       }
     
       // Scale and rotate points
-      // vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
-      // for (size_t iMP = 0; iMP<vpAllMapPoints.size(); iMP++) {
-      //   if (vpAllMapPoints[iMP]) {
-      //     MapPoint* pMP = vpAllMapPoints[iMP];
-      //     pMP->SetWorldPos(R*pMP->GetWorldPos()*invMedianDepth + T);
-      //   }
-      // }
+      vector<MapPoint*> vpAllMapPoints_ = new_pKFini->GetMapPointMatches();
+      for (size_t iMP = 0; iMP<vpAllMapPoints_.size(); iMP++) {
+        if (vpAllMapPoints_[iMP]) {
+          MapPoint* pMP = vpAllMapPoints_[iMP];
+          pMP->SetWorldPos(R*pMP->GetWorldPos()*invMedianDepth + T);
+        }
+      }
 
       // new map with points and poses, rotated, translated and scalated.
       // Need to create and add points to real map
@@ -879,14 +880,15 @@ void Tracking::MonocularReInitializationIMU() {
       pKFcur->UpdateConnections();
 
       mpFirstReloadKeyFrame = mpReferenceKF;
-      cout << "[boubdleajustement mMap]\n\tBEFORE:" << endl;
-      cout << "\tInit (world): " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      Optimizer::GlobalBundleAdjustemnt(mpMap, 20); 
-      cout << "\tAFTER:" << endl;
-      cout << "\tInit (world): " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
+      if (_use_BA_on_reinit){
+        cout << "[boubdleajustement mMap]\n\tBEFORE:" << endl;
+        cout << "\tInit (world): " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+        cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+        Optimizer::GlobalBundleAdjustemnt(mpMap, 20); 
+        cout << "\tAFTER:" << endl;
+        cout << "\tInit (world): " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+        cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      } 
 
       cout << "[TEST] Scale test... " << endl;
       Vector3d start_imu = mIniPoseInvIMU.block<3,1>(0,3)                 * (1.0 / new_imu_model.get_scale_factor());
@@ -896,26 +898,26 @@ void Tracking::MonocularReInitializationIMU() {
       cout << "\tVision_0: " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tVision_1: " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl << endl;
 
-      Vector3d mu = Estimator::correction_scale_factor(
-                start_imu, end_imu,
-                pKFini->GetPoseInverse().block<3,1>(0,3), pKFcur->GetPoseInverse().block<3,1>(0,3),       
-                new_imu_model.get_scale_factor());
+
 
       // Scalate curr position 
-      Vector3d tw_0 = pKFini->GetPoseInverse().block<3,1>(0,3);
-      Vector3d new_tw(0,0,0);
-      // for(int i=0; i<3; i++){
-      //   new_tw[i] = tw[i] * mu[i];
-      // } 
-      Vector3d delta_vision = pKFcur->GetPoseInverse().block<3,1>(0,3) - pKFini->GetPoseInverse().block<3,1>(0,3);
+      Vector3d start_vis = pKFini->GetPoseInverse().block<3,1>(0,3);
+      Vector3d end_vis = pKFcur->GetPoseInverse().block<3,1>(0,3);
+      Vector3d new_end_vision(0,0,0);
+
+      Vector3d delta_vision = end_vis - start_vis;
       Vector3d delta_imu = end_imu - start_imu;
       double lambda_a = new_imu_model.get_scale_factor();
       double lambda_b = Estimator::scale(delta_imu, delta_vision);
       Vector3d incremento = delta_vision * (lambda_a / lambda_b);
-      new_tw = tw_0 + incremento;
+      new_end_vision = start_vis + incremento;
 
-      pKFcur->SetPose( Converter::world_to_cam(new_tw, pKFcur->GetPoseInverse().block<3,3>(0,0)) );
+      pKFcur->SetPose( Converter::world_to_cam(new_end_vision, pKFcur->GetPoseInverse().block<3,3>(0,0)) );
 
+      Vector3d mu(0,0,0);
+      for (int i=0; i<3; i++){
+        mu[i] = new_end_vision[i] / end_vis[i];
+      }
      
       // Scalate points
       vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
@@ -923,52 +925,13 @@ void Tracking::MonocularReInitializationIMU() {
         if (vpAllMapPoints[iMP]) {
           MapPoint* pMP = vpAllMapPoints[iMP];
           Vector3d MPw = pMP->GetWorldPos();
-          incremento = (MPw - pKFini->GetPoseInverse().block<3,1>(0,3)) * (lambda_a / lambda_b);
-          MPw = pKFini->GetPoseInverse().block<3,1>(0,3) + incremento;
-          // for(int i=0; i<3; i++){
-          //   MPw[i] = MPw[i] * mu[i];
-          // } 
+          for(int i=0; i<3; i++){
+            MPw[i] = MPw[i] * mu[i];
+          } 
           pMP->SetWorldPos(MPw);
         }
       }
 
-      
-      // delta_vision = pKFcur->GetPoseInverse().block<3,1>(0,3) - pKFini->GetPoseInverse().block<3,1>(0,3);
-      // // Vector3d delta_imu = end_imu - start_imu;
-      // // //cout << "\t-Old magnitude: " << (tw - pKFini->GetPoseInverse().block<3,1>(0,3)).norm() << endl;
-      // // cout << "\t-New magnitude: " << delta_vision.norm() << endl << endl;
-      // cout << "\t-Expected scale: " << lambda_a << endl;
-      // cout << "\t-Current scale : " << Estimator::scale(delta_imu, delta_vision) << endl;
-      // // cout << "\t-Current scale inv : " << Estimator::scale(delta_vision, delta_imu) << endl << endl;;
-
-
-      // float medianDepth2 = pKFini->ComputeSceneMedianDepth(2);
-      // float invMedianDepth2 = 1.0f/medianDepth2;
-      // cout << "Median depth aux: " << medianDepth2 << endl; 
-
-      //------------------------ Scale factor correction VISION_IMU ------------------------------
-      // // APlicar solo al segundo frame
-      // Vector3d delta_vision = mCurrentFrame.GetPoseInverse().block<3,1>(0,3) - mInitialFrame.GetPoseInverse().block<3,1>(0,3);
-      // Vector3d delta_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
-      // delta_imu *= (1.0 / new_imu_model.get_scale_factor());
-
-      
-      // double curr_scale = scale(delta_imu, delta_vision);
-      // double expected_scale = new_imu_model.get_scale_factor();
-      // double scale_factor = correction_scale_factor(delta_imu, delta_vision, expected_scale);
-
-      // Matrix4d RT_ini = pKFini->GetPose();
-      // RT_ini.block<3, 1>(0, 3) = -RT_ini.block<3,3>(0,0) * (pKFini->GetPoseInverse().block<3, 1>(0, 3) * scale_factor);
-      // pKFini->SetPose(RT_ini);
-      
-      // Matrix4d RT_curr = pKFcur->GetPose();
-      // RT_curr.block<3, 1>(0, 3) = -RT_curr.block<3,3>(0,0) * (pKFcur->GetPoseInverse().block<3, 1>(0, 3) * scale_factor);
-      // pKFcur->SetPose(RT_curr);
-
-      // // Test scale
-      // Vector3d new_delta_vision = pKFcur->GetPoseInverse().block<3, 1>(0, 3) - pKFini->GetPoseInverse().block<3, 1>(0, 3);
-      // double test_scale = scale(delta_imu, new_delta_vision);
-      // cout << "[SCALE]\n\t * Expected: " << expected_scale << "\n\t * Current: " << test_scale << endl;
       pKFini->ChangeParent(mpReferenceKF);
       pKFcur->ChangeParent(pKFini);
       mpFirstReloadKeyFrame = pKFini;
@@ -996,51 +959,12 @@ void Tracking::MonocularReInitializationIMU() {
       // mpMap->mvpKeyFrameOrigins.push_back(pKFini);
       nKFs_on_reinit = mpMap->KeyFramesInMap();
       cout << "Map points tracks: " << mpReferenceKF->TrackedMapPoints(3) << endl;
-      // Update tracking flags
-      //mInitialFrame.mpReferenceKF = pKFini;
-      //mnLastRelocFrameId = mCurrentFrame.mnId;
-    
-      // Estimate new imu scale
-      // double scale = estimate_initial_scale_imu(mpMap->GetKeyFrame(1), mpMap->GetKeyFrame(0));
-      // cout << "\n\tNew scale IMU-VISION: " << scale << endl << endl;
-      // new_imu_model.set_scale(scale);   
-      mpLocalMapper->SetNotStop(false);
-      //mpMap->UpdateConnections();  
       
-      //bool success  =TrackLocalMap(); 
-      //cout << "Result of Track local map: " << ((success) ? "SUCCESS" : "ERROR") << endl;
-      cout << "Num of reference map points: " << mpMap->GetReferenceMapPoints().size() << endl;
-      cout << "Num of reference KF: " << mvpLocalKeyFrames.size() << endl;
-      cout << "Map points tracks: " << mpReferenceKF->TrackedMapPoints(3) << endl;
-
-      // -----------------------------------------------------------------------------------------------
-      // cout << "\n[CORRECTION SCALE FACTOR]" << endl;
-      // Vector3d delta_vision = mCurrentFrame.GetPoseInverse().block<3,1>(0,3) - mInitialFrame.GetPoseInverse().block<3,1>(0,3);
-      // Vector3d delta_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
-      // delta_imu *= (1.0 / new_imu_model.get_scale_factor());
-
-      // // double expected_scale = new_imu_model.get_scale_factor();
-      // double curr_scale = Estimator::scale(delta_imu, delta_vision);
-      // cout << "\tExpected scale: " << expected_scale << endl;
-      // cout << "\tCurrent scale:  " << curr_scale << endl;
-
-      // double scale_factor = correction_scale_factor(delta_imu, delta_vision, expected_scale);
-      // cout << "\tScale factor to correct scale:  " << scale_factor << endl;
-
-      // Vector3d new_init_frame_pos = scale_factor * mInitialFrame.GetPoseInverse().block<3,1>(0,3);
-      // Vector3d new_curr_frame_pos = scale_factor * mCurrentFrame.GetPoseInverse().block<3,1>(0,3);
-      // Vector3d new_delta_vision = new_curr_frame_pos - new_init_frame_pos;
-
-      // double test_scale = scale(delta_imu, new_delta_vision);
-      // cout << "\tCurrent scale after apply correction: " << test_scale << endl;
-
-      //new_imu_model.set_scale(curr_scale);
-
       //UpdateLocalMap();
       mState = OK;
       return;
-      }
-      return;
+    }
+    return;
   }
   return;
 }
@@ -1387,16 +1311,13 @@ void Tracking::MonocularInitializationIMU() {
         Vector3d delta_v =   mpMap->GetKeyFrame(1)->GetPoseInverse().block<3,1>(0,3) - mpMap->GetKeyFrame(0)->GetPoseInverse().block<3,1>(0,3);
 
         double scale = Estimator::scale(delta_imu, delta_v);
-        cout << "\n\tInitial scale IMU-VISION: " << scale << endl;
-        if (initial_scale_with_multiples_kf){
-          initial_scale_buffer.push_back(scale);
-        }else{
-          base_scale = scale;
-          new_imu_model.set_scale(scale);   
-          mpMap->GetKeyFrame(0)->inertial_scale = scale;
-          mpMap->GetKeyFrame(1)->inertial_scale = scale;
+        cout << "\n\t[TEST] Initial scale IMU-VISION: " << scale << endl;
+
+        _scale_initializer.on_map_initialization(new_imu_model, scale, mInitialFrame, mCurrentFrame);
+        if (_scale_initializer.is_initialized()){
+          mpMap->GetKeyFrame(0)->inertial_scale = _scale_initializer.get_initial_scale();
+          mpMap->GetKeyFrame(1)->inertial_scale = _scale_initializer.get_initial_scale();
         }
-        last_kf_imu_world_pose = new_imu_model.get_pose_world();
       }
     }
   }
@@ -1818,33 +1739,39 @@ bool Tracking::TrackWithNewIMUModel() {
 
   // Predict pose with motion model
   Eigen::Matrix4d predicted_pose_visual = motion_model_->Predict(mLastFrame.GetPose());
-  LOGD("Predicted pose (model cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_visual(0, 3), predicted_pose_visual(1, 3), predicted_pose_visual(2, 3));
-  Eigen::Matrix4d predicted_pose_inertial = new_imu_model.get_pose_cam();
-  LOGD("Predicted pose (model cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_inertial(0, 3), predicted_pose_inertial(1, 3), predicted_pose_inertial(2, 3));
-
-  Frame frame_visual(mCurrentFrame);
-  frame_visual.SetPose(predicted_pose_visual);
-
-  Frame frame_inertial(mCurrentFrame);
-  frame_inertial.SetPose(predicted_pose_inertial);
-
-  align_image_ = false;
-  int n_matches_visual = TrackMMVisual(frame_visual);
-  int n_matches_inertial = TrackMMVisual(frame_inertial);
-
-  cout << "\t[TEST] MATCHES WITH CTE VEL.: " << n_matches_visual << endl;
-  cout << "\t[TEST] MATCHES WITH INERTIAL: " << n_matches_inertial << endl;
+  LOGD("Predicted pose (model: cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_visual(0, 3), predicted_pose_visual(1, 3), predicted_pose_visual(2, 3));
   
-  if (n_matches_inertial > 0 && n_matches_inertial >= n_matches_visual){
-    mCurrentFrame = frame_inertial;
-    return true;
+  if (_use_hybrid_model){
+    Eigen::Matrix4d predicted_pose_inertial = new_imu_model.get_pose_cam();
+    LOGD("Predicted pose (model: inertial): [%.4f, %.4f, %.4f]", predicted_pose_inertial(0, 3), predicted_pose_inertial(1, 3), predicted_pose_inertial(2, 3));
+
+    Frame frame_visual(mCurrentFrame);
+    frame_visual.SetPose(predicted_pose_visual);
+
+    Frame frame_inertial(mCurrentFrame);
+    frame_inertial.SetPose(predicted_pose_inertial);
+
+    align_image_ = false;
+    int n_matches_visual = TrackMMVisual(frame_visual);
+    int n_matches_inertial = TrackMMVisual(frame_inertial);
+
+    cout << "\t[TEST] MATCHES WITH CTE VEL.: " << n_matches_visual << endl;
+    cout << "\t[TEST] MATCHES WITH INERTIAL: " << n_matches_inertial << endl;
+    
+    if (n_matches_inertial > 0 && n_matches_inertial >= n_matches_visual){
+      mCurrentFrame = frame_inertial;
+      return true;
+    }
+    if (n_matches_visual > 0 && n_matches_visual > n_matches_inertial){
+      mCurrentFrame = frame_visual;
+      return true;
+    }
+    cout << "\t[TEST] NO SE PUDO TRACKEAR CON NINGUN MODELO" << endl;
+    return false;
+  }else{
+    return TrackVisual(predicted_pose_visual);
   }
-  if (n_matches_visual > 0 && n_matches_visual > n_matches_inertial){
-    mCurrentFrame = frame_visual;
-    return true;
-  }
-  cout << "\t[TEST] NO SE PUDO TRACKEAR CON NINGUN MODELO" << endl;
-  return false;
+  
 
   // print_pos_att(predicted_pose, "[MODEL EKF]");
   // Matrix3d Rpred = predicted_pose.block<3,3>(0,0);
@@ -2325,34 +2252,23 @@ void Tracking::CreateNewKeyFrame(bool is_fake) {
     double mean_scale = new_imu_model.scale_buffer_mean();
     new_imu_model.scale_buffer_clear();
     cout << "\n\t[TEST] SCALE MEAN ON NEW KF: " << mean_scale << endl << endl;
-    if (initial_scale_with_multiples_kf && mpMap->KeyFramesInMap() <= KF_to_estimate_scale){
-      initial_scale_buffer.push_back(mean_scale);
 
-      if (mpMap->KeyFramesInMap() == KF_to_estimate_scale){
-        cout << "\n[TEST] ESTIMATE GLOBAL SCALE IMU-VISION " <<endl;
-        cout << "\t[TEST] VECTOR OF SCALES: \n";
-        for (double v : initial_scale_buffer){cout << "\t* " << v << endl;}
-        double global_scale = Estimator::mean(initial_scale_buffer);
-        cout << "\t[TEST] MEAN: " << global_scale << endl;
-        new_imu_model.set_scale(global_scale);
-        mpMap->GetKeyFrame(0)->inertial_scale = global_scale;
-        mpMap->GetKeyFrame(1)->inertial_scale = global_scale;
-      }
-    }
+    if (not _scale_initializer.is_initialized()){
+      _scale_initializer.update(new_imu_model, mean_scale);
+      if (_scale_initializer.is_initialized()){
+        for (KeyFrame* pKF : mpMap->GetAllKeyFrames()){
+          pKF->inertial_scale = _scale_initializer.get_initial_scale();
+    }}}
     else{
-      double new_scale = new_imu_model.get_scale_factor();
-      double alpha = 0.01;
-      cout << "\t[TEST] CURR SCALE: " << new_scale << endl;
-      // Scale model already exists
-      if (update_with_base_scale){   
-        new_scale = new_scale + (new_scale-mean_scale);  
+      double curr_scale = new_imu_model.get_scale_factor();
+      cout << "\t[TEST] CURR SCALE: " << curr_scale << endl;
+
+      if (update_scale){
+        curr_scale = curr_scale * (1-_beta) + mean_scale * _beta;
       }
-      else if (update_scale){
-        new_scale = new_imu_model.get_scale_factor() * (1-alpha) + mean_scale * alpha;
-      }
-      cout << "\t[TEST] NEW SCALE: " << new_scale << endl;
-      new_imu_model.set_scale(new_scale);
-      pKF->inertial_scale = new_scale;
+      cout << "\t[TEST] NEW SCALE: " << curr_scale << endl;
+      new_imu_model.set_scale(curr_scale);
+      pKF->inertial_scale = curr_scale;
     }
   }
 

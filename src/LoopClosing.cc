@@ -620,15 +620,17 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
       int kp_fakes_counts = 0; 
       set<KeyFrame*> test_set;
       while (!lpKFtoCheck.empty()) {
-        std::cout << "[TEST] Pendientes por checkear" << lpKFtoCheck.size() << std::endl;
         KeyFrame* pKF = lpKFtoCheck.front();
         if(test_set.count(pKF)){
+          cout << "KF Repetido. ID: " << pKF->GetID() << ". Is fake? " << pKF->is_fake() << endl;
+          cout << "* Number of childs: " << pKF->GetChilds().size() << endl;
+          cout << "* His parent is fake?: " << pKF->GetParent()->is_fake() << endl;
           lpKFtoCheck.pop_front();
           continue;
         }else{
           test_set.insert(pKF);
         }
-        if (pKF->is_fake()){ kp_fakes_counts++;}
+
         const set<KeyFrame*> sChilds = pKF->GetChilds();
         Eigen::Matrix4d Twc = pKF->GetPoseInverse();
         for (set<KeyFrame*>::const_iterator sit = sChilds.begin();sit != sChilds.end();sit++) {

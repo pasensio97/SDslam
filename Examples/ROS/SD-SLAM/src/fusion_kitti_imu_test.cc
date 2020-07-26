@@ -26,8 +26,12 @@
 #include "src/tests/publishers.h"
 #include "src/tests/kitti_help.h"
 #include <random>
+#include <Eigen/StdVector>
 
 using namespace std;
+using namespace Eigen;
+
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Vector3d)
 
 const int SEED = 42;
 
@@ -366,6 +370,10 @@ class KittiSeqSelect{
       path = "2011_09_30/2011_09_30_drive_0020_sync/";
       limits = {110, 1100};
     }
+    else if (seq == "seq_07"){
+      path = "2011_09_30/2011_09_30_drive_0027_sync/";
+      limits = {100, 1100};
+    }
     else if (seq == "seq_09"){
       path = "2011_09_30/2011_09_30_drive_0033_sync/";
       limits = {0, 1590};
@@ -538,7 +546,7 @@ int main(int argc, char **argv)
     } 
     else if (slam_type == "imu_s"){
       // Predict pose using IMU (acc synthetic) and if model lost, publish imu pose until reloc
-      double mean = 0;
+      double mean = 0.0;
       double std = (argc>4) ? atof(argv[4]) : 0;
       uint seed = 42;
       use_syn_acc = true;
@@ -546,18 +554,19 @@ int main(int argc, char **argv)
       //string FILE_SYN_ACC = "/home/javi/tfm/tests/simulate_imu/temp_files/synthetic_acc.csv";
       //acc_syn = read_file_3_comps(FILE_SYN_ACC);
       
-      cout << "- Creating synthetic acc... " << endl;
-      
+      cout << "- Creating synthetic acc... ";
       acc_syn= create_synthetic_acc(gt_content);
+      cout << "DONE!" << endl;
+      
       if (std != 0){
-        printf("- Adding guaussian noise to acc: N(%.2f, %.2f)\n", mean, std);
+        printf("- Adding guaussian noise to acc: N(%.2f, %.2f)...", mean, std);
         add_noise(acc_syn, mean, std, seed);
+        printf("Done!\n");
       }
 
       tracker->model_type = "imu_s";
       tracker->new_imu_model.set_remove_gravity_flag(false);
       tracker->new_imu_model.set_rotation_imu_to_world(kitti.rotation_imu_cam());
-
       
     } 
     else if (slam_type == "gps_reinit"){
@@ -640,7 +649,7 @@ int main(int argc, char **argv)
   int i = kitti_seq.limits.first; // 3600
   cv::Mat img;
   IMU_Measurements imu;
-  double total_time = 0.0;
+  double total_time = 0.0 + freq*i;
   // --- MAIN LOOP ---
   //int limit = min(n_images, (int) gt_content.size()-1);
   while (i < kitti_seq.limits.second) {
@@ -663,8 +672,9 @@ int main(int argc, char **argv)
     ////if (i> 250 && i<=255){img.setTo(cv::Scalar(0));}
     //if (i> 1535 && i<=1560){img.setTo(cv::Scalar(0));}
     //if (i> 250){img.setTo(cv::Scalar(0));} // IMU
-    if (i> 410  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
-
+    if (i> 390  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
+    //if (i> 450 && i<=549){img.setTo(cv::Scalar(0));}  // curva buena
+    //if (i> 750  && i<=760){img.setTo(cv::Scalar(0));}
 
     ros::Time time_it = ros::Time(i);
     
@@ -688,7 +698,9 @@ int main(int argc, char **argv)
     cout << "Updating drawer... ";
     // Set data to UI    
     fdrawer->Update(img, pose, tracker);
-    mdrawer->SetCurrentCameraPose(pose, tracker->used_imu_model);
+    cout << "[TEST] using imu? " << tracker->used_imu_model << endl;
+    bool is_predicted_with_imu = tracker->used_imu_model;
+    mdrawer->SetCurrentCameraPose(pose, is_predicted_with_imu);
     // cout << "Done " << endl;
     // // ------ end SLAM
 
@@ -817,6 +829,7 @@ void load_filenames(const string &basepath, vector<string> &vstrImageFilenames, 
     string imu_filename = prefix_imu   + ss.str() + ".txt";
 
     if (! file_exists(img_filename) || !file_exists(imu_filename)){
+      cout << "[ERROR] Couldnt read one of these files:\n\t* " << img_filename << "\n\t* " << imu_filename << endl;
       break;
     }
     vstrImageFilenames.push_back(img_filename);
@@ -840,7 +853,7 @@ IMU_Measurements load_IMU_data(const string &filename, double &time){
       content.push_back(value);
     }
   }
-  
+
   Vector3d acceleration(content.at(11), content.at(12), content.at(13));
   Vector3d gyroscope   (content.at(17), content.at(18), content.at(19));
   //frame
@@ -878,6 +891,11 @@ void write_line(const string & filename, const VectorXd & data, const int precis
 
 vector<vector<double>> load_gt_data(const string &filename){
   vector<vector<double>> content;
+  if (not file_exists(filename)){
+    cout << "[ERROR] GT file doesnt exists.." << endl;
+    return content;
+  }
+
   ifstream file;
   file.open(filename.c_str());
   while(!file.eof()) {

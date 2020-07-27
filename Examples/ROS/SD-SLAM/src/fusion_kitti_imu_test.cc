@@ -27,6 +27,7 @@
 #include "src/tests/kitti_help.h"
 #include <random>
 #include <Eigen/StdVector>
+#include "src/inertial/tools/Estimator.h"
 
 using namespace std;
 using namespace Eigen;
@@ -595,16 +596,21 @@ int main(int argc, char **argv)
   Quaterniond last_gt, last_slam;
 
   // FILES
-  const string BASE_PATH = "/home/javi/tfm/tests/attitude_analisys/new_data/";
-  string gt_outfile = BASE_PATH + "attitude_gt_world.csv";
-  string enu_outfile = BASE_PATH + "attitude_mad_01_accfilt_world.csv";
+  string SEPARATOR = " ";
+  const string BASE_PATH = "/home/javi/tfm/TEMP_FILES/";
+  string gt_outfile = BASE_PATH + "gt.txt";
+  string scale_gt_outfile = BASE_PATH + "scale_gt.txt";
+  create_file(gt_outfile, "timestamp, sx, sy, sz, qx, qy, qz, qw");
+  create_file(scale_gt_outfile, "timestamp, scale");
+
+  //string enu_outfile = BASE_PATH + "attitude_mad_01_accfilt_world.csv";
 
 
-  string error_imu_file = BASE_PATH + "error_imu_filt_rot.csv";
+  //string error_imu_file = BASE_PATH + "error_imu_filt_rot.csv";
   //create_file(error_imu_file, "it, angular_distance (degrees)");
-  Madgwick imu_att_estimator = Madgwick(0.01);
+  //Madgwick imu_att_estimator = Madgwick(0.01);
 
-  string error_gt_slam_file = BASE_PATH + "error_gt_visual_slam.csv";
+  //string error_gt_slam_file = BASE_PATH + "error_gt_visual_slam.csv";
   //create_file(error_gt_slam_file, "it, angular_distance (degrees)");
 
 
@@ -649,6 +655,9 @@ int main(int argc, char **argv)
   int i = kitti_seq.limits.first; // 3600
   cv::Mat img;
   IMU_Measurements imu;
+  Eigen::Matrix4d last_pose = Eigen::Matrix4d::Identity();
+  Vector3d last_pose_gt;
+
   double total_time = 0.0 + freq*i;
   // --- MAIN LOOP ---
   //int limit = min(n_images, (int) gt_content.size()-1);
@@ -672,7 +681,7 @@ int main(int argc, char **argv)
     ////if (i> 250 && i<=255){img.setTo(cv::Scalar(0));}
     //if (i> 1535 && i<=1560){img.setTo(cv::Scalar(0));}
     //if (i> 250){img.setTo(cv::Scalar(0));} // IMU
-    if (i> 390  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
+    //if (i> 390  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
     //if (i> 450 && i<=549){img.setTo(cv::Scalar(0));}  // curva buena
     //if (i> 750  && i<=760){img.setTo(cv::Scalar(0));}
 
@@ -701,6 +710,24 @@ int main(int argc, char **argv)
     cout << "[TEST] using imu? " << tracker->used_imu_model << endl;
     bool is_predicted_with_imu = tracker->used_imu_model;
     mdrawer->SetCurrentCameraPose(pose, is_predicted_with_imu);
+
+
+    // SAVE GT 
+    VectorXd gt_vec(8);
+    gt_vec << total_time, gt_pos.x(), gt_pos.y(), gt_pos.z(), gt_att.x(), gt_att.y(), gt_att.z(), gt_att.w();
+    write_line(gt_outfile, gt_vec, 19, SEPARATOR);
+
+    //SAVE GT Scale 
+    if (last_pose != Matrix4d::Identity()){
+      Vector3d curr_slam_position = -pose.block<3,3>(0,0).transpose()      *  pose.block<3,1>(0,3);
+      Vector3d last_slam_position = -last_pose.block<3,3>(0,0).transpose() *  last_pose.block<3,1>(0,3);
+      double gt_scale = Estimator::scale(last_pose_gt, gt_pos, last_slam_position, curr_slam_position);
+      VectorXd scale_vec(2);
+      scale_vec << total_time, gt_scale;
+      write_line(scale_gt_outfile, scale_vec, 15, SEPARATOR);
+    }
+    last_pose = pose;
+    last_pose_gt = gt_pos;
     // cout << "Done " << endl;
     // // ------ end SLAM
 
@@ -876,14 +903,12 @@ void create_file(const string & filename, const string & header){
 }
 
 void write_line(const string & filename, const VectorXd & data, const int precision, string separator){
-  string SEPARATOR = ",";
-
   std::fstream outfile;
 	outfile.open(filename, std::fstream::app);
 
   outfile << setprecision(precision);
   for (int indx=0; indx < data.size()-1; indx++){
-    outfile << data[indx] << SEPARATOR;
+    outfile << data[indx] << separator;
   }
   outfile << data[data.size()-1] << endl;
   outfile.close();

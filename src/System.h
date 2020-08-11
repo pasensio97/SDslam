@@ -124,6 +124,8 @@ class System {
   bool LoadTrajectory(const std::string &filename);
 
   void save_as_tum(const std::string &filename);
+  void save_scales(const std::string &filename);
+  void save_tracking_state(const std::string &filename);
 
  private:
   // Input sensor

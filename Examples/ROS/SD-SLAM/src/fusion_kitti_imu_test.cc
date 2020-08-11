@@ -361,11 +361,15 @@ class KittiSeqSelect{
     }
     else if (seq == "seq_01"){
       path = "2011_10_03/2011_10_03_drive_0042_sync/";
-      limits = {20, 1170};
+      limits = {15, 1170};
     }
     else if (seq == "seq_02"){
       path = "2011_10_03/2011_10_03_drive_0034_sync/";
       limits = {100, 4660};
+    }
+    else if (seq == "seq_05"){
+      path = "2011_09_30/2011_09_30_drive_0018_sync/";
+      limits = {0, 2760};
     }
     else if (seq == "seq_06"){
       path = "2011_09_30/2011_09_30_drive_0020_sync/";
@@ -373,16 +377,13 @@ class KittiSeqSelect{
     }
     else if (seq == "seq_07"){
       path = "2011_09_30/2011_09_30_drive_0027_sync/";
-      limits = {100, 1100};
+      limits = {150, 1100};
     }
     else if (seq == "seq_09"){
       path = "2011_09_30/2011_09_30_drive_0033_sync/";
-      limits = {0, 1590};
+      limits = {100, 1590};
     }
-    else if (seq == "seq_05"){
-      path = "2011_09_30/2011_09_30_drive_0018_sync/";
-      limits = {0, 2760};
-    }
+
     else{
       is_valid = false;
     }
@@ -657,15 +658,22 @@ int main(int argc, char **argv)
   IMU_Measurements imu;
   Eigen::Matrix4d last_pose = Eigen::Matrix4d::Identity();
   Vector3d last_pose_gt;
+  bool is_first_pose = true;
 
   double total_time = 0.0 + freq*i;
+  bool set_velocity = (tracker->model_type == "imu" or kitti_seq.limits.first > 0);
+
   // --- MAIN LOOP ---
   //int limit = min(n_images, (int) gt_content.size()-1);
   while (i < kitti_seq.limits.second) {
+  //while (i < kitti_seq.limits.first + 200) {
     cout << "\n[INFO] Reading data " << i << "/" << kitti_seq.limits.second << endl;
     img = cv::imread(images_filenames[i], CV_LOAD_IMAGE_GRAYSCALE);
     imu = load_IMU_data(imu_filenames[i], total_time);
-    if (use_syn_acc){ imu = IMU_Measurements(imu.timestamp(), acc_syn[i], imu.angular_velocity()); }
+    if (use_syn_acc){ 
+      imu = IMU_Measurements(imu.timestamp(), acc_syn[i], imu.angular_velocity()); 
+      cout << "[INFO] Syntheic acc: " << acc_syn[i].transpose() << endl;
+    }
     acc_pub.publish(imu.acceleration(), imu.angular_velocity());
 
     if(img.empty()) {
@@ -673,7 +681,7 @@ int main(int argc, char **argv)
       return 1;
     }
     
-    
+
     //if (i> 450 && i<=549){img.setTo(cv::Scalar(0));}  // curva buena
     //if (i> 140 && i<=145){img.setTo(cv::Scalar(0));}
     //if (i> 140 && i<=150){img.setTo(cv::Scalar(0));}
@@ -696,6 +704,8 @@ int main(int argc, char **argv)
     //Vector3d gt_pos_on_slam = -gt_att.inverse().toRotationMatrix() * gt_pos;
     gps_pose_i = vector_gt_to_pose(gt_content.at(i));
     
+    
+
     //gps_pose_i.block<3,3>(0,0) = gt_att.inverse().toRotationMatrix(); //gt_att.inverse().toRotationMatrix();
     //gps_pose_i.block<3,1>(0,3) = rot.cam2nwu() * gt_pos; //(-gps_pose_i.block<3,3>(0,0) * gps_pose_i.block<3,1>(0,3));
 
@@ -711,6 +721,10 @@ int main(int argc, char **argv)
     bool is_predicted_with_imu = tracker->used_imu_model;
     mdrawer->SetCurrentCameraPose(pose, is_predicted_with_imu);
 
+    // if (set_velocity and kitti_seq.limits.first + 1 == i){
+    //   tracker->new_imu_model.reset();
+    //   tracker->new_imu_model.set_velocity(kitti.rotation_imu_cam().inverse() * ((gt_pos - last_gt_pos) / freq));
+    // }
 
     // SAVE GT 
     VectorXd gt_vec(8);
@@ -718,9 +732,14 @@ int main(int argc, char **argv)
     write_line(gt_outfile, gt_vec, 19, SEPARATOR);
 
     //SAVE GT Scale 
-    if (last_pose != Matrix4d::Identity()){
+    if (tracker->GetState() != tracker->NOT_INITIALIZED){
       Vector3d curr_slam_position = -pose.block<3,3>(0,0).transpose()      *  pose.block<3,1>(0,3);
       Vector3d last_slam_position = -last_pose.block<3,3>(0,0).transpose() *  last_pose.block<3,1>(0,3);
+      if (is_first_pose){
+        is_first_pose = false;
+        last_slam_position.setZero();
+      }
+     
       double gt_scale = Estimator::scale(last_pose_gt, gt_pos, last_slam_position, curr_slam_position);
       VectorXd scale_vec(2);
       scale_vec << total_time, gt_scale;
@@ -803,7 +822,6 @@ int main(int argc, char **argv)
 
     cout << "Done " << endl;
 
-
     // -----------------------------------------------------------------------------------------------------
     // Wait to load the next frame
     ttracking.Stop();
@@ -812,6 +830,8 @@ int main(int argc, char **argv)
     // Wait to load the next frame
     if(delay<freq)
       usleep((freq-delay)*1e6);
+
+    
     //usleep(2.5e5);
     if (viewer->isFinished()){
       return 0;
@@ -824,8 +844,10 @@ int main(int argc, char **argv)
   // Stop all threads
   SLAM.Shutdown();
 
-  string tum_file = "/home/javi/tfm/TEMP_FILES/kitti_" + kitti_seq.SEQ + ".txt";
-  SLAM.save_as_tum(tum_file);
+  string PATH_TO_SAVE = "/home/javi/tfm/TEMP_FILES/";
+  SLAM.save_as_tum(PATH_TO_SAVE + "traj.txt");
+  SLAM.save_scales(PATH_TO_SAVE + "scales.txt");
+  SLAM.save_tracking_state(PATH_TO_SAVE + "tracking_state.txt");
 
   while (!viewer->isFinished())
     usleep(5000);

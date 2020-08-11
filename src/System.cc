@@ -644,16 +644,13 @@ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
 
 void System::save_as_tum(const std::string &filename) {
 
-  std::cout << "Saving trajectory to " << filename << " ..." << std::endl;
-
+  std::cout << "Saving trajectory in " << filename << " ..." << std::endl;
 
   vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
 
-  std::ofstream f, f_aux;
+  std::ofstream f;
   f.open(filename.c_str());
-  f_aux.open((filename+"_scale_and_fakes.txt").c_str());
-
 
   for(size_t i=0; i<vpKFs.size(); i++) {
     KeyFrame* pKF = vpKFs[i];
@@ -671,14 +668,55 @@ void System::save_as_tum(const std::string &filename) {
       << t.x() << " " << t.y() << " " << t.z() << " " 
       << q.x() << " " << q.y() << " " << q.z() << " " << q.w() 
       << endl;
-
-    f_aux << pKF->is_fake() << " " << std::setprecision(6) << pKF->inertial_scale << endl;
   }
 
   f.close();
-  f_aux.close();
   std::cout << "Trajectory saved!" << std::endl;
+}
 
+void System::save_scales(const std::string &filename) {
+  std::cout << "Saving scales of trajectory in " << filename << " ..." << std::endl;
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    f << std::setprecision(6) << pKF->mTimestamp << " " << pKF->inertial_scale << endl;
+  }
+
+  f.close();
+  std::cout << "Scales saved!" << std::endl;
+}
+
+void System::save_tracking_state(const std::string &filename) {
+  // 0: Visual, 1: Inercial
+  std::cout << "Saving Tracking states in " << filename << " ..." << std::endl;
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    f << std::setprecision(6) << pKF->mTimestamp << " " << pKF->is_fake() << endl;
+  }
+
+  f.close();
+  std::cout << "Tracking states saved!" << std::endl;
 }
 
 }  // namespace SD_SLAM

@@ -185,7 +185,7 @@ class Tracking {
   bool _use_hybrid_model = false;
   // Scale model
   bool update_scale=true;
-  double _beta = 0;  //update factor 
+  double _beta = 1;  //update factor 
   ScaleInitializer::eModel _scale_model = ScaleInitializer::DIRECT_SINGLE;
   ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 10); // min 10
 

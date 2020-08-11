@@ -2256,9 +2256,11 @@ void Tracking::CreateNewKeyFrame(bool is_fake) {
     if (not _scale_initializer.is_initialized()){
       _scale_initializer.update(new_imu_model, mean_scale);
       if (_scale_initializer.is_initialized()){
-        for (KeyFrame* pKF : mpMap->GetAllKeyFrames()){
-          pKF->inertial_scale = _scale_initializer.get_initial_scale();
-    }}}
+        for (KeyFrame* pKFi : mpMap->GetAllKeyFrames()){
+          pKFi->inertial_scale = _scale_initializer.get_initial_scale();
+        }
+        pKF->inertial_scale = _scale_initializer.get_initial_scale();
+    }}
     else{
       double curr_scale = new_imu_model.get_scale_factor();
       cout << "\t[TEST] CURR SCALE: " << curr_scale << endl;

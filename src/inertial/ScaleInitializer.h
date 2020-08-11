@@ -16,7 +16,8 @@ class ScaleInitializer{
   enum eModel{
     DIRECT_SINGLE = 0,
     DIRECT_MULTIPLE = 1,
-    SYNC = 2,
+    SYNC_VEL = 2,
+    SYNC_ZERO = 3,
   };
 
   ScaleInitializer(const eModel model, uint num_scales=1);

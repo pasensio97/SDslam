@@ -266,7 +266,7 @@ int main(int argc, char **argv) {
 
       dt = (last_t == 0.0) ? 0.02 : imu.timestamp() - last_t;
       last_t = imu.timestamp();
-      
+      cout << "\nNew img at time: " << imu.timestamp() << endl;
       IMU_Measurements nwu_imu = IMU_Measurements(imu.timestamp(),
                                                   R_imu_to_nwu * imu.acceleration(),
                                                   R_imu_to_nwu * imu.angular_velocity());

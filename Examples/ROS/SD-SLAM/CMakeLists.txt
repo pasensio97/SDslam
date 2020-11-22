@@ -82,10 +82,10 @@ rosbuild_add_executable(DebugInertial
 target_link_libraries(DebugInertial ${LIBS})
 
 # Node for debug imu tools
-rosbuild_add_executable(IMU_TEST
-  src/imu_test.cc
-)
-target_link_libraries(IMU_TEST ${LIBS})
+# rosbuild_add_executable(IMU_TEST
+#   src/imu_test.cc
+# )
+# target_link_libraries(IMU_TEST ${LIBS})
 
 # Node for inertial kitti 
 rosbuild_add_executable(KITTI_TEST
@@ -99,10 +99,10 @@ src/fusion_euroc.cc
 )
 target_link_libraries(EUROC_TEST ${LIBS} PUB_LIB EUROC_LIB)
 
-rosbuild_add_executable(Tests
-src/ros_tests.cc
-)
-target_link_libraries(Tests ${LIBS} PUB_LIB KITTI_LIB EUROC_LIB) 
+# rosbuild_add_executable(Tests
+# src/ros_tests.cc
+# )
+# target_link_libraries(Tests ${LIBS} PUB_LIB KITTI_LIB EUROC_LIB) 
 
 # Node for debug imu tools
 rosbuild_add_executable(EUROC_INERTIAL

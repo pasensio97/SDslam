@@ -6,6 +6,7 @@
 #include "inertial/attitude_estimators/Madgwick.h"
 #include "inertial/PositionEstimator.h"
 #include "Frame.h"
+#include "KeyFrame.h"
 #include "inertial/tools/filters.h"
 #include <iostream>
 #include <vector>
@@ -102,14 +103,17 @@ class new_IMU_model{
   Madgwick _att_estimator;
   Vector3d _gravity;
   Matrix3d _R_imu_to_world;
+
   double _scale;
   Vector3d _position;
   Vector3d _velocity;
 
   Vector3d _last_position;
   Vector3d _last_velocity;
+  Vector3d _last_acceleration;
+  bool _acc_init;  // Only for test with _last_acceleration
 
-
+  Vector3d _delta_pos;
   std::vector<double> _scale_buffer;
   
 
@@ -147,15 +151,19 @@ class new_IMU_model{
   inline Vector3d get_last_position_slam(){return _R_imu_to_world * _last_position;}
 
   double estimate_scale(const Frame & curr_frame, const Frame & last_frame, bool add_to_buffer=true);
+  double estimate_scale(const Vector3d delta_pos_slam, bool add_to_buffer=true);
   inline void add_scale_to_buffer(double scale){_scale_buffer.push_back(scale);}
   double scale_buffer_mean();
-  void scale_buffer_clear();
+  void scale_buffer_clear(bool full=false);
   /**
    * imu must be stay on NWU coordinate system
   */
   Matrix4d predict(IMU_Measurements & imu, double & dt);
   void correct_pose(const Frame & curr_frame, const Frame & last_frame, double dt, bool estimate_and_save_scale=true);
   void reset();
+  void initialize(const Matrix4d & curr_world_pose, const Matrix4d & last_world_pose, double dt);
+
+  Matrix4d get_world_pose(const Matrix4d & last_world_pose);
 };
 
 

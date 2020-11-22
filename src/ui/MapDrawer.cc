@@ -92,7 +92,12 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
       glMultMatrixf(Twc_cv.ptr<GLfloat>(0));
 
       glLineWidth(lwidth);
-      glColor3f(0.0f, 0.0f, 0.9f);
+      if (pKF->is_fake()){
+        glColor3f(0.9f, 0.55f, 0.0f);
+      }else{
+        glColor3f(0.0f, 0.0f, 0.9f);
+      }
+      
       glBegin(GL_LINES);
       glVertex3f(0, 0, 0);
       glVertex3f(w, h, z);

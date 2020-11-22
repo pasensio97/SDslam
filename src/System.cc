@@ -662,7 +662,7 @@ void System::save_as_tum(const std::string &filename) {
     Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
     Eigen::Vector3d t = pose.block<3, 1>(0, 3);
   
-    f << std::setprecision(6) 
+    f << std::setprecision(19) 
       << pKF->mTimestamp << " "
       << std::setprecision(9) 
       << t.x() << " " << t.y() << " " << t.z() << " " 

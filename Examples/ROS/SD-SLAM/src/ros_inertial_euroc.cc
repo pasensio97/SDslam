@@ -44,6 +44,32 @@
 
 using namespace std;
 
+inline bool file_exists (const std::string& name) {ifstream f(name.c_str()); return f.good();}
+
+void create_file(const string & filename, const string & header){
+  //string filename = "/home/javi/tfm/tests/matches/new.csv";
+  if (file_exists(filename)){
+    printf("Overwritting file '%s'", filename.c_str());
+  }
+
+  std::fstream outfile;
+	outfile.open(filename, std::fstream::out);
+  outfile << "#" << header << std::endl;
+	outfile.close();
+}
+
+void write_line(const string & filename, const VectorXd & data, const int precision, string separator){
+  std::fstream outfile;
+	outfile.open(filename, std::fstream::app);
+
+  outfile << setprecision(precision);
+  for (int indx=0; indx < data.size()-1; indx++){
+    outfile << data[indx] << separator;
+  }
+  outfile << data[data.size()-1] << endl;
+  outfile.close();
+}
+
 class ImageReader {
  public:
   ImageReader() {
@@ -245,7 +271,18 @@ int main(int argc, char **argv) {
   R_imu_to_nwu = R_imu_to_nwu.transpose();
   //tracker->imu_model.set_rotation_imu_to_slamworld(rot_imu2cam);
   
+
+  string SEPARATOR = " ";
+  const string BASE_PATH = "/home/javi/tfm/TEMP_FILES/";
+  string allposes_outfile = BASE_PATH + "all_poses.txt";
+  string hyb_outfile = BASE_PATH + "hyb_info.txt";
+
+  create_file(allposes_outfile, "timestamp, sx, sy, sz, qx, qy, qz, qw");
+  create_file(hyb_outfile, "timestamp, visual_matches, inertial_matches, visual_time, inertial_time");
+
+
   double last_t = 0.0, dt = 0.0;
+  Matrix4d zero4d = Matrix4d::Identity();
 
   Odom_Publisher odom_imu(n, "odom", "imu_pred");
   Odom_Publisher odom_visual(n, "odom", "pose");
@@ -266,13 +303,16 @@ int main(int argc, char **argv) {
 
       dt = (last_t == 0.0) ? 0.02 : imu.timestamp() - last_t;
       last_t = imu.timestamp();
-      cout << "\nNew img at time: " << imu.timestamp() << endl;
+      cout << "\nNew img at time: " << setprecision(19) << imu.timestamp() << endl;
       IMU_Measurements nwu_imu = IMU_Measurements(imu.timestamp(),
                                                   R_imu_to_nwu * imu.acceleration(),
                                                   R_imu_to_nwu * imu.angular_velocity());
-
+      cout << "Accelerometer data: " << nwu_imu.acceleration() << endl;
+      if( 1403715567.207143068 < imu.timestamp() and imu.timestamp() < 1403715569.757143021){
+        im.setTo(cv::Scalar(0));
+      }
       // Pass the image and IMU data to the SLAM system
-      Eigen::Matrix4d pose = SLAM.TrackNewFusion(im, nwu_imu, dt);
+      Eigen::Matrix4d pose = SLAM.TrackNewFusion(im, nwu_imu, dt, zero4d, imu.timestamp());
 
       odom_imu.publish(ros::Time(imu.timestamp()), 
                                  cam2nwu() * (tracker->imu_model.position /2), 
@@ -292,12 +332,26 @@ int main(int argc, char **argv) {
       // Set data to UI
       fdrawer->Update(im, pose, tracker);
       mdrawer->SetCurrentCameraPose(pose, tracker->used_imu_model);
+
+      // Save hyb_inof
+      if (tracker->GetState() == tracker->OK && tracker->_hyb_matches.size() == 2 && tracker->_hyb_times.size()==2){ 
+        std::fstream outfile;
+        outfile.open(hyb_outfile, std::fstream::app);
+        outfile << setprecision(19) << imu.timestamp() << ", " 
+                << tracker->_hyb_matches[0] << ", " << tracker->_hyb_matches[1] << ", "
+                << tracker->_hyb_times[0] << ", " << tracker->_hyb_times[1] << endl;
+        outfile.close();
+      }
     }
 
     ros::spinOnce();
     r.sleep();
 
     if (useViewer && viewer->isFinished()) {
+      string PATH_TO_SAVE = "/home/javi/tfm/TEMP_FILES/";
+      SLAM.save_as_tum(PATH_TO_SAVE + "traj.txt");
+      SLAM.save_scales(PATH_TO_SAVE + "scales.txt");
+      SLAM.save_tracking_state(PATH_TO_SAVE + "tracking_state.txt");
       ros::shutdown();
       return 0;
     }

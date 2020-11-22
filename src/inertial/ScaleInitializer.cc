@@ -2,8 +2,8 @@
 #include "inertial/ScaleInitializer.h"
 #include "inertial/tools/Estimator.h"
 
-ScaleInitializer::ScaleInitializer(const eModel model, uint num_scales):
-  _model(model), _is_initialized(false), _necessary_scales(num_scales), _initial_scale(0.0) , _delete_scales(0)
+ScaleInitializer::ScaleInitializer(const eModel model, uint num_scales, uint skip_scales):
+  _model(model), _is_initialized(false), _necessary_scales(num_scales), _initial_scale(0.0) , _delete_scales(skip_scales)
 {
   if (_model == SYNC_VEL)
     _necessary_scales += _delete_scales;
@@ -42,9 +42,11 @@ void ScaleInitializer::update(new_IMU_model & motion_model, double mean_scale)
     
   _buffer.push_back(mean_scale);
   if (_buffer.size() >= _necessary_scales){
-    if (_model == SYNC_VEL){
+    if (_delete_scales > 0){
       assert(_buffer.size()>_delete_scales);
+      cout << "\t[TEST] IGNORING THIS SCALES IN THE BUFFER: \n";
       for (uint i=0; i<_delete_scales; i++){
+        cout << "\t* " << _buffer[0] << endl;
         _buffer.erase(_buffer.begin());
       }
     }

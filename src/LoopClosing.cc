@@ -31,6 +31,7 @@
 #include "ORBmatcher.h"
 #include "ImageAlign.h"
 #include "extra/log.h"
+#include "src/inertial/tools/Estimator.h"
 
 using std::mutex;
 using std::unique_lock;
@@ -429,6 +430,7 @@ void LoopClosing::CorrectLoop() {
       NonCorrectedSim3[pKFi]=g2oSiw;
     }
 
+    // vector<double> scales_corrected;
     // Correct all MapPoints obsrved by current keyframe and neighbors, so that they align with the other side of the loop
     for (KeyFrameAndPose::iterator mit=CorrectedSim3.begin(), mend=CorrectedSim3.end(); mit != mend; mit++) {
       KeyFrame* pKFi = mit->first;
@@ -464,11 +466,27 @@ void LoopClosing::CorrectLoop() {
 
       eigt *=(1./s); //[R t/s;0 1]
 
+      // No srive hacerlo aquí (o sí pero el problema es que la velocida no está corregida?)
+      // std::cout << "\n[TEST] \n\t* LOOP CLOSING CONECTION INERTIAL SCALE: " << pKFi->inertial_scale 
+      //           << "\n\t* Scale for correction: " << s << " (inversa: " << (1./s) 
+      //           << "\n\t* A: " << pKFi->inertial_scale * s 
+      //           << "\n\t* B: " << pKFi->inertial_scale * (1./s) 
+      //           << std::endl;
+
+      // pKFi->inertial_scale *= (1./s);
+      // scales_corrected.push_back(pKFi->inertial_scale);
+      
+
       pKFi->SetPose(Converter::toSE3(eigR,eigt));
 
       // Make sure connections are updated
       pKFi->UpdateConnections();
     }
+
+    // double curr_scale = Estimator::mean(scales_corrected);
+    // mpTracker->new_imu_model.set_scale(curr_scale);
+    // mpTracker->new_imu_model.scale_buffer_clear(true);
+    // mpTracker->new_imu_model.add_scale_to_buffer(curr_scale);
 
     // Start Loop Fusion
     // Update matched map points and replace if duplicated
@@ -519,7 +537,8 @@ void LoopClosing::CorrectLoop() {
   // Add loop edge
   mpMatchedKF->AddLoopEdge(mpCurrentKF);
   mpCurrentKF->AddLoopEdge(mpMatchedKF);
-
+  cout << "[TEST] Current KF scale: " << mpCurrentKF->inertial_scale << endl;
+  cout << "[TEST] Matched KF scale: " << mpMatchedKF->inertial_scale << endl;
   // Launch a new thread to perform Global Bundle Adjustment
   mbRunningGBA = true;
   mbFinishedGBA = false;
@@ -648,7 +667,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
         lpKFtoCheck.pop_front();
       }
       std::cout << "[TEST]FAKE KFS UPDATED: " << kp_fakes_counts << std::endl;
-      std::cout << "DoNe!\n[TEST] CORRECTING KEYMAPS... ";
+      std::cout << "DoNe!\n[TEST] CORRECTING MAP-POITNS... ";
       // Correct MapPoints
       const vector<MapPoint*> vpMPs = mpMap->GetAllMapPoints();
 

@@ -119,14 +119,25 @@ Matrix3d Kitti::rotation_imu_velo(){
   return rotation_imu_to_velo;
 }
 
-Matrix3d Kitti::rotation_velo_cam(){
+Matrix3d Kitti::rotation_velo_cam(int sequence){
   Matrix3d rotation_velo_to_cam;
-  rotation_velo_to_cam <<  7.967514e-03, -9.999679e-01, -8.462264e-04,
-                          -2.771053e-03,  8.241710e-04, -9.999958e-01,
-                           9.999644e-01,  7.969825e-03, -2.764397e-03;
+  if (sequence >= 0 and sequence < 3){
+    std::cout << "Rotation Matrix velo_to_cam for sequence 0,1,2" << std::endl;
+    rotation_velo_to_cam <<  7.967514e-03, -9.999679e-01, -8.462264e-04,
+                            -2.771053e-03,  8.241710e-04, -9.999958e-01,
+                             9.999644e-01,  7.969825e-03, -2.764397e-03;
+  } else if (sequence > 3 and sequence <= 10){
+    std::cout << "Rotation Matrix velo_to_cam for sequence 4 to 10" << std::endl;
+    rotation_velo_to_cam << 7.027555e-03, -9.999753e-01,  2.599616e-05,
+                           -2.254837e-03, -4.184312e-05, -9.999975e-01,
+                            9.999728e-01,  7.027479e-03, -2.255075e-03;
+  } else {
+    std::cout << "Rotation Matrix velo_to_cam for sequence "<< sequence << " not implemeted" << std::endl;
+    rotation_velo_to_cam = Matrix3d::Identity();
+  }
   return rotation_velo_to_cam;
 }
 
-Matrix3d Kitti::rotation_imu_cam(){
-  return rotation_velo_cam() * rotation_imu_velo();
+Matrix3d Kitti::rotation_imu_cam(int sequence){
+  return rotation_velo_cam(sequence) * rotation_imu_velo();
 }

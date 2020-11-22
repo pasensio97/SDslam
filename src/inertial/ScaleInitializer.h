@@ -20,7 +20,7 @@ class ScaleInitializer{
     SYNC_ZERO = 3,
   };
 
-  ScaleInitializer(const eModel model, uint num_scales=1);
+  ScaleInitializer(const eModel model, uint num_scales=1,  uint skip_scales=0);
   void on_map_initialization(
     new_IMU_model & motion_model, 
     double first_scale,
@@ -31,7 +31,7 @@ class ScaleInitializer{
   inline eModel get_model(){return _model;}
   inline bool is_initialized(){return _is_initialized;}
   inline double get_initial_scale(){return _initial_scale;}
-
+  inline void clear_buffer(){_buffer.clear();}
 
  private:
   eModel _model;

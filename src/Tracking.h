@@ -151,6 +151,7 @@ class Tracking {
   inline Vector3d t_first_gps(){return __first_gps_pose.block<3,1>(0,3);}
   Frame __last_kf_gps, __curr_kf_gps;
   Frame last_valid_frame;
+  Matrix4d last_valid_wpose;
   Map* _new_map;
   Matrix4d initial_gps_wpose;
   Frame newInitFrame, newCurrFrame;
@@ -173,21 +174,28 @@ class Tracking {
   bool used_imu_model = false;
   IMU_Measurements last_imu;
   int __model = 0;
-  std::string model_type = "gps"; // mono, gps, imu, imu_s
+  std::string model_type = "imu"; // mono, gps, imu, imu_s
   int its = 0;
 
   void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
   KeyFrame* mpFirstReloadKeyFrame = nullptr;
 
   // Use BA on Reinit
-  bool _use_BA_on_reinit = false;
+  bool _use_BA_on_reinit = true;
+  double _angle_th = 25.0;
   // Motion model for prediction
   bool _use_hybrid_model = false;
+  uint _kf_to_use_hm = 20;
+  bool _align_image_inertial = false;
+  bool _full_hyb_mode = false;
+  vector<int> _hyb_matches;  // Save n_matches_visual, n_matches_inertial, visual_time, inertial_time
+  vector<double> _hyb_times;  // Save  visual_time, inertial_time
+
   // Scale model
-  bool update_scale=true;
-  double _beta = 1;  //update factor 
+  bool update_scale = true;
+  double _beta = 0.25;  //update factor 
   ScaleInitializer::eModel _scale_model = ScaleInitializer::DIRECT_SINGLE;
-  ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 10); // min 10
+  ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 1, 0); // min 10
 
   void apply_transform(Map* &map, const Quaterniond & R, const Vector3d & t, const double & scale);
   // ------------------------ end gps ----------------------------------
@@ -215,7 +223,7 @@ class Tracking {
   void MonocularInitialization();
   void MonocularInitializationIMU();
 
-  void MonocularReInitializationIMU();
+  void MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction);
   void CreateInitialMapMonocular();
 
   // Initialization with pattern
@@ -227,7 +235,7 @@ class Tracking {
   bool TrackWithMotionModel();
   bool TrackWithNewIMUModel(); // in dev
   bool TrackVisual(Eigen::Matrix4d predicted_pose); // code cte in TrackWithNewIMUModel
-  int TrackMMVisual(Frame &frame); // code cte in TrackWithNewIMUModel
+  int TrackMMVisual(Frame &frame, bool & use_align_image); // code cte in TrackWithNewIMUModel
 
   bool Relocalization();
   bool RelocalizationIMU();

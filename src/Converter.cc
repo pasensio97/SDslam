@@ -123,19 +123,19 @@ Eigen::Matrix<double, 4, 4> Converter::toSE3(const Eigen::Matrix<double, 3, 3> &
   return mat;
 }
 
-Eigen::Matrix<double, 4, 4> Converter::world_to_cam(const Eigen::Vector3d &position, const Eigen::Matrix<double, 3, 3> &orientation){
+Eigen::Matrix<double, 4, 4> Converter::inverted_pose(const Eigen::Vector3d &position, const Eigen::Matrix<double, 3, 3> &orientation){
   Eigen::Matrix<double, 4, 4> RTc = Eigen::Matrix<double, 4, 4>::Identity();  
   RTc.block<3, 3>(0, 0) = orientation.inverse();
   RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * position;
   return RTc;
 }
 
-Eigen::Matrix<double, 4, 4> Converter::world_to_cam(const Eigen::Matrix<double, 4, 4> &world_pose){
-  return Converter::world_to_cam(world_pose.block<3,1>(0,3), world_pose.block<3,3>(0,0));
+Eigen::Matrix<double, 4, 4> Converter::inverted_pose(const Eigen::Matrix<double, 4, 4> &world_pose){
+  return Converter::inverted_pose(world_pose.block<3,1>(0,3), world_pose.block<3,3>(0,0));
 }
 
-Eigen::Matrix<double, 4, 4> Converter::world_to_cam(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation){
-  return Converter::world_to_cam(position.block<3,1>(0,3), orientation.toRotationMatrix().normalized());
+Eigen::Matrix<double, 4, 4> Converter::inverted_pose(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation){
+  return Converter::inverted_pose(position.block<3,1>(0,3), orientation.toRotationMatrix().normalized());
 }
 
 

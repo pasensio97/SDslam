@@ -25,8 +25,8 @@ class Kitti{
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   
   Matrix3d rotation_imu_velo();
-  Matrix3d rotation_velo_cam();
-  Matrix3d rotation_imu_cam();
+  Matrix3d rotation_velo_cam(int sequence);
+  Matrix3d rotation_imu_cam(int sequence);
   void read_gps(string & filename, vector<Vector3d> &pos, vector<Quaterniond> &att);
   vector<string> load_imu_filenames(const string & filepath);
   vector<string> load_image_filenames(const string & filepath);

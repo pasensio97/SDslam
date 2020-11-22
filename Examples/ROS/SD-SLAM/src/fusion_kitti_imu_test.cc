@@ -76,14 +76,14 @@ vector<Vector3d> read_file_3_comps(string & filename){
   return content;
 }
 
-vector<Vector3d> correct_synt_acc(const vector<Vector3d> & acc){
-  vector<Vector3d> new_acc(acc.size());
-  new_acc[0] = acc[0];
-  for (int i=1; i<acc.size(); i++){
-    new_acc[i] = new_acc[i-1] + acc[i];
-  }
-  return new_acc;
-}
+// vector<Vector3d> correct_synt_acc(const vector<Vector3d> & acc){
+//   vector<Vector3d> new_acc(acc.size());
+//   new_acc[0] = acc[0];
+//   for (int i=1; i<acc.size(); i++){
+//     new_acc[i] = new_acc[i-1] + acc[i];
+//   }
+//   return new_acc;
+// }
 
 void write_it_info(const string &filename, int it, SD_SLAM::System &slam_system){
   string SEPARATOR = ",";
@@ -115,218 +115,10 @@ double correct_angle(double const & angle){
 
 
 
-class Rotations{
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  Rotations(){}
-
-  Matrix3d kitti_imu2velo(){
-    Matrix3d rotation_imu_to_velo;
-    rotation_imu_to_velo << 9.999976e-01, 7.553071e-04, -2.035826e-03, 
-                         -7.854027e-04, 9.998898e-01, -1.482298e-02,
-                          2.024406e-03, 1.482454e-02,  9.998881e-01;
-    return rotation_imu_to_velo;
-  }
-
-  Matrix3d kitti_velo2cam(){
-    Matrix3d rotation_velo_to_cam;
-    rotation_velo_to_cam <<  7.967514e-03, -9.999679e-01, -8.462264e-04,
-                            -2.771053e-03,  8.241710e-04, -9.999958e-01,
-                             9.999644e-01,  7.969825e-03, -2.764397e-03;
-    return rotation_velo_to_cam;
-  }
-
-  Matrix3d cam2enu(){
-    Matrix3d rotation_cam_to_enu;
-    rotation_cam_to_enu  << 1,  0, 0,
-                            0,  0, 1,
-                            0, -1, 0;
-    return rotation_cam_to_enu;
-  }
-
-  Matrix3d cam2nwu(){
-    Matrix3d rotation_cam_to_enu;
-    rotation_cam_to_enu  << 0,  0, 1,
-                           -1,  0, 0,
-                            0, -1, 0;
-    return rotation_cam_to_enu;
-  }
-
-  Matrix3d nwu2enu(){
-    Matrix3d rotation_nwu_to_enu;
-   rotation_nwu_to_enu  << 0,-1, 0,
-                            1, 0, 0,
-                            0, 0, 1;
-    return rotation_nwu_to_enu;
-  }
-
-  Matrix3d nwu2ned(){
-    Matrix3d rotation_nwu_to_ned;
-    rotation_nwu_to_ned  << 1, 0, 0,
-                            0,-1, 0,
-                            0, 0,-1;
-    return rotation_nwu_to_ned;
-  }
-};
-
-
-/**
- * Test: Crear la orientacion proporcionando a Madgwick la información en 3 sistemas diferentes.
-*/
-class test_attitude{
- private: 
-  const string BASEFRAME = "odom";
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  Madgwick nwu_mad;
-  Madgwick enu_mad;
-
-  TF_Publisher pub_nwu_attitude;
-  TF_Publisher pub_enu_attitude;
-  TF_Publisher pub_enu_on_nwu_attitude;
-
-  Rotations rotations;
-
-  test_attitude(ros::NodeHandle n, double gain=0.1):
-    nwu_mad(Madgwick(gain)), 
-    enu_mad(Madgwick(gain)),
-    pub_nwu_attitude(TF_Publisher(n, BASEFRAME, "world_NWU")),
-    pub_enu_attitude(TF_Publisher(n, BASEFRAME, "world_ENU")),
-    pub_enu_on_nwu_attitude(TF_Publisher(n, BASEFRAME, "world_ENU_on_NWU"))
-  {}
-
-  void update(const IMU_Measurements & imu_raw){
-    double dt = 0.1;
-    auto acc = imu_raw.acceleration();
-    auto gyr = imu_raw.angular_velocity();
-
-    nwu_mad.update(acc, gyr, dt);
-    enu_mad.update(rotations.nwu2enu() * acc, gyr, dt);
-
-    Vector3d origin(0,0,0);
-    Quaterniond enu_on_nwu(rotations.nwu2enu().inverse() * enu_mad.get_orientation().toRotationMatrix() * rotations.nwu2enu());
-
-    pub_nwu_attitude.publish(origin, nwu_mad.get_orientation());
-    pub_enu_attitude.publish(origin, enu_mad.get_orientation());
-    pub_enu_on_nwu_attitude.publish(origin, enu_on_nwu);
-  }
-};
-
-class Test_Pose{
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  PositionEstimator position_est;
-  Madgwick attitude_est;
-  Imu_Publisher pub_raw_acc;
-  Imu_Publisher pub_linear_acc;
-  Imu_Publisher pub_velocity;
-  Rotations rot;
-  int it;
-  //Imu_Publisher pub_linear_acc;
-
-  Test_Pose(ros::NodeHandle n):
-    position_est(PositionEstimator(0.2)),
-    attitude_est(Madgwick(0.0085)),
-    pub_raw_acc(Imu_Publisher(n, "odom", "raw_acc")),
-    pub_linear_acc(Imu_Publisher(n, "odom", "acc")),
-    pub_velocity(Imu_Publisher(n, "odom", "vel")),
-    it(0)
-  {}
-
-  void update(IMU_Measurements & imu_data, double &  dt){
-    Vector3d acc = rot.cam2nwu() * (rot.kitti_velo2cam() * (rot.kitti_imu2velo() * imu_data.acceleration()));
-    Vector3d gyr = rot.cam2nwu() * (rot.kitti_velo2cam() * (rot.kitti_imu2velo() * imu_data.angular_velocity()));
-
-    attitude_est.update(acc, gyr, dt);
-    
-    position_est.update(acc, attitude_est.get_orientation(), dt, true);
-
-    pub_raw_acc.publish(acc, gyr, ros::Time(it));
-    pub_linear_acc.publish(position_est.acceleration(), gyr, ros::Time(it));
-    pub_velocity.publish(position_est.velocity(), gyr, ros::Time(it));
-
-    it++;
-  }
-
-
-};
-
 void print_quat(const Quaterniond & q, string intro){
   printf("%s: (x: %.3f, y: %.3f, z: %.3f, w: %.3f)\n", intro.c_str(), q.x(), q.y(), q.z(), q.w());
 }
 
-vector<double> create_imu_vector(IMU_Measurements imu_data){
-  Rotations r;
-  auto acc = r.kitti_velo2cam() * (r.kitti_imu2velo() * imu_data.acceleration());
-  auto gyr = r.kitti_velo2cam() * (r.kitti_imu2velo() * imu_data.angular_velocity());
-
-  vector<double> v_imu;
-  v_imu.push_back(gyr[0]);
-  v_imu.push_back(gyr[1]);
-  v_imu.push_back(gyr[2]);
-  v_imu.push_back(acc[0]);
-  v_imu.push_back(acc[1]);
-  v_imu.push_back(acc[2]);
-  return v_imu;
-}
-
-class Test_model_9{
-  TF_Publisher pub_sdslam_cam;
-  TF_Publisher pub_sdslam_world;
-  TF_Publisher pub_model_cam;
-  TF_Publisher pub_model_world;
-
- public:
- EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  Test_model_9(ros::NodeHandle & n):
-    pub_sdslam_cam(n, "odom", "sdslam_cam"),
-    pub_sdslam_world(n,"odom", "sdslam_world"),
-    pub_model_cam(n, "odom", "model_cam"),
-    pub_model_world(n, "odom","model_world")
-  {}
-
-  void publish(SD_SLAM::Tracking* &tracker, Matrix4d pose_cam){
-    // model world
-    //Vector3d pos_model_world = tracker->imu_model.position;
-    //Quaterniond att_model_world = Quaterniond(tracker->imu_model.attitude);
-    //pub_model_world.publish(pos_model_world, att_model_world.inverse().normalized());
-
-    // sdslam world
-    Vector3d pos_sdslam_world = -pose_cam.block<3,3>(0,0).transpose() * pose_cam.block<3,1>(0,3);
-    Quaterniond att_sdslam_world = Quaterniond(pose_cam.block<3,3>(0,0));
-    pub_sdslam_world.publish(pos_sdslam_world, att_sdslam_world.inverse().normalized());
-
-    // model cam
-    //Vector3d pos_model_cam = tracker->imu_model.position_cam;
-    //Quaterniond att_model_cam = Quaterniond(tracker->imu_model.attitude);
-    //pub_model_cam.publish(pos_model_cam, att_model_cam.normalized());
-
-    // sdslam cam
-    Vector3d pos_sdslam_cam = pose_cam.block<3,1>(0,3);
-    Quaterniond att_sdslam_cam = Quaterniond(pose_cam.block<3,3>(0,0));
-    pub_sdslam_cam.publish(pos_sdslam_cam, att_sdslam_cam.normalized());
-
-  }
-};
-
-class motion_model_test{
- public:
- EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  Vector3d vel, pos;
-  motion_model_test(){
-    vel.setZero();
-    pos.setZero();
-  }
-  Vector3d update(const Vector3d & acc, double dt){
-    vel = vel + acc * dt;
-    pos = pos + vel * dt;
-    //cout << "acc " << acc.transpose() << endl;
-    // cout << "vel " << vel.transpose() << endl;
-    // cout << "pos " << pos.transpose() << endl;
-    return pos;
-  }
-};
 
 class KittiSeqSelect{
  private:
@@ -340,50 +132,75 @@ class KittiSeqSelect{
   string imu_path;
   string gt_path;
   pair<int, int> limits;
+  Matrix3d imu_to_cam;
 
   KittiSeqSelect(string seq){
     is_valid = true;
     this->SEQ = seq;
     string path;
     printf("Trying to read '%s' sequence\n", seq.c_str());
+    Kitti kitti;
 
     if (seq == "seq_00"){
-      path = "2011_10_03/2011_10_03_drive_0027_sync/";
+      path = "00/";
       limits = {0, 4540};
+      imu_to_cam = kitti.rotation_imu_cam(0);
     }
     else if (seq == "seq_00a"){
-      path = "2011_10_03/2011_10_03_drive_0027_sync/";
+      path = "00/";
       limits = {0, 1655};
+      imu_to_cam = kitti.rotation_imu_cam(0);
     }
     else if (seq == "seq_00b"){
-      path = "2011_10_03/2011_10_03_drive_0027_sync/";
-      limits = {0, 740};
+      path = "00/";
+      limits = {0, 3900};
+      imu_to_cam = kitti.rotation_imu_cam(0);
     }
     else if (seq == "seq_01"){
       path = "2011_10_03/2011_10_03_drive_0042_sync/";
       limits = {15, 1170};
+      imu_to_cam = kitti.rotation_imu_cam(1);
     }
     else if (seq == "seq_02"){
       path = "2011_10_03/2011_10_03_drive_0034_sync/";
-      limits = {100, 4660};
+      limits = {0, 4660};
+      imu_to_cam = kitti.rotation_imu_cam(2);
+    }
+    else if (seq == "seq_04"){
+      path = "04/";
+      limits = {0, 270};
+      imu_to_cam = kitti.rotation_imu_cam(4);
     }
     else if (seq == "seq_05"){
-      path = "2011_09_30/2011_09_30_drive_0018_sync/";
+      path = "05/";
       limits = {0, 2760};
+      imu_to_cam = kitti.rotation_imu_cam(5);
     }
     else if (seq == "seq_06"){
-      path = "2011_09_30/2011_09_30_drive_0020_sync/";
-      limits = {110, 1100};
+      path = "06/";
+      limits = {0, 1100};
+      imu_to_cam = kitti.rotation_imu_cam(6);
+    }
+    else if (seq == "seq_06a"){
+      path = "06/";
+      limits = {0, 925};
+      imu_to_cam = kitti.rotation_imu_cam(6);
     }
     else if (seq == "seq_07"){
-      path = "2011_09_30/2011_09_30_drive_0027_sync/";
-      limits = {150, 1100};
+      path = "07/";
+      limits = {0, 1100};
+      imu_to_cam = kitti.rotation_imu_cam(7);
     }
     else if (seq == "seq_09"){
       path = "2011_09_30/2011_09_30_drive_0033_sync/";
       limits = {100, 1590};
+      imu_to_cam = kitti.rotation_imu_cam(9);
     }
-
+    else if (seq == "seq_10"){
+      path = "10/";
+      limits = {20, 1200};
+      imu_to_cam = kitti.rotation_imu_cam(10);
+    }
     else{
       is_valid = false;
     }
@@ -397,9 +214,10 @@ class KittiSeqSelect{
   }
 };
 
-vector<Vector3d> create_synthetic_acc(const vector<vector<double>> & gt_content){
-  Kitti kitti;
-  Matrix3d R = kitti.rotation_imu_cam().inverse();
+vector<Vector3d> create_synthetic_acc(const vector<vector<double>> & gt_content,
+                                      const Matrix3d & imu_to_cam){
+
+  Matrix3d R = imu_to_cam.inverse();
   double dt = 0.1;
   int size = gt_content.size()-1;
 
@@ -418,7 +236,8 @@ vector<Vector3d> create_synthetic_acc(const vector<vector<double>> & gt_content)
   for (int i=1; i<size; i++){
     Vector3d v0 = velocity[i-1];
     Vector3d v1 = velocity[i];
-    acc[i] = R* ((v1 - v0) / dt);
+    Vector3d acc_i = ((v1 - v0) / dt);
+    acc[i] = R*acc_i;
   }
 
   return acc;
@@ -527,6 +346,12 @@ int main(int argc, char **argv)
 
   vector<Vector3d> acc_syn;
   bool use_syn_acc = false;
+
+  cout << "- Creating synthetic acc... ";
+  acc_syn= create_synthetic_acc(gt_content, kitti_seq.imu_to_cam);
+  cout << "DONE!" << endl;
+
+
   if (argc > 3){
     cout << "\nCONFIG TEST" << endl;
     string slam_type = string(argv[3]);
@@ -544,7 +369,7 @@ int main(int argc, char **argv)
 
       tracker->model_type = "imu";
       tracker->new_imu_model.set_remove_gravity_flag(true);
-      tracker->new_imu_model.set_rotation_imu_to_world(kitti.rotation_imu_cam());
+      tracker->new_imu_model.set_rotation_imu_to_world(kitti_seq.imu_to_cam);
     } 
     else if (slam_type == "imu_s"){
       // Predict pose using IMU (acc synthetic) and if model lost, publish imu pose until reloc
@@ -555,10 +380,7 @@ int main(int argc, char **argv)
 
       //string FILE_SYN_ACC = "/home/javi/tfm/tests/simulate_imu/temp_files/synthetic_acc.csv";
       //acc_syn = read_file_3_comps(FILE_SYN_ACC);
-      
-      cout << "- Creating synthetic acc... ";
-      acc_syn= create_synthetic_acc(gt_content);
-      cout << "DONE!" << endl;
+    
       
       if (std != 0){
         printf("- Adding guaussian noise to acc: N(%.2f, %.2f)...", mean, std);
@@ -568,7 +390,7 @@ int main(int argc, char **argv)
 
       tracker->model_type = "imu_s";
       tracker->new_imu_model.set_remove_gravity_flag(false);
-      tracker->new_imu_model.set_rotation_imu_to_world(kitti.rotation_imu_cam());
+      tracker->new_imu_model.set_rotation_imu_to_world(kitti_seq.imu_to_cam);
       
     } 
     else if (slam_type == "gps_reinit"){
@@ -578,7 +400,7 @@ int main(int argc, char **argv)
       cerr << endl << "[ERROR] Type does not recognize: "  << slam_type << endl;
       return 1;
     }
-    printf("- Selected SLAM type '%s'", slam_type.c_str());
+    printf("- Selected SLAM type '%s'\n", slam_type.c_str());
 
   }
 
@@ -593,7 +415,6 @@ int main(int argc, char **argv)
   Quaterniond gt_att; 
   Vector3d gt_pos, last_gt_pos;
   Vector3d euler_angles;
-  test_attitude test_att = test_attitude(n, 0.01);
   Quaterniond last_gt, last_slam;
 
   // FILES
@@ -601,8 +422,15 @@ int main(int argc, char **argv)
   const string BASE_PATH = "/home/javi/tfm/TEMP_FILES/";
   string gt_outfile = BASE_PATH + "gt.txt";
   string scale_gt_outfile = BASE_PATH + "scale_gt.txt";
+  string allposes_outfile = BASE_PATH + "all_poses.txt";
+  string allimuposes_outfile = BASE_PATH + "all_imu_predictions.txt";
+  string hyb_outfile = BASE_PATH + "hyb_info.txt";
+
   create_file(gt_outfile, "timestamp, sx, sy, sz, qx, qy, qz, qw");
   create_file(scale_gt_outfile, "timestamp, scale");
+  create_file(allposes_outfile, "timestamp, sx, sy, sz, qx, qy, qz, qw");
+  create_file(allimuposes_outfile, "timestamp, sx, sy, sz, qx, qy, qz, qw");
+  create_file(hyb_outfile, "timestamp, visual_matches, inertial_matches, visual_time, inertial_time");
 
   //string enu_outfile = BASE_PATH + "attitude_mad_01_accfilt_world.csv";
 
@@ -627,9 +455,7 @@ int main(int argc, char **argv)
 
   VectorXd error(2); double diff;
   */
-  Rotations rot;
-
-  Test_Pose test_pose = Test_Pose(n);
+  
   Odom_Publisher odompub_gt_world(n, "odom", "odom_world_gt");
   Odom_Publisher odompub_slam_world(n, "odom", "odom_world_slam");
   Odom_Publisher odompub_slam_cam(n, "odom", "odom_local_cam");
@@ -648,12 +474,9 @@ int main(int argc, char **argv)
   Matrix3d att_mat;
   Matrix4d gps_pose_i;
 
-  Test_model_9 test_imu_model(n);
-  motion_model_test mmodel; TF_Publisher pub_mmodel(n, "odom", "mmodel");
-
   //Kitti kitti;
   double freq = 1.0/10.0;
-  int i = kitti_seq.limits.first; // 3600
+  int i = 0; // 3600
   cv::Mat img;
   IMU_Measurements imu;
   Eigen::Matrix4d last_pose = Eigen::Matrix4d::Identity();
@@ -661,18 +484,21 @@ int main(int argc, char **argv)
   bool is_first_pose = true;
 
   double total_time = 0.0 + freq*i;
-  bool set_velocity = (tracker->model_type == "imu" or kitti_seq.limits.first > 0);
 
   // --- MAIN LOOP ---
   //int limit = min(n_images, (int) gt_content.size()-1);
-  while (i < kitti_seq.limits.second) {
+  while (i < kitti_seq.limits.second){//{375){ //kitti_seq.limits.second){ //kitti_seq.limits.second){//  //kitti_seq.limits.second) {  // 600
   //while (i < kitti_seq.limits.first + 200) {
-    cout << "\n[INFO] Reading data " << i << "/" << kitti_seq.limits.second << endl;
+    cout << "\n[INFO] Reading data " << i << "/" << kitti_seq.limits.second << " " << " at time " << total_time << endl;
     img = cv::imread(images_filenames[i], CV_LOAD_IMAGE_GRAYSCALE);
     imu = load_IMU_data(imu_filenames[i], total_time);
-    if (use_syn_acc){ 
+    if (i < 2 || use_syn_acc){ 
       imu = IMU_Measurements(imu.timestamp(), acc_syn[i], imu.angular_velocity()); 
       cout << "[INFO] Syntheic acc: " << acc_syn[i].transpose() << endl;
+      tracker->new_imu_model.set_remove_gravity_flag(false);
+    }else{
+      cout << "[INFO] KITTI acc: " << imu.acceleration().transpose() << endl;
+      tracker->new_imu_model.set_remove_gravity_flag(true);
     }
     acc_pub.publish(imu.acceleration(), imu.angular_velocity());
 
@@ -680,20 +506,18 @@ int main(int argc, char **argv)
       cerr << endl << "[ERROR] Failed to load image at: "  << images_filenames[i] << endl;
       return 1;
     }
-    
 
-    //if (i> 450 && i<=549){img.setTo(cv::Scalar(0));}  // curva buena
-    //if (i> 140 && i<=145){img.setTo(cv::Scalar(0));}
-    //if (i> 140 && i<=150){img.setTo(cv::Scalar(0));}
-    //if (i> 150 && i<=170){img.setTo(cv::Scalar(0));}
-    ////if (i> 250 && i<=255){img.setTo(cv::Scalar(0));}
-    //if (i> 1535 && i<=1560){img.setTo(cv::Scalar(0));}
-    //if (i> 250){img.setTo(cv::Scalar(0));} // IMU
-    //if (i> 390  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
-    //if (i> 450 && i<=549){img.setTo(cv::Scalar(0));}  // curva buena
-    //if (i> 750  && i<=760){img.setTo(cv::Scalar(0));}
 
-    ros::Time time_it = ros::Time(i);
+    if (i < kitti_seq.limits.first){
+      img.setTo(cv::Scalar(0));
+    }
+    if (i == kitti_seq.limits.first and i > 0){
+      tracker->new_imu_model.reset();
+    }
+
+    if (i < 4){img.setTo(cv::Scalar(0));}
+    if (i> 390  && i<=445){img.setTo(cv::Scalar(0));}  // tercera cruva seq00
+
     
     // ------GET GT
 
@@ -731,22 +555,54 @@ int main(int argc, char **argv)
     gt_vec << total_time, gt_pos.x(), gt_pos.y(), gt_pos.z(), gt_att.x(), gt_att.y(), gt_att.z(), gt_att.w();
     write_line(gt_outfile, gt_vec, 19, SEPARATOR);
 
-    //SAVE GT Scale 
-    if (tracker->GetState() != tracker->NOT_INITIALIZED){
+    //SAVE GT Scale and all poses
+    if (tracker->GetState() == tracker->OK and tracker->GetLastState() == tracker->OK ){
+      
       Vector3d curr_slam_position = -pose.block<3,3>(0,0).transpose()      *  pose.block<3,1>(0,3);
       Vector3d last_slam_position = -last_pose.block<3,3>(0,0).transpose() *  last_pose.block<3,1>(0,3);
       if (is_first_pose){
         is_first_pose = false;
-        last_slam_position.setZero();
+      }else{
+        double gt_scale = Estimator::scale(last_pose_gt, gt_pos, last_slam_position, curr_slam_position);
+        cout << "[GT INFO] Scale: " << gt_scale << endl;
+        VectorXd scale_vec(2);
+        scale_vec << total_time, gt_scale;
+        write_line(scale_gt_outfile, scale_vec, 15, SEPARATOR);
+
+        Quaterniond curr_att = Quaterniond(pose.block<3,3>(0,0).transpose());
+        VectorXd curr_fpose(8);
+        curr_fpose << total_time, 
+                      curr_slam_position.x(), curr_slam_position.y(), curr_slam_position.z(), 
+                      curr_att.x(), curr_att.y(), curr_att.z(), curr_att.w();
+        write_line(allposes_outfile, curr_fpose, 19, SEPARATOR);
       }
-     
-      double gt_scale = Estimator::scale(last_pose_gt, gt_pos, last_slam_position, curr_slam_position);
-      VectorXd scale_vec(2);
-      scale_vec << total_time, gt_scale;
-      write_line(scale_gt_outfile, scale_vec, 15, SEPARATOR);
+      last_pose = pose;
     }
-    last_pose = pose;
     last_pose_gt = gt_pos;
+
+
+    // Save hyb_inof
+    if (tracker->GetState() == tracker->OK && tracker->_hyb_matches.size() == 2 && tracker->_hyb_times.size()==2){ 
+      std::fstream outfile;
+      outfile.open(hyb_outfile, std::fstream::app);
+      outfile << total_time << ", " 
+              << tracker->_hyb_matches[0] << ", " << tracker->_hyb_matches[1] << ", "
+              << tracker->_hyb_times[0] << ", " << tracker->_hyb_times[1] << endl;
+      outfile.close();
+    }
+
+    // Save IMU est on world coordinates (only valid until initialized)
+    Matrix4d imu_est = tracker->new_imu_model.get_pose_world();
+    Vector3d curr_imu_pos(imu_est.block<3,1>(0,3));
+    Quaterniond curr_imu_att(imu_est.block<3,3>(0,0));
+    VectorXd imu_vec_pose(8);
+    imu_vec_pose << total_time, curr_imu_pos.x(), curr_imu_pos.y(), curr_imu_pos.z(), 
+                    curr_imu_att.x(), curr_imu_att.y(), curr_imu_att.z(), curr_imu_att.w();
+    write_line(allimuposes_outfile, imu_vec_pose, 19, SEPARATOR);
+
+
+
+
     // cout << "Done " << endl;
     // // ------ end SLAM
 
@@ -903,11 +759,11 @@ IMU_Measurements load_IMU_data(const string &filename, double &time){
     }
   }
 
-  Vector3d acceleration(content.at(11), content.at(12), content.at(13));
-  Vector3d gyroscope   (content.at(17), content.at(18), content.at(19));
+  //Vector3d acceleration(content.at(11), content.at(12), content.at(13));
+  //Vector3d gyroscope   (content.at(17), content.at(18), content.at(19));
   //frame
-  //Vector3d acceleration(content.at(14), content.at(15), content.at(16));
-  //Vector3d gyroscope   (content.at(20), content.at(21), content.at(22));
+  Vector3d acceleration(content.at(14), content.at(15), content.at(16));
+  Vector3d gyroscope   (content.at(20), content.at(21), content.at(22));
   IMU_Measurements imu_data = IMU_Measurements(time, acceleration, gyroscope);
   return imu_data;
 }
@@ -915,7 +771,7 @@ IMU_Measurements load_IMU_data(const string &filename, double &time){
 void create_file(const string & filename, const string & header){
   //string filename = "/home/javi/tfm/tests/matches/new.csv";
   if (file_exists(filename)){
-    printf("Overwritting file '%s'", filename.c_str());
+    printf("Overwritting file '%s'\n", filename.c_str());
   }
 
   std::fstream outfile;

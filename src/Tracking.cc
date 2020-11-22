@@ -348,7 +348,7 @@ void Tracking::apply_transform(Map* &map, const Quaterniond & R, const Vector3d 
     KeyFrame* kf = kfs[i];
     Rw = R * kf->GetPoseInverse().block<3,3>(0,0);
     Tw = R * (kf->GetPoseInverse().block<3,1>(0,3) * scale) + t;
-    //map->GetAllKeyFrames()[0]->SetPose(Converter::world_to_cam(Rw, Tw));
+    //map->GetAllKeyFrames()[0]->SetPose(Converter::inverted_pose(Rw, Tw));
   }
 }
 
@@ -378,7 +378,11 @@ void Tracking::Track_IMU_Reinit() {
 
   } 
   else{
-    curr_imu_prediction = new_imu_model.predict(imu_measurements_, dt_); 
+    new_imu_model.set_scale(mpReferenceKF->inertial_scale);  // ensure the scale after detecting a loop closure. TODO: Refine
+    new_imu_model.predict(imu_measurements_, dt_); 
+    curr_imu_prediction = new_imu_model.get_world_pose(mLastFrame.GetPoseInverse());
+    std::cout << "[TEST/INFO] MM Estimation: " << curr_imu_prediction.block<3,1>(0,3).transpose() << endl;
+    std::cout << "[INERTIAL POSE WORLD]:\n" << curr_imu_prediction << "\n" << std::endl;
     //if(mState!=NOT_INITIALIZED && mpMap->GetAllKeyFrames().size() > 20){ mState = OK_IMU;}
     
     // System is initialized. Track Frame.
@@ -397,6 +401,8 @@ void Tracking::Track_IMU_Reinit() {
           motion_model_->Restart();
           if (!bOK){
             last_valid_frame = Frame(mLastFrame);
+            last_valid_wpose = last_valid_frame.GetPoseInverse();
+            mCurrentFrame.SetPose(Converter::inverted_pose(curr_imu_prediction));
           }
         }
       }
@@ -418,8 +424,8 @@ void Tracking::Track_IMU_Reinit() {
         cout << "RELOCATE" << endl;
       }
       else{
-        mCurrentFrame.SetPose(new_imu_model.get_pose_cam());
-        MonocularReInitializationIMU();  
+        mCurrentFrame.SetPose(Converter::inverted_pose(curr_imu_prediction));
+        MonocularReInitializationIMU(curr_imu_prediction);  
         bOK = (mState == OK);
         if (bOK){
           delete mpInitializer;
@@ -427,6 +433,7 @@ void Tracking::Track_IMU_Reinit() {
           fill(mvIniMatches.begin(), mvIniMatches.end(),-1);
           mvIniP3D.clear();
         }else{
+
           if (_frames_last_fake_kf >= 5){
             _frames_last_fake_kf = 0;
             KeyFrame* kp_aux = mpLastKeyFrame;
@@ -434,18 +441,6 @@ void Tracking::Track_IMU_Reinit() {
           }else{
             _frames_last_fake_kf++;
           }
-          // if (not kp_aux->is_fake()){
-          //   mpMap->last_vision_frame_test = kp_aux;
-          // //   cout << "Creating first IMU KF" << endl;
-          // //   kp_aux->UpdateConnections();
-          // //   cout << "[TEST] Automatic parent?: " << (mpReferenceKF->GetParent() == kp_aux) << endl;
-          // //   bool has_parent_now = mpReferenceKF->GetParent() != NULL;
-          // //   if (has_parent_now)
-          // //     cout << "[TEST] Curr parent id: " << mpReferenceKF->GetParent()->GetID() << endl;
-          // //   mpReferenceKF->ChangeParent(kp_aux);
-          // //   cout << "[TEST] Now parent is last vision KF?: " << (mpReferenceKF->GetParent() == kp_aux) << endl;
-          // }
-          
         }
       }
     }
@@ -598,15 +593,15 @@ void Tracking::Track_IMU_Reinit() {
 //     return true;
 // }
 
-void Tracking::MonocularReInitializationIMU() {
+void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction) {
   cout << "[[MONOCULAR INITIALIZER GPS]]" << endl;
   if (!mpInitializer) {
     // Set Reference Frame
     if (mCurrentFrame.mvKeys.size()>100) {
       cout << "Creating initializer.." << endl;
 
-      mIniPoseInvIMU = new_imu_model.get_pose_world();
-      //initial_gps_wpose = new_imu_model.get_pose_world();
+      //mIniPoseInvIMU = new_imu_model.get_pose_world();
+      mIniPoseInvIMU = curr_imu_prediction;
 
       mInitialFrame = Frame(mCurrentFrame);
       mLastFrame = Frame(mCurrentFrame);
@@ -649,7 +644,11 @@ void Tracking::MonocularReInitializationIMU() {
     Eigen::Vector3d tcw; // Current Camera Translation
     vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
 
-    if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated)) {
+    bool initialize_process = mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, mvIniP3D, vbTriangulated);
+    if (!initialize_process){
+      cout << "[INFO] Error estimando RT" <<endl;
+    }
+    if (initialize_process) {
       for (size_t i = 0, iend = mvIniMatches.size(); i < iend; i++) {
         if (mvIniMatches[i] >= 0 && !vbTriangulated[i]) {
           mvIniMatches[i]=-1;
@@ -712,7 +711,7 @@ void Tracking::MonocularReInitializationIMU() {
 
       // Bundle Adjustment
       LOGD("New Map created with %lu points", _new_map->MapPointsInMap());
-      if (_use_BA_on_reinit){
+      if (true){  // set false
         cout << "[boubdleajustement]\n\tBEFORE:" << endl;
         cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
         cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
@@ -720,6 +719,9 @@ void Tracking::MonocularReInitializationIMU() {
         cout << "\tAFTER:" << endl;
         cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
         cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      
+        std::cout << "[VISUAL INIT POSE WORLD]:\n" << new_pKFini->GetPoseInverse() << "\n" << std::endl;
+        std::cout << "[VISUAL CURR POSE WORLD]:\n" << new_pKFcur->GetPoseInverse() << "\n" << std::endl;
       }
       // Move to origin again (if use GlobalBundleAdjustemnt)
       // Vector3d to_move = new_pKFini->GetPoseInverse().block<3,1>(0,3);
@@ -761,8 +763,10 @@ void Tracking::MonocularReInitializationIMU() {
 
       cout << "[POSES FROM IMU MODEL]" << endl;
       cout << "\tINIT POSE(world): " << mIniPoseInvIMU.block<3,1>(0,3).transpose() <<  endl;
-      cout << "\tCURR POSE(world): " << new_imu_model.get_pose_world().block<3,1>(0,3).transpose() <<  endl;
-      
+      cout << "\tCURR POSE(world): " << curr_imu_prediction.block<3,1>(0,3).transpose() <<  endl;
+      std::cout << "[INERTIAL INIT POSE WORLD]:\n" << mIniPoseInvIMU << "\n" << std::endl;
+      std::cout << "[INERTIAL CURR POSE WORLD]:\n" << curr_imu_prediction << "\n" << std::endl;
+        
       // NEW MAP IT WAS CREATED CORRECTLY
       // Rotate and scales poses and map points. After this, add points to general map 
 
@@ -773,47 +777,58 @@ void Tracking::MonocularReInitializationIMU() {
       
 
       // rotate and translate pKFini, pKFcur, mInitialFrame, mCurrentFrame
-      cout << "Resume RT of new poses: " << endl;
+      // cout << "Resume RT of new poses: " << endl;
       Matrix3d R = mIniPoseInvIMU.block<3,3>(0,0); // rotation (orientation gps) in world
       Vector3d T = mIniPoseInvIMU.block<3,1>(0,3); // traslation (pos gps) in world
-      Matrix4d RTc; Matrix3d Rw; Vector3d Tw;
+      // Matrix4d RTc; Matrix3d Rw; Vector3d Tw;
 
-      RTc = new_pKFini->GetPose();
-      cout << "\tINIT pose (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      Rw = R * new_pKFini->GetPoseInverse().block<3,3>(0,0);
-      Tw = R * new_pKFini->GetPoseInverse().block<3,1>(0,3) + T;
-      RTc.block<3, 3>(0, 0) = Rw.inverse();
-      RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
-      new_pKFini->SetPose(RTc);
+      // RTc = new_pKFini->GetPose();
+      // cout << "\tINIT pose (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      // Rw = R * new_pKFini->GetPoseInverse().block<3,3>(0,0);  // * R.inverse()
+      // Tw = R * new_pKFini->GetPoseInverse().block<3,1>(0,3) + T;
+      // RTc.block<3, 3>(0, 0) = Rw.inverse();
+      // RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
+      // new_pKFini->SetPose(RTc);
+      // initial.SetPose(new_pKFini->GetPose());
+      // cout << "\tINIT new pose (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+
+      // cout << "\tCURR pose (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      // RTc = new_pKFcur->GetPose();
+      // Rw = R * new_pKFcur->GetPoseInverse().block<3,3>(0,0);
+      // Tw = R * new_pKFcur->GetPoseInverse().block<3,1>(0,3) + T;
+      // RTc.block<3, 3>(0, 0) = Rw.inverse();
+      // RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
+      // new_pKFcur->SetPose(RTc);
+      // current.SetPose(new_pKFcur->GetPose());
+      // cout << "\tCURR new pose (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+
+
+      //Matrix4d disp_cam = new_pKFcur->GetPoseInverse() * new_pKFini->GetPose();
+      Matrix4d disp_cam =  new_pKFini->GetPoseInverse() * new_pKFcur->GetPose();
+
+      ///Matrix4d disp_cam = new_pKFini->GetPoseInverse() * new_pKFcur->GetPose();
+      new_pKFini->SetPose(Converter::inverted_pose(mIniPoseInvIMU));
+      new_pKFcur->SetPose(disp_cam * new_pKFini->GetPose() );
+      //new_pKFcur->SetPose(Converter::inverted_pose(disp_cam) * new_pKFini->GetPose() ); // Converter::inverted_pose(disp_cam) is actually disp_cam^{-1}
+
       initial.SetPose(new_pKFini->GetPose());
-      cout << "\tINIT new pose (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
-      cout << "\tCURR pose (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      RTc = new_pKFcur->GetPose();
-      Rw = R * new_pKFcur->GetPoseInverse().block<3,3>(0,0);
-      Tw = R * new_pKFcur->GetPoseInverse().block<3,1>(0,3) + T;
-      RTc.block<3, 3>(0, 0) = Rw.inverse();
-      RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
-      new_pKFcur->SetPose(RTc);
       current.SetPose(new_pKFcur->GetPose());
-      cout << "\tCURR new pose (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      
+      cout << "Resume RT of new poses: " << endl;
       Vector3d delta_post_RT = new_pKFcur->GetPoseInverse().block<3,1>(0,3) - new_pKFini->GetPoseInverse().block<3,1>(0,3);
       cout << "NORM PRE RT: " << delta_pre_RT.norm() << endl;
       cout << "NORM POST RT: " << delta_post_RT.norm() << endl;
 
       Vector3d vector_vision = current.GetPoseInverse().block<3,1>(0,3) - initial.GetPoseInverse().block<3,1>(0,3);
-      Vector3d vector_imu = new_imu_model.get_pose_world().block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
+      Vector3d vector_imu = curr_imu_prediction.block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
       double diff_vector = abs(Estimator::angle(vector_imu, vector_vision, true));
       cout << "\n[Angle between IMU estimation vs Triangulation] " << diff_vector << endl;
       cout << "\t\t Vision 0: " << initial.GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\t\t Vision 1: " << current.GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\t\t IMU 0   : " << mIniPoseInvIMU.block<3,1>(0,3).transpose() << endl;
-      cout << "\t\t IMU 1   : " << new_imu_model.get_pose_world().block<3,1>(0,3).transpose() << endl;
-      double angle_th = 30.0;
-      if (diff_vector > angle_th){
-        printf("[FAIL] Angle between IMU and Vision traj is %.2fº, witch is greater than threshold (%.2fº).\n", diff_vector, angle_th);
-        //printf("UNUSED");
+      cout << "\t\t IMU 1   : " << curr_imu_prediction.block<3,1>(0,3).transpose() << endl;
+
+      if (diff_vector > _angle_th){
+        printf("[FAIL] Angle between IMU and Vision traj is %.2fº, witch is greater than threshold (%.2fº).\n", diff_vector, _angle_th);
         return;
       }
     
@@ -845,7 +860,7 @@ void Tracking::MonocularReInitializationIMU() {
       cout << "Init:\n\t" << mIniPoseInvIMU.block<3,1>(0,3).transpose() 
                 << "\n\t" << mInitialFrame.GetPoseInverse().block<3,1>(0,3).transpose() 
                 << "\n\t" << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "Curr:\n\t" << new_imu_model.get_pose_world().block<3,1>(0,3).transpose() 
+      cout << "Curr:\n\t" << curr_imu_prediction.block<3,1>(0,3).transpose() 
                 << "\n\t" << mCurrentFrame.GetPoseInverse().block<3,1>(0,3).transpose() 
                 << "\n\t" << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
 
@@ -891,46 +906,58 @@ void Tracking::MonocularReInitializationIMU() {
       } 
 
       cout << "[TEST] Scale test... " << endl;
-      Vector3d start_imu = mIniPoseInvIMU.block<3,1>(0,3)                 * (1.0 / new_imu_model.get_scale_factor());
-      Vector3d end_imu =   new_imu_model.get_pose_world().block<3,1>(0,3) * (1.0 / new_imu_model.get_scale_factor());
+      Vector3d start_imu = mIniPoseInvIMU.block<3,1>(0,3);
+      Vector3d end_imu =   curr_imu_prediction.block<3,1>(0,3);
       cout << "\tIMU_0: " << mIniPoseInvIMU.block<3,1>(0,3).transpose() << "( " << start_imu.transpose() << " )" << endl;
       cout << "\tIMU_1: " << new_imu_model.get_pose_world().block<3,1>(0,3).transpose() << "( " << end_imu.transpose() << " )" << endl;
       cout << "\tVision_0: " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       cout << "\tVision_1: " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl << endl;
 
-
-
       // Scalate curr position 
       Vector3d start_vis = pKFini->GetPoseInverse().block<3,1>(0,3);
       Vector3d end_vis = pKFcur->GetPoseInverse().block<3,1>(0,3);
-      Vector3d new_end_vision(0,0,0);
+
 
       Vector3d delta_vision = end_vis - start_vis;
       Vector3d delta_imu = end_imu - start_imu;
       double lambda_a = new_imu_model.get_scale_factor();
       double lambda_b = Estimator::scale(delta_imu, delta_vision);
-      Vector3d incremento = delta_vision * (lambda_a / lambda_b);
-      new_end_vision = start_vis + incremento;
+      cout << "[TEST] Lambda_B = " << lambda_b << endl;
+      Vector3d new_end_vision = start_vis + delta_vision * (lambda_a / lambda_b);
+      cout << "[TEST] Assert new scale (" << Estimator::scale(delta_imu, new_end_vision-start_vis) << ") is equal to old scale (" << lambda_a << ")" << endl;
+      pKFcur->SetPose( Converter::inverted_pose(new_end_vision, pKFcur->GetPoseInverse().block<3,3>(0,0)) );
 
-      pKFcur->SetPose( Converter::world_to_cam(new_end_vision, pKFcur->GetPoseInverse().block<3,3>(0,0)) );
+      pKFini->inertial_scale = new_imu_model.get_scale_factor();
+      pKFcur->inertial_scale = new_imu_model.get_scale_factor();
 
-      Vector3d mu(0,0,0);
-      for (int i=0; i<3; i++){
-        mu[i] = new_end_vision[i] / end_vis[i];
-      }
-     
       // Scalate points
       vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
       for (size_t iMP = 0; iMP<vpAllMapPoints.size(); iMP++) {
         if (vpAllMapPoints[iMP]) {
           MapPoint* pMP = vpAllMapPoints[iMP];
-          Vector3d MPw = pMP->GetWorldPos();
-          for(int i=0; i<3; i++){
-            MPw[i] = MPw[i] * mu[i];
-          } 
-          pMP->SetWorldPos(MPw);
+          Vector3d MPw_B = pMP->GetWorldPos();
+          Vector3d MPw_A = start_vis + (lambda_a / lambda_b) * (MPw_B - start_vis);
+          pMP->SetWorldPos(MPw_A);
         }
       }
+
+      // Vector3d mu(0,0,0);
+      // for (int i=0; i<3; i++){
+      //   mu[i] = new_end_vision[i] / end_vis[i];
+      // }
+     
+      // // Scalate points
+      // vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
+      // for (size_t iMP = 0; iMP<vpAllMapPoints.size(); iMP++) {
+      //   if (vpAllMapPoints[iMP]) {
+      //     MapPoint* pMP = vpAllMapPoints[iMP];
+      //     Vector3d MPw = pMP->GetWorldPos();
+      //     for(int i=0; i<3; i++){
+      //       MPw[i] = MPw[i] * mu[i];
+      //     } 
+      //     pMP->SetWorldPos(MPw);
+      //   }
+      // }
 
       pKFini->ChangeParent(mpReferenceKF);
       pKFcur->ChangeParent(pKFini);
@@ -1313,6 +1340,10 @@ void Tracking::MonocularInitializationIMU() {
         double scale = Estimator::scale(delta_imu, delta_v);
         cout << "\n\t[TEST] Initial scale IMU-VISION: " << scale << endl;
 
+        Vector3d delta_gt = mpMap->GetKeyFrame(1)->t_gps() - mpMap->GetKeyFrame(0)->t_gps();
+        double scale_gt = Estimator::scale(delta_gt, delta_v);
+        cout << "\n\t[TEST] Initial scale GT-VISION: " << scale_gt << endl;
+
         _scale_initializer.on_map_initialization(new_imu_model, scale, mInitialFrame, mCurrentFrame);
         if (_scale_initializer.is_initialized()){
           mpMap->GetKeyFrame(0)->inertial_scale = _scale_initializer.get_initial_scale();
@@ -1656,13 +1687,13 @@ bool Tracking::TrackVisual(Eigen::Matrix4d predicted_pose) {
 }
 
 
-int Tracking::TrackMMVisual(Frame &frame) {
+int Tracking::TrackMMVisual(Frame &frame, bool & use_align_image) {
   Eigen::Matrix4d predicted_pose = frame.GetPose();
 
   ORBmatcher matcher(0.9, true);
 
   // Align current and last image
-  if (align_image_) {
+  if (use_align_image) {
     ImageAlign image_align;
     if (!image_align.ComputePose(frame, mLastFrame)) {
       LOGE("Image align failed");
@@ -1738,38 +1769,56 @@ bool Tracking::TrackWithNewIMUModel() {
   UpdateLastFrame();
 
   // Predict pose with motion model
-  Eigen::Matrix4d predicted_pose_visual = motion_model_->Predict(mLastFrame.GetPose());
-  LOGD("Predicted pose (model: cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_visual(0, 3), predicted_pose_visual(1, 3), predicted_pose_visual(2, 3));
+  Eigen::Matrix4d predicted_pose_cte_vel = motion_model_->Predict(mLastFrame.GetPose());
+  LOGD("Predicted pose (model: cte velocity): [%.4f, %.4f, %.4f]", predicted_pose_cte_vel(0, 3), predicted_pose_cte_vel(1, 3), predicted_pose_cte_vel(2, 3));
   
-  if (_use_hybrid_model){
-    Eigen::Matrix4d predicted_pose_inertial = new_imu_model.get_pose_cam();
+  if (_use_hybrid_model && mpMap->KeyFramesInMap() >= _kf_to_use_hm){
+    Eigen::Matrix4d predicted_pose_inertial = Converter::inverted_pose(curr_imu_prediction);
     LOGD("Predicted pose (model: inertial): [%.4f, %.4f, %.4f]", predicted_pose_inertial(0, 3), predicted_pose_inertial(1, 3), predicted_pose_inertial(2, 3));
 
-    Frame frame_visual(mCurrentFrame);
-    frame_visual.SetPose(predicted_pose_visual);
+    Frame frame_ctevel(mCurrentFrame);
+    frame_ctevel.SetPose(predicted_pose_cte_vel);
 
     Frame frame_inertial(mCurrentFrame);
     frame_inertial.SetPose(predicted_pose_inertial);
 
-    align_image_ = false;
-    int n_matches_visual = TrackMMVisual(frame_visual);
-    int n_matches_inertial = TrackMMVisual(frame_inertial);
+    Timer time_cte_vel(true);
+    int n_matches_visual = TrackMMVisual(frame_ctevel, align_image_);
+    time_cte_vel.Stop();
 
-    cout << "\t[TEST] MATCHES WITH CTE VEL.: " << n_matches_visual << endl;
-    cout << "\t[TEST] MATCHES WITH INERTIAL: " << n_matches_inertial << endl;
-    
-    if (n_matches_inertial > 0 && n_matches_inertial >= n_matches_visual){
-      mCurrentFrame = frame_inertial;
-      return true;
+    Timer time_inertial(true);
+    int n_matches_inertial = TrackMMVisual(frame_inertial, _align_image_inertial);
+    time_inertial.Stop();
+
+    LOGD("Num. matches with cte. vel: %i. Process time: %.2fms", n_matches_visual, time_cte_vel.GetMsTime());
+    LOGD("Num. matches with inertial: %i. Process time: %.2fms", n_matches_inertial, time_inertial.GetMsTime());
+    _hyb_matches.clear(); _hyb_matches.push_back(n_matches_visual); _hyb_matches.push_back(n_matches_inertial);
+    _hyb_times.clear(); _hyb_times.push_back(time_cte_vel.GetMsTime()); _hyb_times.push_back(time_inertial.GetMsTime());
+
+    if (_full_hyb_mode){
+      if (n_matches_inertial > 0){
+        mCurrentFrame = frame_inertial;
+        return true;
+      }else if (n_matches_visual > 0) {
+        mCurrentFrame = frame_ctevel;
+        return true;
+      }
+      return false;
+
+    }else{
+      if (n_matches_inertial > 0 && n_matches_inertial >= n_matches_visual){
+        mCurrentFrame = frame_inertial;
+        return true;
+      }
+      if (n_matches_visual > 0 && n_matches_visual > n_matches_inertial){
+        mCurrentFrame = frame_ctevel;
+        return true;
+      }
+      cout << "\t[TEST] NO SE PUDO TRACKEAR CON NINGUN MODELO" << endl;
+      return false;
     }
-    if (n_matches_visual > 0 && n_matches_visual > n_matches_inertial){
-      mCurrentFrame = frame_visual;
-      return true;
-    }
-    cout << "\t[TEST] NO SE PUDO TRACKEAR CON NINGUN MODELO" << endl;
-    return false;
   }else{
-    return TrackVisual(predicted_pose_visual);
+    return TrackVisual(predicted_pose_cte_vel);
   }
   
 
@@ -2251,18 +2300,49 @@ void Tracking::CreateNewKeyFrame(bool is_fake) {
   if (mSensor==System::MONOCULAR_IMU_NEW && !is_fake){
     double mean_scale = new_imu_model.scale_buffer_mean();
     new_imu_model.scale_buffer_clear();
-    cout << "\n\t[TEST] SCALE MEAN ON NEW KF: " << mean_scale << endl << endl;
+    cout << "\n\t[TEST] SCALE MEAN ON NEW KF (" << mpMap->GetAllKeyFrames().size()+1<< "): " << mean_scale << endl << endl;
+
+    //**
+    // if ( mpMap->GetAllKeyFrames().size() == 10){
+    //   cout << "[TEST] Initialize motion model and reset scale" << endl;
+    //   double dt = pKF->mTimestamp - mpReferenceKF->mTimestamp;
+    //   new_imu_model.initialize(pKF->GetPoseInverse(), mpReferenceKF->GetPoseInverse(), dt);
+    //   _scale_initializer.clear_buffer();
+    // }
+
+    // if (mpMap->GetAllKeyFrames().size() > 10 and not _scale_initializer.is_initialized()){
+    //   _scale_initializer.update(new_imu_model, mean_scale);
+    //   if (_scale_initializer.is_initialized()){
+    //     for (KeyFrame* pKFi : mpMap->GetAllKeyFrames()){
+    //       pKFi->inertial_scale = _scale_initializer.get_initial_scale();
+    //     }
+    //     pKF->inertial_scale = _scale_initializer.get_initial_scale();
+    //   }
+    // }
+    // else if (_scale_initializer.is_initialized()){
+    //   double curr_scale = mpReferenceKF->inertial_scale;
+    //   cout << "\t[TEST] CURR SCALE: " << curr_scale << endl;
+
+    //   if (update_scale){
+    //     curr_scale = curr_scale * (1-_beta) + mean_scale * _beta;
+    //   }
+    //   cout << "\t[TEST] NEW SCALE: " << curr_scale << endl;
+    //   new_imu_model.set_scale(curr_scale);
+    //   pKF->inertial_scale = curr_scale;
+    // }
 
     if (not _scale_initializer.is_initialized()){
       _scale_initializer.update(new_imu_model, mean_scale);
       if (_scale_initializer.is_initialized()){
+        // Check relation KF-Frames (time)
         for (KeyFrame* pKFi : mpMap->GetAllKeyFrames()){
           pKFi->inertial_scale = _scale_initializer.get_initial_scale();
         }
         pKF->inertial_scale = _scale_initializer.get_initial_scale();
-    }}
+      }
+    }
     else{
-      double curr_scale = new_imu_model.get_scale_factor();
+      double curr_scale = mpReferenceKF->inertial_scale;
       cout << "\t[TEST] CURR SCALE: " << curr_scale << endl;
 
       if (update_scale){

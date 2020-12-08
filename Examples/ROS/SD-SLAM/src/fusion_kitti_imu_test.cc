@@ -359,10 +359,6 @@ int main(int argc, char **argv)
       tracker->__model = 0;
       tracker->model_type = "mono";
     }
-    else if (slam_type == "gps"){
-      // Predict pose using GPS and if model lost, publish gps pose until reloc
-      tracker->__model = 14;
-    } 
     else if (slam_type == "imu"){
       // Predict pose using IMU (acc real) and if model lost, try to reinitialize the map
       tracker->__model = 14;
@@ -391,9 +387,6 @@ int main(int argc, char **argv)
       tracker->model_type = "imu_s";
       tracker->new_imu_model.set_remove_gravity_flag(false);
       tracker->new_imu_model.set_rotation_imu_to_world(kitti_seq.imu_to_cam);
-      
-    } 
-    else if (slam_type == "gps_reinit"){
       
     } 
     else{
@@ -536,7 +529,7 @@ int main(int argc, char **argv)
     // ------ SLAM
     SD_SLAM::Timer ttracking(true);
     // Pass the image and measurements to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, freq, gps_pose_i, total_time); 
+    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, freq, total_time); 
     cout << "sucess return of slam" << endl;
     cout << "Updating drawer... ";
     // Set data to UI    

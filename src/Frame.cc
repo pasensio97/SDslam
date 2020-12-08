@@ -63,7 +63,6 @@ Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
     mvImagePyramid[i] = frame.mvImagePyramid[i].clone();
 
   mDepthImage = frame.mDepthImage.clone();
-  set_gps_pose(frame.gps_pose);
 }
 
 

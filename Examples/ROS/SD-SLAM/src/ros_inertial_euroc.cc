@@ -312,11 +312,8 @@ int main(int argc, char **argv) {
         im.setTo(cv::Scalar(0));
       }
       // Pass the image and IMU data to the SLAM system
-      Eigen::Matrix4d pose = SLAM.TrackNewFusion(im, nwu_imu, dt, zero4d, imu.timestamp());
+      Eigen::Matrix4d pose = SLAM.TrackNewFusion(im, nwu_imu, dt, imu.timestamp());
 
-      odom_imu.publish(ros::Time(imu.timestamp()), 
-                                 cam2nwu() * (tracker->imu_model.position /2), 
-                                 tracker->imu_model._att_estimator.get_orientation());
 
       odom_visual.publish(ros::Time(imu.timestamp()), 
                                  cam2nwu() * (-pose.block<3,3>(0,0).transpose() * pose.block<3,1>(0,3))/2, 

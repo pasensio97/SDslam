@@ -52,10 +52,6 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
     LOGD("Input sensor was set to Monocular-IMU");
   } else if (mSensor==MONOCULAR_IMU_NEW) {
     LOGD("Input sensor was set to Monocular-IMU-NEW");
-  } else if (mSensor==MONOCULAR_IMU_GPS) {
-    LOGD("Input sensor was set to Monocular-IMU-NEW");
-  } else if (mSensor==FUSION_DATA_AND_GT) {
-    LOGD("Input sensor was set to FUSION_DATA_AND_GT");
   }
 
   // Create the Map
@@ -237,10 +233,10 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
 
 
 Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, 
-                                       const double dt, const Matrix4d &gps_pose, double timestamp) {
+                                       const double dt, double timestamp) {
   LOGD("Track monocular image with IMU measurements");
   mpTracker->curr_timestamp = timestamp;
-  if (mSensor!=MONOCULAR_IMU_NEW and mSensor!=MONOCULAR_IMU_GPS) {
+  if (mSensor!=MONOCULAR_IMU_NEW) {
     LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
     exit(-1);
   }
@@ -258,53 +254,9 @@ Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements
   }
 
   Timer total(true);
-  cout << "settings imu measurements... ";
   mpTracker->SetIMUMeasurements(measurements);
-  cout << "done" << endl;
-  cout << "Grab image fusion... ";
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, gps_pose);
-  cout << "done!" << endl;
-  total.Stop();
-  LOGD("Tracking time is %.2fms", total.GetMsTime());
 
-  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0, 3), Tcw(1, 3), Tcw(2, 3));
-
-  unique_lock<mutex> lock2(mMutexState);
-  mTrackingState = mpTracker->GetState();
-  mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
-  mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
-  cout << "Returning... " << endl;
-  return Tcw;
-}
-
-
-Eigen::Matrix4d System::TrackFusion_with_gt(const cv::Mat &im, const IMU_Measurements &measurements, 
-                                                     const double dt, const Eigen::Matrix4d gt_pose) {
-  LOGD("Track monocular image with IMU and GT measurements");
-
-  if (mSensor!=FUSION_DATA_AND_GT) {
-    LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
-    exit(-1);
-  }
-
-  if (dt <= 0.0)
-    return Eigen::Matrix4d::Identity();
-
-  // Check reset
-  {
-    unique_lock<mutex> lock(mMutexReset);
-    if (mbReset) {
-      mpTracker->Reset();
-      mbReset = false;
-    }
-  }
-
-  Timer total(true);
-
-  mpTracker->SetIMUMeasurements(measurements);
-  mpTracker->SetGroundthtruthPose(gt_pose);
-
-  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt, gt_pose);
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt);
 
   total.Stop();
   LOGD("Tracking time is %.2fms", total.GetMsTime());
@@ -315,10 +267,8 @@ Eigen::Matrix4d System::TrackFusion_with_gt(const cv::Mat &im, const IMU_Measure
   mTrackingState = mpTracker->GetState();
   mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
   mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
-
   return Tcw;
 }
-
 
 void System::ActivateLocalizationMode() {
   unique_lock<mutex> lock(mMutexMode);

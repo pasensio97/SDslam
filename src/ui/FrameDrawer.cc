@@ -58,7 +58,7 @@ cv::Mat FrameDrawer::DrawFrame() {
 
     mIm.copyTo(im);
 
-    if (mState == Tracking::NOT_INITIALIZED  || mState == Tracking::OK_GPS || mState == Tracking::OK_IMU) {
+    if (mState == Tracking::NOT_INITIALIZED || mState == Tracking::OK_IMU) {
       vCurrentKeys = mvCurrentKeys;
       vIniKeys = mvIniKeys;
       vMatches = mvIniMatches;
@@ -74,7 +74,7 @@ cv::Mat FrameDrawer::DrawFrame() {
     cvtColor(im, im, CV_GRAY2BGR);
 
   //Draw
-  if (state==Tracking::NOT_INITIALIZED  || mState == Tracking::OK_GPS  || mState == Tracking::OK_IMU) { //INITIALIZING
+  if (state==Tracking::NOT_INITIALIZED || mState == Tracking::OK_IMU) { //INITIALIZING
     for (unsigned int i = 0; i < vMatches.size(); i++) {
       if (vMatches[i] >= 0)
         cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt, cv::Scalar(0, 255, 0), 2);
@@ -107,7 +107,7 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState) {
     s << " WAITING FOR IMAGES";
   else if (nState==Tracking::NOT_INITIALIZED)
     s << " TRYING TO INITIALIZE ";
-  else if (nState==Tracking::OK_GPS || mState == Tracking::OK_IMU)
+  else if (mState == Tracking::OK_IMU)
     s << " TRYING TO REINITIALIZE ";
   else if (nState==Tracking::OK) {
     if(onlyTracking_)
@@ -146,7 +146,7 @@ void FrameDrawer::Update(const cv::Mat &im, const Eigen::Matrix4d &pose, Trackin
   mvMPs.clear();
   onlyTracking_ = pTracker->OnlyTracking();
 
-  if (pTracker->GetLastState() == Tracking::NOT_INITIALIZED || pTracker->GetLastState() == Tracking::OK_GPS || mState == Tracking::OK_IMU)   {
+  if (pTracker->GetLastState() == Tracking::NOT_INITIALIZED || mState == Tracking::OK_IMU)   {
     if (undistort)
       mvIniKeys = pTracker->GetInitialFrame().mvKeysUn;
     else

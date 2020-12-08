@@ -48,9 +48,7 @@ class System {
     MONOCULAR = 0,
     RGBD = 1,
     MONOCULAR_IMU = 2,
-    MONOCULAR_IMU_NEW = 3,
-    MONOCULAR_IMU_GPS = 4,
-    FUSION_DATA_AND_GT = 5
+    MONOCULAR_IMU_NEW = 3
   };
 
  public:
@@ -84,15 +82,7 @@ class System {
   // Input images: Grayscale (CV_8U).
   // Input measurements: IMU_Measurements.
   // Returns the camera pose (empty if tracking fails).
-  Eigen::Matrix4d TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const Matrix4d &gps_pose=Matrix4d::Identity(), double timestamp=0.0);
-
-  // TEST: Proccess the given monocular frame and imu measurements, using groundtruth pose
-  // Input images: Grayscale (CV_8U).
-  // Input measurements: IMU_Measurements.
-  // Freq (dt): double.
-  // GroundTruth pose: RT Matrix.
-  // Returns the camera pose (empty if tracking fails).
-  Eigen::Matrix4d TrackFusion_with_gt(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, const Eigen::Matrix4d gt_pose);
+  Eigen::Matrix4d TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, const double dt, double timestamp=0.0);
 
   // This stops local mapping thread (map building) and performs only camera tracking.
   void ActivateLocalizationMode();

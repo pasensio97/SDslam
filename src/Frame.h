@@ -216,11 +216,6 @@ class Frame {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // tests
-  Eigen::Matrix4d gps_pose = Eigen::Matrix4d::Identity();
-  inline void set_gps_pose(const Eigen::Matrix4d & pose){gps_pose = pose;}
-  inline Eigen::Matrix3d R_gps(){return gps_pose.block<3,3>(0,0);}
-  inline Eigen::Vector3d t_gps(){return gps_pose.block<3,1>(0,3);}
 };
 
 }  // namespace SD_SLAM

@@ -61,18 +61,16 @@ class Tracking {
     NOT_INITIALIZED = 1,
     OK = 2,
     LOST = 3,
-    OK_GPS = 4,
-    WAITING_RELOC = 5,
-    OK_IMU = 6
+    OK_IMU = 4
   };
 
  public:
   Tracking(System* pSys, Map* pMap, const int sensor);
 
-  // Preprocess the input and call Track(). Extract features and performs stereo matching.
+  // Preprocess the input and call Track(). Extract features and performs sterFeo matching.
   Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
-  Eigen::Matrix4d GrabImageFusion(const cv::Mat &im, const double dt, const Matrix4d &gps_pose); // Temporal used to pass dt
+  Eigen::Matrix4d GrabImageFusion(const cv::Mat &im, const double dt); // Temporal used to pass dt
 
   // Create new frame and extract features
   Frame CreateFrame(const cv::Mat &im);
@@ -160,7 +158,6 @@ class Tracking {
   bool create_new_map(Frame & first_frame, Frame & second_frame,  Map* new_map);
 
   // --------------- Prediciotn models ----------------------------------------------
-  IMU_model imu_model = IMU_model(0.0085);
   Matrix4d curr_imu_prediction;
   
   new_IMU_model new_imu_model = new_IMU_model(1.0, false, 0.0085);
@@ -170,7 +167,6 @@ class Tracking {
   new_IMU_model imu_model_scale = new_IMU_model(1.0, false, 0.0085);
 
 
-  GPS_IMU_model gps_imu_model = GPS_IMU_model(0.0085);
   bool used_imu_model = false;
   IMU_Measurements last_imu;
   int __model = 0;

@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     // ------ SLAM
     SD_SLAM::Timer ttracking(true);
     // Pass the image and measurements to the SLAM system
-    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, dt, identity_4d, img_data.timestamp); 
+    Eigen::Matrix4d pose = SLAM.TrackNewFusion(img, imu, dt, img_data.timestamp); 
 
     // Set data to UI    
     fdrawer->Update(img, pose, tracker);

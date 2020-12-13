@@ -69,43 +69,8 @@ rosbuild_add_executable(Fusion
 )
 target_link_libraries(Fusion ${LIBS})
 
-# Node for RGB-IMU fusion in dev
-rosbuild_add_executable(Inertial
-  src/ros_inertial.cc
-)
-target_link_libraries(Inertial ${LIBS})
-
-# Node for debug RGB-IMU fusion 
-rosbuild_add_executable(DebugInertial
-  src/ros_inertial_debug.cc
-)
-target_link_libraries(DebugInertial ${LIBS})
-
-# Node for debug imu tools
-# rosbuild_add_executable(IMU_TEST
-#   src/imu_test.cc
-# )
-# target_link_libraries(IMU_TEST ${LIBS})
-
 # Node for inertial kitti 
 rosbuild_add_executable(KITTI_TEST
 src/fusion_kitti_imu_test.cc
 )
 target_link_libraries(KITTI_TEST ${LIBS} PUB_LIB KITTI_LIB)
-
-# Node for Euroc test
-rosbuild_add_executable(EUROC_TEST
-src/fusion_euroc.cc
-)
-target_link_libraries(EUROC_TEST ${LIBS} PUB_LIB EUROC_LIB)
-
-# rosbuild_add_executable(Tests
-# src/ros_tests.cc
-# )
-# target_link_libraries(Tests ${LIBS} PUB_LIB KITTI_LIB EUROC_LIB) 
-
-# Node for debug imu tools
-rosbuild_add_executable(EUROC_INERTIAL
-src/ros_inertial_euroc.cc
-)
-target_link_libraries(EUROC_INERTIAL ${LIBS} PUB_LIB)

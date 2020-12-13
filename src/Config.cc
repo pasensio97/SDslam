@@ -68,7 +68,8 @@ Config::Config() {
   kBaseFrame_ = "odom";
   kCameraFrame_ = "camera_link";
 
-  madgwick_gain_ = 0.01;
+  kMadgwickGain_ = 0.01;
+  kUseImagesTimeStamps_ = false;
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -129,9 +130,10 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["ROS.IMUTopic"].isNamed()) fs["ROS.IMUTopic"] >> kIMUTopic_;
   if (fs["ROS.BaseFrame"].isNamed()) fs["ROS.BaseFrame"] >> kBaseFrame_;
   if (fs["ROS.CameraFrame"].isNamed()) fs["ROS.CameraFrame"] >> kCameraFrame_;
+  if (fs["ROS.UseImagesTimeStamps"].isNamed()) fs["ROS.UseImagesTimeStamps"] >> kUseImagesTimeStamps_;
 
   // Madgwick
-  if (fs["IMU.MadgwickGain"].isNamed()) fs["IMU.MadgwickGain"] >> madgwick_gain_;
+  if (fs["IMU.MadgwickGain"].isNamed()) fs["IMU.MadgwickGain"] >> kMadgwickGain_;
   
   fs.release();
 

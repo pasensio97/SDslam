@@ -1,0 +1,10 @@
+<!--
+THIS LAUNCH FILE WILL START THE REALSENSE CAMERA WITH THE DEFAULT PARAMETERS
+AND THEN THE DIFODO ALGORITHM
+-->
+
+<launch>
+    <!--First launch the realsense camera-->
+    <include file="$(find odometry_evaluation_file_creator)/launch/TUM_dataset_sdslam.launch" />
+    <include file="$(find SD-SLAM)/launch/sdslam_TUM1.launch" />
+</launch>

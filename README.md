@@ -22,7 +22,7 @@ We use [Eigen3](http://eigen.tuxfamily.org) to perform matrices operations. Down
 ## g2o (Included in extra folder)
 We use modified versions of the [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. This library (which is BSD) is included in the *extra* folder.
 
-# 3. Building ORB-SLAM2 library and examples
+# 3. Building SD-SLAM library and examples
 
 Clone the repository:
 ```
@@ -159,6 +159,22 @@ Fusion node reads RGB images from topic `/camera/rgb/image_raw` and IMU data fro
   ```
   rosrun SD-SLAM Fusion Examples/ROS/SD-SLAM/ROS.yaml
   ```
+
+### Running RGBD with roslaunch
+Several launch files has been provided so the node RGBD can be run with those.
+In order to run SD-SLAM with the configuration for TUM freidburg1 sequences run
+
+  ```
+  roslaunch SD-SLAM sdslam_TUM1.launch
+  ```
+
+In order to run SD-SLAM with the configuration for TUM freidburg1 sequences and odometry_evaluation_file_creation to create a groundtruth file that can be compare with the groundtruths of TUM
+
+  ```
+  roslaunch SD-SLAM sdslam_TUM1_evaluation_file.launch
+  ```
+
+
 
 # 9. Reading saved data
 

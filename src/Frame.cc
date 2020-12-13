@@ -338,6 +338,10 @@ void Frame::UndistortKeyPoints() {
     return;
   }
 
+  if (N == 0) {
+    return;
+  }
+
   // Fill matrix with points
   cv::Mat mat(N, 2, CV_32F);
   for (int i = 0; i < N; i++) {

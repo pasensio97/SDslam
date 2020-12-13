@@ -25,6 +25,7 @@
 #include <iostream>
 #include <vector>
 #include <Eigen/Dense>
+#include <vector>
 
 namespace SD_SLAM {
 

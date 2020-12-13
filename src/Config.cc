@@ -68,8 +68,10 @@ Config::Config() {
   kBaseFrame_ = "odom";
   kCameraFrame_ = "camera_link";
 
-  kMadgwickGain_ = 0.01;
   kUseImagesTimeStamps_ = false;
+
+  kMadgwickGain_ = 0.01;
+  kRotIMUToCam_ = cv::Mat::eye(3, 3, CV_32F);
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -132,8 +134,9 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["ROS.CameraFrame"].isNamed()) fs["ROS.CameraFrame"] >> kCameraFrame_;
   if (fs["ROS.UseImagesTimeStamps"].isNamed()) fs["ROS.UseImagesTimeStamps"] >> kUseImagesTimeStamps_;
 
-  // Madgwick
+  // IMU
   if (fs["IMU.MadgwickGain"].isNamed()) fs["IMU.MadgwickGain"] >> kMadgwickGain_;
+  if (fs["IMU.RotIMUToCam"].isNamed()) fs["IMU.RotIMUToCam"] >> kRotIMUToCam_;
   
   fs.release();
 

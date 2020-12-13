@@ -122,7 +122,11 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   }
 
   if (sensor==System::MONOCULAR_IMU_NEW){
-    cout << endl  << "Madgwick gain: " << Config::MadgwickGain() << endl;
+    cout << endl  << "Inertial Parameters: " << endl;
+    cout << "- Madgwick gain: " << Config::MadgwickGain() << endl;
+    Matrix3d rot = Converter::toMatrix3d(Config::RotationIMUToCam());
+    new_imu_model.set_rotation_imu_to_world(rot);
+    cout << "- Rotation IMU to World:\n" << rot << endl;
   }
 
   threshold_ = 8;  // 8

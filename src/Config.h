@@ -100,6 +100,7 @@ class Config {
   static bool UseImagesTimeStamps() { return GetInstance().kUseImagesTimeStamps_; }
 
   static double MadgwickGain() { return GetInstance().kMadgwickGain_; }
+  static cv::Mat RotationIMUToCam() { return GetInstance().kRotIMUToCam_; }
 
 
  private:
@@ -136,10 +137,12 @@ class Config {
   std::string kIMUTopic_;
   std::string kBaseFrame_;
   std::string kCameraFrame_;
+  bool kUseImagesTimeStamps_;
 
   // IMU CONFIGURATION
   double kMadgwickGain_;
-  bool kUseImagesTimeStamps_;
+  cv::Mat kRotIMUToCam_;
+
 };
 
 }  // namespace SD_SLAM

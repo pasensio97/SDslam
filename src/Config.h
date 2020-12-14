@@ -101,7 +101,7 @@ class Config {
 
   static double MadgwickGain() { return GetInstance().kMadgwickGain_; }
   static cv::Mat RotationIMUToCam() { return GetInstance().kRotIMUToCam_; }
-
+  static double ScaleUpdateFactor() { return GetInstance().kIMUScaleUpdateFactor_; }
 
  private:
   Config();
@@ -142,6 +142,7 @@ class Config {
   // IMU CONFIGURATION
   double kMadgwickGain_;
   cv::Mat kRotIMUToCam_;
+  double kIMUScaleUpdateFactor_;
 
 };
 

@@ -43,8 +43,8 @@ namespace SD_SLAM {
 
 Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   mState(NO_IMAGES_YET), mSensor(sensor), mpInitializer(static_cast<Initializer*>(NULL)),
-  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0), mbOnlyTracking(false), madgwick_(Config::MadgwickGain()),
-  new_imu_model(new_IMU_model(1, true, Config::MadgwickGain()))
+  mpPatternDetector(), mpSystem(pSys), mpMap(pMap), mnLastRelocFrameId(0), mbOnlyTracking(false),
+ new_imu_model(new_IMU_model(1, true, Config::MadgwickGain())), _scale_update_factor(Config::ScaleUpdateFactor())
 {
   // Load camera parameters
   float fx = Config::fx();
@@ -148,8 +148,6 @@ Tracking::Tracking(System *pSys, Map *pMap, const int sensor):
   else
     sensor_model = new ConstantVelocity();
   motion_model_ = new EKF(sensor_model);
-  
-  set_debug = false;
 }
 
 Eigen::Matrix4d Tracking::GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename) {
@@ -194,9 +192,7 @@ Eigen::Matrix4d Tracking::GrabImageFusion(const cv::Mat &im, const double dt) {
   else
     mCurrentFrame = Frame(im, mpORBextractorLeft, mK, mDistCoef, mbf, mThDepth,curr_timestamp);
 
-  if (model_type == "mono"){Track();}  // For test purpose
-  else{Track_IMU_Reinit();}
-
+  Track_IMU_Reinit();
   return mCurrentFrame.GetPose();
 }
 
@@ -330,23 +326,10 @@ void Tracking::Track() {
   }
 }
 
-void Tracking::apply_transform(Map* &map, const Quaterniond & R, const Vector3d & t, const double & scale){
-  // on world
-  Matrix4d RTc; Matrix3d Rw; Vector3d Tw;
 
-  vector<KeyFrame*> kfs = map->GetAllKeyFrames();
-  // Search candidates to be a loop
-  for (size_t i = 0; i<kfs.size(); i++) {
-    KeyFrame* kf = kfs[i];
-    Rw = R * kf->GetPoseInverse().block<3,3>(0,0);
-    Tw = R * (kf->GetPoseInverse().block<3,1>(0,3) * scale) + t;
-    //map->GetAllKeyFrames()[0]->SetPose(Converter::inverted_pose(Rw, Tw));
-  }
-}
 
 void Tracking::Track_IMU_Reinit() {
   cout << "[INFO] Tracking with IMU and Reinitilialization." << endl;
-  __model = 0; 
   used_imu_model = false;
 
   if (mState==NO_IMAGES_YET)
@@ -517,73 +500,6 @@ void Tracking::Track_IMU_Reinit() {
   }
 }
 
-// bool Tracking::create_new_map(Frame & initial, Frame & current,  Map* new_map){
-//   auto new_map_points = new_map->GetAllMapPoints();
-//   if (new_map_points.size() != 0) cout << "wtf???? porque tiene puntos?" << endl;
-
-//    // Create KeyFrames
-//   KeyFrame* new_pKFini = new KeyFrame(initial, new_map);
-//   KeyFrame* new_pKFcur = new KeyFrame(current, new_map);
-
-//    // Insert KFs in the map
-//   new_map->AddKeyFrame(new_pKFini);
-//   new_map->AddKeyFrame(new_pKFcur);
-
-//   // Create MapPoints and asscoiate to keyframes
-//     for (size_t i = 0; i<mvIniMatches.size(); i++) {
-//       if (mvIniMatches[i] < 0)
-//         continue;
-
-//       //Create MapPoint.
-//       Eigen::Vector3d worldPos(Converter::toVector3d(mvIniP3D[i]));
-//       MapPoint* pMP = new MapPoint(worldPos, new_pKFcur, _new_map);
-
-//       new_pKFini->AddMapPoint(pMP, i);
-//       pMP->AddObservation(new_pKFini, i);
-//       new_pKFcur->AddMapPoint(pMP, mvIniMatches[i]);
-//       pMP->AddObservation(new_pKFcur, mvIniMatches[i]);
-
-//       pMP->ComputeDistinctiveDescriptors();
-//       pMP->UpdateNormalAndDepth();
-
-//       //Fill Current Frame structure
-//       current.mvpMapPoints[mvIniMatches[i]] = pMP;
-//       current.mvbOutlier[mvIniMatches[i]] = false;
-
-//       //Add to Map
-//       _new_map->AddMapPoint(pMP);
-//     }
-
-//     // Update Connections
-//     new_pKFini->UpdateConnections();
-//     new_pKFcur->UpdateConnections();
-
-//     cout << "Tracked map points: " << new_pKFcur->TrackedMapPoints(1) << endl;
-//     // Bundle Adjustment
-//     LOGD("New Map created with %lu points", new_map->MapPointsInMap());
-//     cout << "[boubdleajustement]\n\tBEFORE:" << endl;
-//     cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-//     cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-//     Optimizer::GlobalBundleAdjustemnt(new_map, 20); 
-//     cout << "\tAFTER:" << endl;
-//     cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-//     cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
-//     // Set median depth to 1
-//     float medianDepth = new_pKFini->ComputeSceneMedianDepth(2);
-//     float invMedianDepth = 1.0f/medianDepth;
-//     cout << "Median depth: " << medianDepth << endl; 
-//     cout << "Tracked map points: " << new_pKFcur->TrackedMapPoints(1) << endl;
-//     if (medianDepth < 0 || new_pKFcur->TrackedMapPoints(1)<100) {
-//       LOGE("Wrong initialization, reseting new map...");
-//       delete new_map;
-//       new_map = new Map();
-//       return false;
-//     }
-//     LOGD("New map initializate correctly");
-//     return true;
-// }
-
 void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction) {
   cout << "[[MONOCULAR INITIALIZER]]" << endl;
   if (!mpInitializer) {
@@ -653,13 +569,6 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
       initial.SetPose(Matrix4d::Identity());
       current.SetPose(Converter::toSE3(Rcw, tcw));
 
-      // // --- CREATE INITIAL MAP ---
-      // if (_new_map){
-      //   delete _new_map;
-      //   _new_map = new Map();
-      // }
-      // // CALL TO CREATE AUX MAP
-      // bool ok = create_new_map(initial, current, _new_map);
       _new_map = new Map();
       
       // Create KeyFrames
@@ -1835,7 +1744,7 @@ void Tracking::CreateNewKeyFrame(bool is_fake) {
     //   cout << "\t[TEST] CURR SCALE: " << curr_scale << endl;
 
     //   if (update_scale){
-    //     curr_scale = curr_scale * (1-_beta) + mean_scale * _beta;
+    //     curr_scale = curr_scale * (1-_scale_update_factor) + mean_scale * _scale_update_factor;
     //   }
     //   cout << "\t[TEST] NEW SCALE: " << curr_scale << endl;
     //   new_imu_model.set_scale(curr_scale);
@@ -1857,7 +1766,7 @@ void Tracking::CreateNewKeyFrame(bool is_fake) {
       cout << "\t[TEST] CURR SCALE: " << curr_scale << endl;
 
       if (update_scale){
-        curr_scale = curr_scale * (1-_beta) + mean_scale * _beta;
+        curr_scale = curr_scale * (1-_scale_update_factor) + mean_scale * _scale_update_factor;
       }
       cout << "\t[TEST] NEW SCALE: " << curr_scale << endl;
       new_imu_model.set_scale(curr_scale);

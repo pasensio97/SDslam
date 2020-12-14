@@ -92,10 +92,6 @@ class Tracking {
     imu_measurements_ = measurements;
   }
 
-  inline void SetGroundthtruthPose(const Eigen::Matrix4d &gt_pose) {
-    gt_pose_ = gt_pose;
-  }
-
   inline void SetReferenceKeyFrame(KeyFrame * kf) {
     mpReferenceKF = kf;
   }
@@ -120,90 +116,6 @@ class Tracking {
 
   // Use this function if you have deactivated local mapping and you only want to localize the camera.
   void InformOnlyTracking(const bool &flag);
-
-  // Madgwick
-  Madgwick madgwick_;
-  double dt_;
-  inline void set_madgwick_gain(double gain){ madgwick_.set_gain(gain);}
-  // Test and debug
-  // test debug
-  bool set_debug;
-  Quaterniond last_relative_q, last_q, last_mad_q;
-  Quaterniond pred_ctevel_q, pred_mad_q, pred_vision_q, _gt_q;
-  Matrix4d _prediction;
-  Vector3d __first_gps_pos;
-  
-  double curr_timestamp = 0.0;
-  // --------------- GPS ----------------------------------------------
-  Quaterniond __rotation_gps_to_slamworld;
-  Matrix3d mat_Rwgps;
-  double __ratio;
-  Matrix4d __first_gps_pose;
-  Matrix4d test_gps_pose, test_ekf_pose;
-  void estimate_rotation_between_gps_and_slamworld();
-  void estimate_rotation_between_gps_and_slamworld(Frame &curr_frame);
-
-  Matrix4d predict_new_pose_with_gps();
-  inline void set_first_gps_pose(const Matrix4d & pose){__first_gps_pose = pose;}
-  inline Matrix3d R_first_gps(){return __first_gps_pose.block<3,3>(0,0);}
-  inline Vector3d t_first_gps(){return __first_gps_pose.block<3,1>(0,3);}
-  Frame __last_kf_gps, __curr_kf_gps;
-  Frame last_valid_frame;
-  Matrix4d last_valid_wpose;
-  Map* _new_map;
-  Matrix4d initial_gps_wpose;
-  Frame newInitFrame, newCurrFrame;
-  int nKFs_on_reinit = 0;
-
-  bool create_new_map(Frame & first_frame, Frame & second_frame,  Map* new_map);
-
-  // --------------- Prediciotn models ----------------------------------------------
-  Matrix4d curr_imu_prediction;
-  
-  new_IMU_model new_imu_model = new_IMU_model(1.0, false, 0.0085);
-  new_IMU_model imu_model_reinit = new_IMU_model(1.0, false, 0.0085);
-  Matrix4d mIniPoseInvIMU;
-  int _frames_last_fake_kf = 0;
-  new_IMU_model imu_model_scale = new_IMU_model(1.0, false, 0.0085);
-
-
-  bool used_imu_model = false;
-  IMU_Measurements last_imu;
-  int __model = 0;
-  std::string model_type = "imu"; // mono, gps, imu, imu_s
-  int its = 0;
-
-  void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
-  KeyFrame* mpFirstReloadKeyFrame = nullptr;
-
-  // Use BA on Reinit
-  bool _use_BA_on_reinit = true;
-  double _angle_th = 25.0;
-  // Motion model for prediction
-  bool _use_hybrid_model = false;
-  uint _kf_to_use_hm = 20;
-  bool _align_image_inertial = false;
-  bool _full_hyb_mode = false;
-  vector<int> _hyb_matches;  // Save n_matches_visual, n_matches_inertial, visual_time, inertial_time
-  vector<double> _hyb_times;  // Save  visual_time, inertial_time
-
-  // Scale model
-  bool update_scale = true;
-  double _beta = 0.25;  //update factor 
-  ScaleInitializer::eModel _scale_model = ScaleInitializer::DIRECT_SINGLE;
-  ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 1, 0); // min 10
-
-  void apply_transform(Map* &map, const Quaterniond & R, const Vector3d & t, const double & scale);
-  // ------------------------ end gps ----------------------------------
-  Quaterniond _att_test_gps;
-  Vector3d _pos_test_gps;
-  
-  int first_proj, second_proj, inliers_on_pred, inliers_on_localmap;
-  bool stay_in_curve; 
-  
-  inline const Quaterniond get_last_relative_q(){return last_relative_q;}
-  inline const Quaterniond get_last_local_q(){return last_q;}
-  inline const Quaterniond get_last_local_mad_q(){return last_mad_q;}
 
  protected:
   // Main tracking function. It is independent of the input sensor.
@@ -332,8 +244,49 @@ class Tracking {
   // Image align
   bool align_image_;
 
-  // Test with GT
-  Matrix4d gt_pose_;
+
+ public:
+  // Inertial
+  double curr_timestamp = 0.0;
+  double dt_;
+
+  Frame last_valid_frame;
+  Matrix4d last_valid_wpose;
+  Map* _new_map;
+  Frame newInitFrame, newCurrFrame;
+  int nKFs_on_reinit = 0;
+  
+  Matrix4d curr_imu_prediction;
+  new_IMU_model new_imu_model;
+  Matrix4d mIniPoseInvIMU;
+  int _frames_last_fake_kf = 0;
+
+  bool used_imu_model = false;
+
+  void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
+  KeyFrame* mpFirstReloadKeyFrame = nullptr;
+
+  // Use BA on Reinit
+  bool _use_BA_on_reinit = true;
+  double _angle_th = 25.0;
+
+  // Hybrid motion model 
+  bool _use_hybrid_model = false;
+  uint _kf_to_use_hm = 20;
+  bool _align_image_inertial = false;
+  bool _full_hyb_mode = false;
+  vector<int> _hyb_matches;  // Test var: Save n_matches_visual, n_matches_inertial, visual_time, inertial_time
+  vector<double> _hyb_times;  // Test var: Save  visual_time, inertial_time
+
+  // Scale model
+  bool update_scale = true;
+  double _scale_update_factor;  //update factor 
+  ScaleInitializer::eModel _scale_model = ScaleInitializer::DIRECT_SINGLE;
+  ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 1, 0); // min 10
+
+  // Test
+  int first_proj, second_proj, inliers_on_pred, inliers_on_localmap;
+  bool stay_in_curve; 
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

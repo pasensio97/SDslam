@@ -41,16 +41,6 @@ set(LIBS
   ${PROJECT_SOURCE_DIR}/../../../lib/libSD_SLAM.so
 )
 
-
-add_library(PUB_LIB ${PROJECT_SOURCE_DIR}/src/tests/publishers.cc)
-target_link_libraries(PUB_LIB ${LIBS})
-
-add_library(KITTI_LIB ${PROJECT_SOURCE_DIR}/src/tests/kitti_help.cc)
-target_link_libraries(KITTI_LIB ${LIBS})
-
-add_library(EUROC_LIB ${PROJECT_SOURCE_DIR}/src/tests/euroc_reader.cc)
-target_link_libraries(EUROC_LIB ${LIBS})
-
 # Node for monocular camera
 rosbuild_add_executable(Monocular
   src/ros_monocular.cc
@@ -68,9 +58,3 @@ rosbuild_add_executable(Fusion
   src/ros_fusion.cc
 )
 target_link_libraries(Fusion ${LIBS})
-
-# Node for inertial kitti 
-rosbuild_add_executable(KITTI_TEST
-src/fusion_kitti_imu_test.cc
-)
-target_link_libraries(KITTI_TEST ${LIBS} PUB_LIB KITTI_LIB)

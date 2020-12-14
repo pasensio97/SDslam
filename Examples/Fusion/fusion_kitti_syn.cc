@@ -84,20 +84,35 @@ vector<Vector3d> create_synthetic_acc(const vector<vector<double>> & gt_content,
   return acc;
 }
 
+void add_noise(vector<Vector3d> &data, double mean, double std, uint seed=42){
+  default_random_engine generator;
+  generator.seed(seed); 
+  std::normal_distribution<double> distribution(mean, std);
+  int size = data.size();
+
+  for (int i=0; i<size; i++){
+    double noise = distribution(generator);
+    data[i] = data[i] + Vector3d(noise, noise, noise);
+  }
+}
+
 int main(int argc, char **argv) {
-  if(argc != 4){
-    cerr << endl << "Usage: ./mono_kitti dataset_path sequence config_yaml" << endl;
+  if(argc != 6){
+    cerr << endl << "Usage: ./mono_kitti dataset_path sequence config_yaml bias std" << endl;
     return 1;
   }
 
   string dataset_path = argv[1];
   string sequence = argv[2];
+  double bias = atof(argv[4]);
+  double std = atof(argv[5]);
 
   SD_SLAM::Config &config = SD_SLAM::Config::GetInstance();
   if (!config.ReadParameters(argv[3])) {
     cerr << "[ERROR] Config file contains errors" << endl;
     return 1;
   }
+
 
   std::cout << "Reader" << std::endl;
   KittiRawReader kitti(dataset_path, sequence);
@@ -114,9 +129,11 @@ int main(int argc, char **argv) {
   }
 
   cout << "Creating synthetic acc... ";
-  vector<Vector3d> acc_syn;
   Matrix3d rot_imu_to_world = Converter::toMatrix3d(Config::RotationIMUToCam());
+  vector<Vector3d> acc_syn;
   acc_syn = create_synthetic_acc(gt_data, rot_imu_to_world);
+  double SEED = 42;
+  add_noise(acc_syn, bias, std, SEED);
   cout << "Done" << endl;
 
   double dt = 0.1;
@@ -142,18 +159,17 @@ int main(int argc, char **argv) {
   tviewer = new std::thread(&SD_SLAM::Viewer::Run, viewer);
 
   tracker->new_imu_model.set_remove_gravity_flag(false);
+  
   // Main loop
   while (ni < n_images && !SLAM.StopRequested()) {
     printf("[%i/%i]\n", ni, n_images);
 
     image = kitti.get_image(image_filenames[ni]);
     imu = kitti.get_imu(timestamps[ni], velo_filenames[ni]);
-    if (ni < 2){ 
-      imu = IMU_Measurements(imu.timestamp(), acc_syn[ni], imu.angular_velocity()); 
-      tracker->new_imu_model.set_remove_gravity_flag(false);
-    }else{
-      tracker->new_imu_model.set_remove_gravity_flag(true);
-    }
+    imu = IMU_Measurements(imu.timestamp(), acc_syn[ni], imu.angular_velocity()); 
+
+    tracker->new_imu_model.set_remove_gravity_flag(false);
+
 
     // Ignore first frames to
     if (ni < 4) { image.setTo(cv::Scalar(0)); }

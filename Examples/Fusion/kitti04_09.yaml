@@ -1,0 +1,52 @@
+%YAML:1.0
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters. Adjust them!
+#--------------------------------------------------------------------------------------------
+Camera.Width: 1226
+Camera.Height: 370
+
+# Camera calibration and distortion parameters (OpenCV) 
+Camera.fx: 707.0912
+Camera.fy: 707.0912
+Camera.cx: 601.8873
+Camera.cy: 183.1104
+
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+
+# Camera frames per second 
+Camera.fps: 10.0
+
+# ROS
+ROS.CameraTopic: "/kitti/camera_color_left/image_raw"
+ROS.IMUTopic: "/kitti/oxts/imu"
+
+ROS.BaseFrame: "odom"
+ROS.CameraFrame: "camera_link"
+
+# ORB test
+ORBextractor.nFeatures: 1000 # 1000
+ORBextractor.scaleFactor: 2.0 # 2.0
+ORBextractor.nLevels: 5 # 5
+ORBextractor.thresholdFAST: 15  # 20
+
+# Dump sequences
+Pose.Final: "/home/javi/tfm/sequences/sdslam/kitti_pose.txt"
+Pose.Predicted: "/home/javi/tfm/sequences/sdslam/kitti_predicted_pose.txt"
+Pose.IMU_predicted: "/home/javi/tfm/sequences/sdslam/kitti_imu_predicted_pose.txt"
+
+# IMU config
+# 0085
+IMU.MadgwickGain: 0.0085
+IMU.RotIMUToCam: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: f
+   data: [ 0.00781297, -0.99985941,  0.0148343,
+          -0.0042792 , -0.01486804, -0.99988039,
+           0.99996032,  0.00774856, -0.00439476]
+
+

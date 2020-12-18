@@ -111,8 +111,8 @@ int main(int argc, char **argv) {
     // Read image and depthmap from file
     cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenamesRGB[ni] << endl;
     fname = vFilenamesRGB[ni];
-    im = cv::imread(string(argv[2])+"/"+vFilenamesRGB[ni], CV_LOAD_IMAGE_GRAYSCALE);
-    imD = cv::imread(string(argv[2])+"/"+vFilenamesD[ni], CV_LOAD_IMAGE_UNCHANGED);
+    im = cv::imread(string(argv[2])+"/"+vFilenamesRGB[ni], cv::IMREAD_GRAYSCALE);
+    imD = cv::imread(string(argv[2])+"/"+vFilenamesD[ni], cv::IMREAD_UNCHANGED);
 
     if(im.empty()) {
       cerr << endl << "[ERROR] Failed to load image at: " << string(argv[2]) << "/" << vFilenamesRGB[ni] << endl;

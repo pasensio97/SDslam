@@ -422,14 +422,14 @@ bool System::LoadTrajectory(const std::string &filename) {
     }
 
     // Load image
-    im = cv::imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+    im = cv::imread(filename, cv::IMREAD_GRAYSCALE);
     if(im.empty()) {
       LOGE("Couldn't load image %s", filename.c_str());
       continue;
     }
 
     if (mSensor==RGBD) {
-      imD = cv::imread(depthname, CV_LOAD_IMAGE_UNCHANGED);
+      imD = cv::imread(depthname, cv::IMREAD_UNCHANGED);
       if(imD.empty()) {
         LOGE("Couldn't load depth image %s", depthname.c_str());
         continue;

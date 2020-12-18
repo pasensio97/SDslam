@@ -14,7 +14,10 @@ We have tested the library in **Ubuntu 16.04**, but it should be easy to compile
 We use [Pangolin](https://github.com/stevenlovegrove/Pangolin) for visualization and user interface. Dowload and install instructions can be found at: https://github.com/stevenlovegrove/Pangolin.
 
 ## OpenCV
-We use [OpenCV](http://opencv.org) to manipulate images and features. Dowload and install instructions can be found at: http://opencv.org. **Required at leat 2.4.3. Tested with OpenCV 2.4.11 and OpenCV 3.2**.
+We use [OpenCV](http://opencv.org) to manipulate images and features. Dowload and install instructions can be found at: http://opencv.org. **Required at least 4.2.0.**.
+```
+pip install opencv-python
+```
 
 ## Eigen3
 We use [Eigen3](http://eigen.tuxfamily.org) to perform matrices operations. Download and install instructions can be found at: http://eigen.tuxfamily.org. **Required at least 3.1.0**.

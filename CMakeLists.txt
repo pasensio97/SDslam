@@ -21,6 +21,10 @@ if(USE_ANDROID)
   set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
   set(OPENCV_SDK /opt/OpenCV-android-sdk)
 
+  # # Provide the include directories to the caller
+  # set(OpenCV_INCLUDE_DIRS "${OpenCV_INSTALL_PATH}/include/opencv;${OpenCV_INSTALL_PATH}/include")
+  # include_directories(${OpenCV_INCLUDE_DIRS})
+
   # Configure OpenCV
   include_directories(${OPENCV_SDK}/sdk/native/jni/include)
   add_library(lib_opencv SHARED IMPORTED)
@@ -43,7 +47,7 @@ else()
 
   find_package(OpenCV 3.0 QUIET)
   if(NOT OpenCV_FOUND)
-     find_package(OpenCV 2.4.3 REQUIRED)
+     find_package(OpenCV 4.2.0 REQUIRED)
   endif()
   find_package(Eigen3 3.1.0 REQUIRED)
   if(USE_PANGOLIN)

@@ -79,9 +79,9 @@ int main(int argc, char **argv) {
     istringstream(sdevice) >> device;
 
     cap = new cv::VideoCapture(device);
-    cap->set(CV_CAP_PROP_FRAME_WIDTH, config.Width());
-    cap->set(CV_CAP_PROP_FRAME_HEIGHT, config.Height());
-    cap->set(CV_CAP_PROP_FPS, config.fps());
+    cap->set(cv::CAP_PROP_FRAME_WIDTH, config.Width());
+    cap->set(cv::CAP_PROP_FRAME_HEIGHT, config.Height());
+    cap->set(cv::CAP_PROP_FPS, config.fps());
 
     if (!cap->isOpened()) {
       cerr << "[ERROR] Couldn't open video device" << endl;
@@ -132,14 +132,14 @@ int main(int argc, char **argv) {
   while (ni<nImages && !SLAM.StopRequested()) {
     if (live) {
       *cap >> im_rgb;
-      cv::cvtColor(im_rgb, im, CV_RGB2GRAY);
+      cv::cvtColor(im_rgb, im, cv::COLOR_RGB2GRAY);
       fname = "";
     } else {
       // Read image from file
       fname = vFilenames[ni];
       src = string(argv[2]) + "/" + fname;
       cout << "[INFO] Reading Frame " << src << endl;
-      im = cv::imread(src, CV_LOAD_IMAGE_GRAYSCALE);
+      im = cv::imread(src, cv::IMREAD_GRAYSCALE);
 
       if(im.empty()) {
         cerr << endl << "[ERROR] Failed to load image at: "  << string(argv[2]) << "/" << vFilenames[ni] << endl;

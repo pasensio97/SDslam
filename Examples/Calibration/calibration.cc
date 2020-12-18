@@ -61,15 +61,15 @@ int main(int argc, char **argv) {
     stringstream ss;
 
     cout << "Reading image " << string(argv[1])+"/"+vFilenames[i] << endl;
-    cv::Mat img = cv::imread(string(argv[1])+"/"+vFilenames[i], CV_LOAD_IMAGE_GRAYSCALE);
-    cv::Mat img_color = cv::imread(string(argv[1])+"/"+vFilenames[i], CV_LOAD_IMAGE_COLOR);
+    cv::Mat img = cv::imread(string(argv[1])+"/"+vFilenames[i], cv::IMREAD_GRAYSCALE);
+    cv::Mat img_color = cv::imread(string(argv[1])+"/"+vFilenames[i], cv::IMREAD_COLOR);
     cam_size = img.size();
 
     bool found = cv::findChessboardCorners(img, patternsize, corners);
 
     if (found) {
       // Refine corners
-      cv::cornerSubPix(img,corners,cv::Size(11,11),cv::Size(-1,-1), cv::TermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1));
+      cv::cornerSubPix(img,corners,cv::Size(11,11),cv::Size(-1,-1), cv::TermCriteria(cv::TermCriteria::EPS+cv::TermCriteria::MAX_ITER, 30, 0.1));
       coord2D.push_back(corners);
 
       if (debug)
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     }
 
     if (debug) {
-      cv::namedWindow("Display window", CV_WINDOW_AUTOSIZE );
+      cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE );
       cv::imshow("Display window", img_color);
       cv::waitKey(0);
     }
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
   // Calculate intrinsics
   cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
   distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
-  double rms = cv::calibrateCamera(coord3D, coord2D, cam_size, cameraMatrix, distCoeffs, rvecs, tvecs, CV_CALIB_FIX_K4|CV_CALIB_FIX_K5);
+  double rms = cv::calibrateCamera(coord3D, coord2D, cam_size, cameraMatrix, distCoeffs, rvecs, tvecs, cv::CALIB_FIX_K4|cv::CALIB_FIX_K5);
 
   std::cout << "Camera Matrix:" << endl << cameraMatrix << std::endl;
   std::cout << "Distortion Vector: " << endl << distCoeffs << std::endl;
@@ -108,8 +108,8 @@ int main(int argc, char **argv) {
     for(int i=0; i<nImages; i++) {
       cout << "Saving image " << string(argv[1])+"/"+vFilenames[i] << endl;
 
-      view = cv::imread(string(argv[1])+"/"+vFilenames[i], CV_LOAD_IMAGE_COLOR);
-      cv::remap(view, rview, map1, map2, CV_INTER_LINEAR);
+      view = cv::imread(string(argv[1])+"/"+vFilenames[i], cv::IMREAD_COLOR);
+      cv::remap(view, rview, map1, map2, cv::INTER_LINEAR);
       cv::imwrite(string(argv[1])+"/"+vFilenames[i]+"_dst.png", rview);
     }
   }

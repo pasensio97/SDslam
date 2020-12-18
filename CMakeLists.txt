@@ -21,10 +21,6 @@ if(USE_ANDROID)
   set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
   set(OPENCV_SDK /opt/OpenCV-android-sdk)
 
-  # # Provide the include directories to the caller
-  # set(OpenCV_INCLUDE_DIRS "${OpenCV_INSTALL_PATH}/include/opencv;${OpenCV_INSTALL_PATH}/include")
-  # include_directories(${OpenCV_INCLUDE_DIRS})
-
   # Configure OpenCV
   include_directories(${OPENCV_SDK}/sdk/native/jni/include)
   add_library(lib_opencv SHARED IMPORTED)

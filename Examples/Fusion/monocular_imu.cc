@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
   while (ni<nImages && !SLAM.StopRequested()) {
     // Read image from file
     cout << "[INFO] Reading Frame " << string(argv[2])+"/"+vFilenames[ni] << endl;
-    im = cv::imread(string(argv[2])+"/"+vFilenames[ni], CV_LOAD_IMAGE_GRAYSCALE);
+    im = cv::imread(string(argv[2])+"/"+vFilenames[ni], cv::IMREAD_GRAYSCALE);
 
     if(im.empty()) {
       cerr << endl << "[ERROR] Failed to load image at: "  << string(argv[2]) << "/" << vFilenames[ni] << endl;

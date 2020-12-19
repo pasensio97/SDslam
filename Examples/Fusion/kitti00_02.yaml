@@ -1,5 +1,4 @@
 %YAML:1.0
-%YAML:1.0
 
 #--------------------------------------------------------------------------------------------
 # Camera Parameters. Adjust them!
@@ -34,13 +33,7 @@ ORBextractor.scaleFactor: 1.2 # 2.0
 ORBextractor.nLevels: 12 # 5
 ORBextractor.thresholdFAST: 50  # 50
 
-# Dump sequences
-Pose.Final: "/home/javi/tfm/sequences/sdslam/kitti_pose.txt"
-Pose.Predicted: "/home/javi/tfm/sequences/sdslam/kitti_predicted_pose.txt"
-Pose.IMU_predicted: "/home/javi/tfm/sequences/sdslam/kitti_imu_predicted_pose.txt"
-
 # IMU config
-
 IMU.MadgwickGain: 0.0085
 IMU.RotIMUToCam: !!opencv-matrix
    rows: 3

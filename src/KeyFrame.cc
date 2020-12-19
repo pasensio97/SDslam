@@ -47,10 +47,10 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap):
   mnScaleLevels(F.mnScaleLevels), mfScaleFactor(F.mfScaleFactor),
   mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), mvLevelSigma2(F.mvLevelSigma2),
   mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
-  mnMaxY(F.mnMaxY), mK(F.mK), mTimestamp(F.mTimestamp), mvpMapPoints(F.mvpMapPoints),
+  mnMaxY(F.mnMaxY), mK(F.mK), inertial_scale(1.0), mTimestamp(F.mTimestamp), mvpMapPoints(F.mvpMapPoints),
   mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
   mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap),
-  inertial_scale(1.0), _is_fake(false) {
+ _is_fake(false) {
   mnId=nNextId++;
 
   mGrid.resize(mnGridCols);

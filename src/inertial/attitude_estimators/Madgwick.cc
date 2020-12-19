@@ -42,10 +42,10 @@ Quaterniond Madgwick::get_local_orientation(){
 
 void Madgwick::set_orientation(const Quaterniond & orientation){ 
   Quaterniond orientation_norm = orientation.normalized(); // Necessary?
-  q0 = orientation.w();
-  q1 = orientation.x();
-  q2 = orientation.y();
-  q3 = orientation.z();
+  q0 = orientation_norm.w();
+  q1 = orientation_norm.x();
+  q2 = orientation_norm.y();
+  q3 = orientation_norm.z();
 }
 
 void Madgwick::set_orientation_from_frame(const Matrix4d & local_pose){

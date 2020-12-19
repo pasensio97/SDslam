@@ -43,13 +43,13 @@ Frame::Frame() {
 
 // Copy Constructor
 Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
-  mK(frame.mK), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), mTimestamp(frame.mTimestamp),
+  mK(frame.mK), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), 
   N(frame.N), mvKeys(frame.mvKeys), mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight), mvDepth(frame.mvDepth),
   mDescriptors(frame.mDescriptors.clone()), mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier),
   mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
   mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor), mvScaleFactors(frame.mvScaleFactors),
   mvInvScaleFactors(frame.mvInvScaleFactors), mvLevelSigma2(frame.mvLevelSigma2),
-  mvInvLevelSigma2(frame.mvInvLevelSigma2) {
+  mvInvLevelSigma2(frame.mvInvLevelSigma2), mTimestamp(frame.mTimestamp) {
   for (int i = 0; i < FRAME_GRID_COLS; i++)
     for (int j = 0; j < FRAME_GRID_ROWS; j++)
       mGrid[i][j] = frame.mGrid[i][j];

@@ -81,7 +81,6 @@ class KittiRawReader{
   std::vector<std::string> load_right_images();
   std::vector<std::string> load_velo();
   std::vector<std::vector<double>> load_groundtruth();
-  Eigen::Matrix3d load_imu_to_cam_matrix();
 
   cv::Mat get_image(const std::string & filename);
   VeloSensor get_velo_data(const double timestamp, 

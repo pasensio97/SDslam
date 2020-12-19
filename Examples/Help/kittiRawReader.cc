@@ -104,14 +104,6 @@ std::vector<std::vector<double>> KittiRawReader::load_groundtruth(){
 }
 
 
-Eigen::Matrix3d KittiRawReader::load_imu_to_cam_matrix(){
-  // TODO
-  // Matrix3d imu_to_velo ( read_matrix3d(file, line) );
-  // Matrix3d velo_to_cam  ( read_matrix3d(file, line) );
-  // return imu_to_velo * velo_to_cam;
-}
-
-
 VeloSensor KittiRawReader::get_velo_data(const double timestamp, 
                                          const std::string & filename){
   if (not this->_file_exists(filename)){

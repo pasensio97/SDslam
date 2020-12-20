@@ -563,6 +563,7 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
         }
       }
 
+      // 1- Create new (auxiliar) map
       Frame initial = Frame(mInitialFrame);
       Frame current = Frame(mCurrentFrame);
 
@@ -611,7 +612,8 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
 
       // Bundle Adjustment
       LOGD("New Map created with %lu points", _new_map->MapPointsInMap());
-      if (false){  // set false
+      // Avoid this BA because it can modify the pose of the first frame, and we want it to remain at the origin.
+      if (false){  
         cout << "[boubdleajustement]\n\tBEFORE:" << endl;
         cout << "\tInit (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
         cout << "\tCurr (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
@@ -667,55 +669,23 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
       std::cout << "[INERTIAL INIT POSE WORLD]:\n" << mIniPoseInvIMU << "\n" << std::endl;
       std::cout << "[INERTIAL CURR POSE WORLD]:\n" << curr_imu_prediction << "\n" << std::endl;
         
-      // NEW MAP IT WAS CREATED CORRECTLY
-      // Rotate and scales poses and map points. After this, add points to general map 
-
-      // test norm
-      Vector3d delta_pre_RT = new_pKFcur->GetPoseInverse().block<3,1>(0,3) - new_pKFini->GetPoseInverse().block<3,1>(0,3);
-      
-
-      // rotate and translate pKFini, pKFcur, mInitialFrame, mCurrentFrame
-      // cout << "Resume RT of new poses: " << endl;
+      // NEW MAP WAS CREATED CORRECTLY
+      // 2- Rotate and scales poses and map points to match with the inertial trajectory.
       Matrix3d R = mIniPoseInvIMU.block<3,3>(0,0); // rotation in world
       Vector3d T = mIniPoseInvIMU.block<3,1>(0,3); // traslation in world
-      // Matrix4d RTc; Matrix3d Rw; Vector3d Tw;
 
-      // RTc = new_pKFini->GetPose();
-      // cout << "\tINIT pose (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      // Rw = R * new_pKFini->GetPoseInverse().block<3,3>(0,0);  // * R.inverse()
-      // Tw = R * new_pKFini->GetPoseInverse().block<3,1>(0,3) + T;
-      // RTc.block<3, 3>(0, 0) = Rw.inverse();
-      // RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
-      // new_pKFini->SetPose(RTc);
-      // initial.SetPose(new_pKFini->GetPose());
-      // cout << "\tINIT new pose (world): " << new_pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
+      Matrix4d delta_cam =  new_pKFini->GetPoseInverse() * new_pKFcur->GetPose();
 
-      // cout << "\tCURR pose (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      // RTc = new_pKFcur->GetPose();
-      // Rw = R * new_pKFcur->GetPoseInverse().block<3,3>(0,0);
-      // Tw = R * new_pKFcur->GetPoseInverse().block<3,1>(0,3) + T;
-      // RTc.block<3, 3>(0, 0) = Rw.inverse();
-      // RTc.block<3, 1>(0, 3) = -RTc.block<3, 3>(0, 0) * Tw;
-      // new_pKFcur->SetPose(RTc);
-      // current.SetPose(new_pKFcur->GetPose());
-      // cout << "\tCURR new pose (world): " << new_pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-
-
-      //Matrix4d disp_cam = new_pKFcur->GetPoseInverse() * new_pKFini->GetPose();
-      Matrix4d disp_cam =  new_pKFini->GetPoseInverse() * new_pKFcur->GetPose();
-
-      ///Matrix4d disp_cam = new_pKFini->GetPoseInverse() * new_pKFcur->GetPose();
       new_pKFini->SetPose(Converter::inverted_pose(mIniPoseInvIMU));
-      new_pKFcur->SetPose(disp_cam * new_pKFini->GetPose() );
-      //new_pKFcur->SetPose(Converter::inverted_pose(disp_cam) * new_pKFini->GetPose() ); // Converter::inverted_pose(disp_cam) is actually disp_cam^{-1}
+      new_pKFcur->SetPose(delta_cam * new_pKFini->GetPose() );
 
       initial.SetPose(new_pKFini->GetPose());
       current.SetPose(new_pKFcur->GetPose());
-      cout << "Resume RT of new poses: " << endl;
-      Vector3d delta_post_RT = new_pKFcur->GetPoseInverse().block<3,1>(0,3) - new_pKFini->GetPoseInverse().block<3,1>(0,3);
-      cout << "NORM PRE RT: " << delta_pre_RT.norm() << endl;
-      cout << "NORM POST RT: " << delta_post_RT.norm() << endl;
 
+      // 3- Check the consistency of the new map.
+      //    If the angle formed by the inertial and the visual trajectory 
+      //    (between the first and second keyframes of this new map) is greater
+      //    than a certain angle, the map will be removed.
       Vector3d vector_vision = current.GetPoseInverse().block<3,1>(0,3) - initial.GetPoseInverse().block<3,1>(0,3);
       Vector3d vector_imu = curr_imu_prediction.block<3,1>(0,3) - mIniPoseInvIMU.block<3,1>(0,3);
       double diff_vector = abs(Estimator::angle(vector_imu, vector_vision, true));
@@ -739,10 +709,7 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
         }
       }
 
-      // new map with points and poses, rotated, translated and scalated.
-      // Need to create and add points to real map
-      // RESUME
-      // ------------------ COMBINE NEW AND OLD MAP ---------------------------------------
+     
       if (!mpLocalMapper->SetNotStop(true))
         return;
 
@@ -753,14 +720,6 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
       KeyFrame* pKFcur = new KeyFrame(mCurrentFrame, mpMap);
       mpMap->AddKeyFrame(pKFini);
       mpMap->AddKeyFrame(pKFcur);
-
-      cout << "RESUME (expected vs poseframe vs poseKF)" << endl;
-      cout << "Init:\n\t" << mIniPoseInvIMU.block<3,1>(0,3).transpose() 
-                << "\n\t" << mInitialFrame.GetPoseInverse().block<3,1>(0,3).transpose() 
-                << "\n\t" << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "Curr:\n\t" << curr_imu_prediction.block<3,1>(0,3).transpose() 
-                << "\n\t" << mCurrentFrame.GetPoseInverse().block<3,1>(0,3).transpose() 
-                << "\n\t" << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
 
       for (size_t i = 0; i<mvIniMatches.size(); i++) {
         if (mvIniMatches[i] < 0)
@@ -803,18 +762,14 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
         cout << "\tCurr (world): " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
       } 
 
-      cout << "[TEST] Scale test... " << endl;
+      // 4- Scale the displacement between pKFini and pKFcur and map points
+      //   to match the Vision-RealWorld ratio currently used (inertial_scale)
       Vector3d start_imu = mIniPoseInvIMU.block<3,1>(0,3);
       Vector3d end_imu =   curr_imu_prediction.block<3,1>(0,3);
-      cout << "\tIMU_0: " << mIniPoseInvIMU.block<3,1>(0,3).transpose() << "( " << start_imu.transpose() << " )" << endl;
-      cout << "\tIMU_1: " << new_imu_model.get_pose_world().block<3,1>(0,3).transpose() << "( " << end_imu.transpose() << " )" << endl;
-      cout << "\tVision_0: " << pKFini->GetPoseInverse().block<3,1>(0,3).transpose() << endl;
-      cout << "\tVision_1: " << pKFcur->GetPoseInverse().block<3,1>(0,3).transpose() << endl << endl;
 
       // Scalate curr position 
       Vector3d start_vis = pKFini->GetPoseInverse().block<3,1>(0,3);
       Vector3d end_vis = pKFcur->GetPoseInverse().block<3,1>(0,3);
-
 
       Vector3d delta_vision = end_vis - start_vis;
       Vector3d delta_imu = end_imu - start_imu;
@@ -839,24 +794,8 @@ void Tracking::MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction
         }
       }
 
-      // Vector3d mu(0,0,0);
-      // for (int i=0; i<3; i++){
-      //   mu[i] = new_end_vision[i] / end_vis[i];
-      // }
-     
-      // // Scalate points
-      // vector<MapPoint*> vpAllMapPoints = new_pKFini->GetMapPointMatches();
-      // for (size_t iMP = 0; iMP<vpAllMapPoints.size(); iMP++) {
-      //   if (vpAllMapPoints[iMP]) {
-      //     MapPoint* pMP = vpAllMapPoints[iMP];
-      //     Vector3d MPw = pMP->GetWorldPos();
-      //     for(int i=0; i<3; i++){
-      //       MPw[i] = MPw[i] * mu[i];
-      //     } 
-      //     pMP->SetWorldPos(MPw);
-      //   }
-      // }
 
+      // 5- Add the new map information to the general map.
       pKFini->ChangeParent(mpReferenceKF);
       pKFcur->ChangeParent(pKFini);
       mpFirstReloadKeyFrame = pKFini;

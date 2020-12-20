@@ -5,7 +5,7 @@ VIO-SDSLAM is an improvement of SD-SLAM that combines Monocular systems with an 
 - Estimate a scale factor that relates the monocular scene to the scale of the real world.
 - Continue estimating the pose of the camera when the system enters a state of loss and restart the visual part again when the visual quality is restored.
 
-You can see an example here: [video] (https://youtu.be/eYzjaR7YiT0).
+You can see an example here: [video](https://youtu.be/eYzjaR7YiT0).
 
 ---
 

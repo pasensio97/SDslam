@@ -23,6 +23,7 @@
 #define SQUARE(a) ((a)*(a))
 
 #include <iostream>
+#include <vector>
 #include <Eigen/Dense>
 #include <vector>
 

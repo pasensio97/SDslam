@@ -25,12 +25,14 @@ find_package(Boost COMPONENTS system REQUIRED )
 
 include_directories(
   ${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/tests/
   ${PROJECT_SOURCE_DIR}/../../../
   ${PROJECT_SOURCE_DIR}/../../../src
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIR}
 )
+
 
 set(LIBS 
   ${OpenCV_LIBS} 
@@ -56,6 +58,3 @@ rosbuild_add_executable(Fusion
   src/ros_fusion.cc
 )
 target_link_libraries(Fusion ${LIBS})
-
-
-

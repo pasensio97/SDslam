@@ -43,14 +43,14 @@ class MapDrawer {
   void DrawMapPoints();
   void DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph);
   void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc);
-  void SetCurrentCameraPose(const Eigen::Matrix4d &Tcw);
+  void SetCurrentCameraPose(const Eigen::Matrix4d &Tcw, bool with_imu=false);
   void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
 
  private:
   Eigen::Matrix4d mCameraPose;
 
   std::mutex mMutexCamera;
-
+  bool _with_imu;
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

@@ -43,13 +43,13 @@ Frame::Frame() {
 
 // Copy Constructor
 Frame::Frame(const Frame &frame): mpORBextractorLeft(frame.mpORBextractorLeft),
-  mK(frame.mK), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth),
+  mK(frame.mK), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), 
   N(frame.N), mvKeys(frame.mvKeys), mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight), mvDepth(frame.mvDepth),
   mDescriptors(frame.mDescriptors.clone()), mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier),
   mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
   mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor), mvScaleFactors(frame.mvScaleFactors),
   mvInvScaleFactors(frame.mvInvScaleFactors), mvLevelSigma2(frame.mvLevelSigma2),
-  mvInvLevelSigma2(frame.mvInvLevelSigma2) {
+  mvInvLevelSigma2(frame.mvInvLevelSigma2), mTimestamp(frame.mTimestamp) {
   for (int i = 0; i < FRAME_GRID_COLS; i++)
     for (int j = 0; j < FRAME_GRID_ROWS; j++)
       mGrid[i][j] = frame.mGrid[i][j];
@@ -123,8 +123,8 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extrac
 
 
 Frame::Frame(const cv::Mat &imGray, ORBextractor* extractor, const Eigen::Matrix3d &K,
-  cv::Mat &distCoef, const float &bf, const float &thDepth) :
-  mpORBextractorLeft(extractor), mK(K), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth) {
+  cv::Mat &distCoef, const float &bf, const float &thDepth, double timestamp) :
+  mpORBextractorLeft(extractor), mK(K), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth), mTimestamp(timestamp) {
   // Frame ID
   mnId=nNextId++;
 
@@ -433,6 +433,9 @@ Eigen::Vector3d Frame::UnprojectStereo(const int &i) {
 void Frame::Undistort(const cv::Mat& im, cv::Mat& im_out) {
   cv::Mat mK_cv = Converter::toCvMat(mK);
   cv::undistort(im, im_out, mK_cv, mDistCoef);
+  cv::imshow("Distorted", im);
+  cv::imshow("Undistorted", im_out);
+  cv::waitKey(1);
 }
 
 }  // namespace SD_SLAM

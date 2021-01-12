@@ -176,6 +176,12 @@ class KeyFrame {
   std::vector<cv::Mat> mvImagePyramid;
   cv::Mat mDepthImage;
 
+  // Scale MonocularSLAM-World
+  double inertial_scale;
+
+  // time
+  double mTimestamp;
+
   // The following variables need to be accessed trough a mutex to be thread safe.
  protected:
   // SE3 Pose and camera center
@@ -211,6 +217,13 @@ class KeyFrame {
   std::mutex mMutexPose;
   std::mutex mMutexConnections;
   std::mutex mMutexFeatures;
+
+  // KeyFrame Fake flag
+  bool _is_fake;
+  
+ public:
+  inline void set_fake(const bool flag){_is_fake = flag;}
+  inline bool is_fake(){return _is_fake;}
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

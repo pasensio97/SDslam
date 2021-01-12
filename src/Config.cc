@@ -67,7 +67,12 @@ Config::Config() {
 
   kBaseFrame_ = "odom";
   kCameraFrame_ = "camera_link";
+
   kUseImagesTimeStamps_ = false;
+
+  kMadgwickGain_ = 0.01;
+  kRotIMUToCam_ = cv::Mat::eye(3, 3, CV_32F);
+  kIMUScaleUpdateFactor_ = 0.25;
 }
 
 bool Config::ReadParameters(std::string filename) {
@@ -130,6 +135,11 @@ bool Config::ReadParameters(std::string filename) {
   if (fs["ROS.CameraFrame"].isNamed()) fs["ROS.CameraFrame"] >> kCameraFrame_;
   if (fs["ROS.UseImagesTimeStamps"].isNamed()) fs["ROS.UseImagesTimeStamps"] >> kUseImagesTimeStamps_;
 
+  // IMU
+  if (fs["IMU.MadgwickGain"].isNamed()) fs["IMU.MadgwickGain"] >> kMadgwickGain_;
+  if (fs["IMU.RotIMUToCam"].isNamed()) fs["IMU.RotIMUToCam"] >> kRotIMUToCam_;
+  if (fs["IMU.ScaleUpdateFactor"].isNamed()) fs["IMU.ScaleUpdateFactor"] >> kIMUScaleUpdateFactor_;
+  
   fs.release();
 
   return true;

@@ -24,6 +24,7 @@
 
 #include "System.h"
 #include <iomanip>
+#include <iostream> 
 #include <fstream>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -49,6 +50,8 @@ System::System(const eSensor sensor, bool loopClosing): mSensor(sensor), mbReset
     LOGD("Input sensor was set to RGB-D");
   } else if (mSensor==MONOCULAR_IMU) {
     LOGD("Input sensor was set to Monocular-IMU");
+  } else if (mSensor==MONOCULAR_IMU_NEW) {
+    LOGD("Input sensor was set to Monocular-IMU-NEW");
   }
 
   // Create the Map
@@ -225,6 +228,45 @@ Eigen::Matrix4d System::TrackFusion(const cv::Mat &im, const vector<double> &mea
   mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
   mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
 
+  return Tcw;
+}
+
+
+Eigen::Matrix4d System::TrackNewFusion(const cv::Mat &im, const IMU_Measurements &measurements, 
+                                       const double dt, double timestamp) {
+  LOGD("Track monocular image with IMU measurements");
+  mpTracker->curr_timestamp = timestamp;
+  if (mSensor!=MONOCULAR_IMU_NEW) {
+    LOGE("Called TrackNewFusion but input sensor was not set to Monocular-IMU-NEW");
+    exit(-1);
+  }
+
+  if (dt <= 0.0)
+    return Eigen::Matrix4d::Identity();
+
+  // Check reset
+  {
+    unique_lock<mutex> lock(mMutexReset);
+    if (mbReset) {
+      mpTracker->Reset();
+      mbReset = false;
+    }
+  }
+
+  Timer total(true);
+  mpTracker->SetIMUMeasurements(measurements);
+
+  Eigen::Matrix4d Tcw = mpTracker->GrabImageFusion(im, dt);
+
+  total.Stop();
+  LOGD("Tracking time is %.2fms", total.GetMsTime());
+
+  LOGD("Pose: [%.4f, %.4f, %.4f]", Tcw(0, 3), Tcw(1, 3), Tcw(2, 3));
+
+  unique_lock<mutex> lock2(mMutexState);
+  mTrackingState = mpTracker->GetState();
+  mTrackedMapPoints = mpTracker->GetCurrentFrame().mvpMapPoints;
+  mTrackedKeyPointsUn = mpTracker->GetCurrentFrame().mvKeysUn;
   return Tcw;
 }
 
@@ -547,6 +589,84 @@ vector<MapPoint*> System::GetTrackedMapPoints() {
 vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   unique_lock<mutex> lock(mMutexState);
   return mTrackedKeyPointsUn;
+}
+
+
+void System::save_as_tum(const std::string &filename) {
+
+  std::cout << "Saving trajectory in " << filename << " ..." << std::endl;
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    Eigen::Matrix4d pose = pKF->GetPoseInverse();
+    Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
+    Eigen::Vector3d t = pose.block<3, 1>(0, 3);
+  
+    f << std::setprecision(19) 
+      << pKF->mTimestamp << " "
+      << std::setprecision(9) 
+      << t.x() << " " << t.y() << " " << t.z() << " " 
+      << q.x() << " " << q.y() << " " << q.z() << " " << q.w() 
+      << endl;
+  }
+
+  f.close();
+  std::cout << "Trajectory saved!" << std::endl;
+}
+
+void System::save_scales(const std::string &filename) {
+  std::cout << "Saving scales of trajectory in " << filename << " ..." << std::endl;
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    f << std::setprecision(6) << pKF->mTimestamp << " " << pKF->inertial_scale << endl;
+  }
+
+  f.close();
+  std::cout << "Scales saved!" << std::endl;
+}
+
+void System::save_tracking_state(const std::string &filename) {
+  // 0: Visual, 1: Inercial
+  std::cout << "Saving Tracking states in " << filename << " ..." << std::endl;
+
+  vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
+
+  std::ofstream f;
+  f.open(filename.c_str());
+
+  for(size_t i=0; i<vpKFs.size(); i++) {
+    KeyFrame* pKF = vpKFs[i];
+
+    if(pKF->isBad())
+      continue;
+
+    f << std::setprecision(6) << pKF->mTimestamp << " " << pKF->is_fake() << endl;
+  }
+
+  f.close();
+  std::cout << "Tracking states saved!" << std::endl;
 }
 
 }  // namespace SD_SLAM

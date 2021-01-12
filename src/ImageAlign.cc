@@ -73,7 +73,7 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, const Frame &LastFrame) {
 
   size = points_.size();
   if (size == 0) {
-    LOGE("No points to track!");
+    //LOGE("No points to track!");
     return false;
   }
 
@@ -137,7 +137,8 @@ bool ImageAlign::ComputePose(Frame &CurrentFrame, KeyFrame *LastKF, bool fast) {
 
   size = points_.size();
   if (size == 0) {
-    LOGE("No points to track!");
+    // if (!LastKF->is_fake())
+    //   LOGE("No points to track!");
     return false;
   }
 
@@ -202,7 +203,8 @@ bool ImageAlign::ComputePose(KeyFrame *CurrentKF, KeyFrame *LastKF) {
 
   size = points_.size();
   if (size == 0) {
-    LOGE("No points to track!");
+    // if (!CurrentKF->is_fake() || !LastKF->is_fake())
+    //   LOGE("No points to track!");
     return false;
   }
 

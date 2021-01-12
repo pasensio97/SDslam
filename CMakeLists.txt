@@ -97,6 +97,27 @@ LIST(APPEND SOURCEFILES
 
   # Extra
   src/extra/utils.cc
+
+  # Debug tools
+  src/debug_tools/seq_dumper.cc
+
+  # Inertial tools
+  src/inertial/IMU_Measurements.cc
+  src/inertial/PoseEstimator.cc
+  src/inertial/PositionEstimator.cc
+  src/inertial/tools/filters.cc
+  src/inertial/PredictionModels.cc
+  src/inertial/tools/Estimator.cc
+  src/inertial/ScaleInitializer.cc
+  
+  src/inertial/attitude_estimators/Madgwick.cc
+  src/inertial/position_estimators/GPS.cc
+  src/inertial/position_estimators/AccIntegrator.cc
+
+  # Aux
+  Examples/Help/kittiRawReader.cc
+
+
 )
 
 if(NOT USE_ANDROID AND USE_PANGOLIN)
@@ -218,7 +239,12 @@ if(NOT USE_ANDROID)
   add_executable(monocular
   Examples/Monocular/monocular.cc)
   target_link_libraries(monocular ${PROJECT_NAME})
+  
+  add_executable(mono_kitti
+  Examples/Monocular/mono_kitti.cc)
+  target_link_libraries(mono_kitti ${PROJECT_NAME})
 
+  
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/RGB-D)
 
   add_executable(rgbd
@@ -230,6 +256,15 @@ if(NOT USE_ANDROID)
   add_executable(monocular_imu
   Examples/Fusion/monocular_imu.cc)
   target_link_libraries(monocular_imu ${PROJECT_NAME})
+
+  # Fusion (IMU)
+  add_executable(fusion_kitti
+  Examples/Fusion/fusion_kitti.cc)
+  target_link_libraries(fusion_kitti ${PROJECT_NAME})
+
+  add_executable(fusion_kitti_syn
+  Examples/Fusion/fusion_kitti_syn.cc)
+  target_link_libraries(fusion_kitti_syn ${PROJECT_NAME})
 
   # Calibration
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Calibration)

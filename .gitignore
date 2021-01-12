@@ -31,3 +31,15 @@ Examples/ROS/SD-SLAM/RGBD
 dataset/*
 .gitignore
 rgbd*
+.vscode
+.idea
+Examples/Fusion/fusion_kitti
+Examples/ROS/SD-SLAM/DebugInertial
+Examples/ROS/SD-SLAM/Inertial
+cmake-build-debug/
+Examples/ROS/SD-SLAM/EUROC_INERTIAL
+Examples/ROS/SD-SLAM/EUROC_TEST
+Examples/ROS/SD-SLAM/KITTI_TEST
+Examples/ROS/SD-SLAM/Tests
+Examples/Monocular/mono_kitti
+Examples/Fusion/fusion_kitti_syn

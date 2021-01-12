@@ -51,7 +51,7 @@ class Frame {
   Frame(const cv::Mat &imGray, const cv::Mat &imDepth, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
   // Constructor for Monocular cameras.
-  Frame(const cv::Mat &imGray, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+  Frame(const cv::Mat &imGray, ORBextractor* extractor, const Eigen::Matrix3d &K, cv::Mat &distCoef, const float &bf, const float &thDepth, double timestamp=0.0);
 
   // Extract ORB on the image
   void ExtractORB(const cv::Mat &im);
@@ -80,6 +80,16 @@ class Frame {
   // Returns inverse of rotation
   inline Eigen::Matrix3d GetRotationInverse() {
     return mRwc;
+  }
+
+  // Returns rotation
+  inline Eigen::Matrix3d GetRotation() const {
+    return mTcw.block<3,3>(0,0);
+  }
+
+  // Returns position
+  inline Eigen::Vector3d GetPosition() const {
+    return mTcw.block<3,1>(0,3);
   }
 
   // Check if a MapPoint is in the frustum of the camera
@@ -183,6 +193,8 @@ class Frame {
   std::vector<cv::Mat> mvImagePyramid;
   cv::Mat mDepthImage;
 
+  double mTimestamp;
+
  private:
   // Undistort keypoints given OpenCV distortion parameters.
   // Only for the RGB-D case.
@@ -203,6 +215,7 @@ class Frame {
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 };
 
 }  // namespace SD_SLAM

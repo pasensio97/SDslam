@@ -1,3 +1,14 @@
+# VIO-SDSLAM
+**Authors:** [Eduardo Perdices](https://gsyc.urjc.es/~eperdices/) and [Javier Martínez](https://github.com/javimdr)
+
+VIO-SDSLAM is an improvement of SD-SLAM that combines Monocular systems with an IMU. This allows to add new features such as:
+- Estimate a scale factor that relates the monocular scene to the scale of the real world.
+- Continue estimating the pose of the camera when the system enters a state of loss and restart the visual part again when the visual quality is restored.
+
+You can see an example here: [video](https://youtu.be/eYzjaR7YiT0).
+
+---
+
 # SD-SLAM
 **Authors:** [Eduardo Perdices](https://gsyc.urjc.es/~eperdices/)
 

@@ -43,6 +43,9 @@ class EKF {
   // Restart filter
   void Restart();
 
+  // Get State (for test reasons)
+  inline Eigen::VectorXd State() { return X_; }
+
  private:
   Sensor* sensor_;    // Motion sensor
 

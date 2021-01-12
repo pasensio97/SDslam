@@ -40,6 +40,10 @@
 #include "PatternDetector.h"
 #include "System.h"
 #include "sensors/EKF.h"
+#include "inertial/IMU_Measurements.h"
+#include "inertial/attitude_estimators/Madgwick.h"
+#include "inertial/PredictionModels.h"
+#include "inertial/ScaleInitializer.h"
 
 namespace SD_SLAM {
 
@@ -56,15 +60,17 @@ class Tracking {
     NO_IMAGES_YET = 0,
     NOT_INITIALIZED = 1,
     OK = 2,
-    LOST = 3
+    LOST = 3,
+    OK_IMU = 4
   };
 
  public:
   Tracking(System* pSys, Map* pMap, const int sensor);
 
-  // Preprocess the input and call Track(). Extract features and performs stereo matching.
+  // Preprocess the input and call Track(). Extract features and performs sterFeo matching.
   Eigen::Matrix4d GrabImageRGBD(const cv::Mat &im, const cv::Mat &imD, const std::string filename);
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat &im, const std::string filename);
+  Eigen::Matrix4d GrabImageFusion(const cv::Mat &im, const double dt); // Temporal used to pass dt
 
   // Create new frame and extract features
   Frame CreateFrame(const cv::Mat &im);
@@ -80,6 +86,10 @@ class Tracking {
 
   inline void SetMeasurements(const std::vector<double> &measurements) {
     measurements_ = measurements;
+  }
+
+  inline void SetIMUMeasurements(const IMU_Measurements &measurements) {
+    imu_measurements_ = measurements;
   }
 
   inline void SetReferenceKeyFrame(KeyFrame * kf) {
@@ -110,12 +120,18 @@ class Tracking {
  protected:
   // Main tracking function. It is independent of the input sensor.
   void Track();
+  void Track_test();
+  void Track_IMU_Reloc();
+  void Track_IMU_Reinit();
 
   // Map initialization for stereo and RGB-D
   void StereoInitialization();
 
   // Map initialization for monocular
   void MonocularInitialization();
+  void MonocularInitializationIMU();
+
+  void MonocularReInitializationIMU(const Matrix4d & curr_imu_prediction);
   void CreateInitialMapMonocular();
 
   // Initialization with pattern
@@ -125,9 +141,13 @@ class Tracking {
   bool TrackReferenceKeyFrame();
   void UpdateLastFrame();
   bool TrackWithMotionModel();
+  bool TrackWithNewIMUModel(); // in dev
+  bool TrackVisual(Eigen::Matrix4d predicted_pose); // code cte in TrackWithNewIMUModel
+  int TrackMMVisual(Frame &frame, bool & use_align_image); // code cte in TrackWithNewIMUModel
 
   bool Relocalization();
-
+  bool RelocalizationIMU();
+  
   void UpdateLocalMap();
   void UpdateLocalPoints();
   void UpdateLocalKeyFrames();
@@ -136,7 +156,8 @@ class Tracking {
   void SearchLocalPoints();
 
   bool NeedNewKeyFrame();
-  void CreateNewKeyFrame();
+  bool NeedNewKeyFrame_test();
+  void CreateNewKeyFrame(bool is_fake = false);
 
   // Other Thread Pointers
   LocalMapping* mpLocalMapper;
@@ -200,6 +221,7 @@ class Tracking {
   // Sensor model
   EKF* motion_model_;
   std::vector<double> measurements_;
+  IMU_Measurements imu_measurements_;
 
   std::list<MapPoint*> mlpTemporalPoints;
   int threshold_;
@@ -221,6 +243,50 @@ class Tracking {
 
   // Image align
   bool align_image_;
+
+
+ public:
+  // Inertial
+  double curr_timestamp = 0.0;
+  double dt_;
+
+  Frame last_valid_frame;
+  Matrix4d last_valid_wpose;
+  Map* _new_map;
+  Frame newInitFrame, newCurrFrame;
+  int nKFs_on_reinit = 0;
+  
+  Matrix4d curr_imu_prediction;
+  new_IMU_model new_imu_model;
+  Matrix4d mIniPoseInvIMU;
+  int _frames_last_fake_kf = 0;
+
+  bool used_imu_model = false;
+
+  void estimate_scale(KeyFrame* curr_kf, KeyFrame* last_kf);
+  KeyFrame* mpFirstReloadKeyFrame = nullptr;
+
+  // Use BA on Reinit
+  bool _use_BA_on_reinit = true;
+  double _angle_th = 25.0;
+
+  // Hybrid motion model 
+  bool _use_hybrid_model = false;
+  uint _kf_to_use_hm = 20;
+  bool _align_image_inertial = false;
+  bool _full_hyb_mode = false;
+  vector<int> _hyb_matches;  // Test var: Save n_matches_visual, n_matches_inertial, visual_time, inertial_time
+  vector<double> _hyb_times;  // Test var: Save  visual_time, inertial_time
+
+  // Scale model
+  bool update_scale = true;
+  double _scale_update_factor;  //update factor 
+  ScaleInitializer::eModel _scale_model = ScaleInitializer::DIRECT_SINGLE;
+  ScaleInitializer _scale_initializer = ScaleInitializer(_scale_model, 1, 0); // min 10
+
+  // Test
+  int first_proj, second_proj, inliers_on_pred, inliers_on_localmap;
+  bool stay_in_curve; 
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

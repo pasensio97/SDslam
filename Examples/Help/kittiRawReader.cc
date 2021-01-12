@@ -157,5 +157,5 @@ cv::Mat KittiRawReader::get_image(const std::string & filename){
     throw std::exception();
   }
   
-  return cv::imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+  return cv::imread(filename, cv::IMREAD_GRAYSCALE);
 }

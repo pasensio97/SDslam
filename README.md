@@ -118,7 +118,37 @@ Inside `PATH_TO_SEQUENCE_FOLDER` there must be a file named ''files.txt'' with e
 
 2. Change `X.yaml` to EuRoC.yaml.
 
-# 7. Processing your own sequences
+# 7. Fusion KITTY
+```
+./Examples/Fusion/fusion_kitty dataset_path sequence config_yaml
+```
+Dataset path is the parent of the firt day folder.
+
+Sequence shound be one of the following codes:
+```
+    "00"  ---> "2011_10_03_drive_0027_sync"
+    "00a" ---> "2011_10_03_drive_0027_sync"
+    "01"  ---> "2011_10_03_drive_0042_sync"
+    "02"  ---> "2011_10_03_drive_0034_sync"
+    "03"  ---> "2011_09_26_drive_0067_sync" (Do not work. Could not download it.)
+    "04"  ---> "2011_09_30_drive_0016_sync"
+    "05"  ---> "2011_09_30_drive_0018_sync"
+    "06"  ---> "2011_09_30_drive_0020_sync"
+    "07"  ---> "2011_09_30_drive_0027_sync"
+    "08"  ---> "2011_09_30_drive_0028_sync"
+    "09"  ---> "2011_09_30_drive_0033_sync"
+    "10"  ---> "2011_09_30_drive_0034_sync"
+```
+
+## KITTY Dataset
+
+1. Download odometry data set from http://www.cvlibs.net/datasets/kitti/. We recommend to use the raw dataset download script from the 'raw data' section. Just modify this file to download necesary drives.
+
+2. Download odometry ground truth poses from http://www.cvlibs.net/datasets/kitti/eval_odometry.php. There is only 11 (00-10) ground truth poses. They are correlated with the previous codes. Copy then their drives folder and remane it to ```gt.txt```
+
+3. If it is necesary, modify any `kitty*.yaml`.
+
+# 8. Processing your own sequences
 
 You will need to create a settings file with the calibration of your camera. See the settings file provided for the TUM dataset for monocular or RGB-D cameras. We use the calibration model of OpenCV. See the examples to learn how to create a program that makes use of the SD-SLAM library and how to pass images to the SLAM system. RGB-D input must be synchronized and depth registered.
 
@@ -134,7 +164,7 @@ Inside `PATH_TO_IMAGES_FOLDER` there must be a file named ''files.txt'' with eac
 
 You can check if the intrinsic parameters calculated are accurate checking the rectified images stored in `PATH_TO_IMAGES_FOLDER`.
 
-# 8. ROS Examples
+# 9. ROS Examples
 
 ### Building the node
 1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SD-SLAM:
@@ -190,13 +220,13 @@ In order to run SD-SLAM with the configuration for TUM freidburg1 sequences and 
 
 
 
-# 9. Reading saved data
+# 10. Reading saved data
 
 Mapping data can be stored in a YAML file. You can save the current map at any moment pressing the `Stop and Save` button, or it will be created automatically when a sequence is completed.
 
 Saved data can be loaded afterwards both in monocular and RGBD modes:
 
-## 9.1 Monocular Example
+## 10.1 Monocular Example
 
 Add a new parameter at the end of the standard monocular command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
 
@@ -204,7 +234,7 @@ Add a new parameter at the end of the standard monocular command. Change `PATH_T
 ./Examples/Monocular/monocular Examples/Monocular/X.yaml PATH_TO_SEQUENCE_FOLDER PATH_TO_SAVED_MAP
 ```
 
-## 9.2 RGBD Example
+## 10.2 RGBD Example
 
 Add a new parameter at the end of the standard RGBD command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
 
@@ -212,7 +242,7 @@ Add a new parameter at the end of the standard RGBD command. Change `PATH_TO_SAV
 ./Examples/RGB-D/rgbd Examples/RGB-D/X.yaml PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE PATH_TO_SAVED_MAP
 ```
 
-## 9.3 ROS Monocular Node Example
+## 10.3 ROS Monocular Node Example
 
 Add a new parameter at the end of the standard ROS monocular command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
 
@@ -220,7 +250,7 @@ Add a new parameter at the end of the standard ROS monocular command. Change `PA
 rosrun SD-SLAM Monocular Examples/ROS/SD-SLAM/ROS.yaml PATH_TO_SAVED_MAP
 ```
 
-## 9.4 ROS RGBD Node Example
+## 10.4 ROS RGBD Node Example
 
 Add a new parameter at the end of the standard ROS RGBD command. Change `PATH_TO_SAVED_MAP` to the path to the corresponding YAML file.
 
@@ -228,7 +258,7 @@ Add a new parameter at the end of the standard ROS RGBD command. Change `PATH_TO
 rosrun SD-SLAM RGBD Examples/ROS/SD-SLAM/ROS.yaml PATH_TO_SAVED_MAP
 ```
 
-# 10. Localization Mode
+# 11. Localization Mode
 
 You can change between the *Default Mode* and *Localization mode* using the GUI of the map viewer.
 
@@ -238,7 +268,7 @@ The system runs in parallal three threads: Tracking, Local Mapping and Loop Clos
 ### Localization Mode
 This mode can be used when you have a good map of your working area. In this mode the Local Mapping and Loop Closing are deactivated. The system localizes the camera in the map (which is no longer updated), using relocalization if needed.
 
-# 11. Android Compilation
+# 12. Android Compilation
 
 You can create a SD-SLAM library for Android running:
 

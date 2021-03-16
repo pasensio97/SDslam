@@ -14,9 +14,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -march=native -std=c++11")
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake_modules)
 
-find_package(OpenCV 3.0 QUIET)
+find_package(OpenCV 4.2.0 REQUIRED)
 if(NOT OpenCV_FOUND)
-   find_package(OpenCV 2.4.3 REQUIRED)
+   find_package(OpenCV 4.2.0 REQUIRED)
 endif()
 
 find_package(Eigen3 3.1.0 REQUIRED)

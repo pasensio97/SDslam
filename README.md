@@ -167,10 +167,10 @@ You can check if the intrinsic parameters calculated are accurate checking the r
 # 9. ROS Examples
 
 ### Building the node
-1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SD-SLAM:
+1. Add the path including *Examples/ROS/SD-SLAM* to the ROS_PACKAGE_PATH environment variable. Replace PATH by the folder where you cloned SDslam:
 
   ```
-  echo "export ROS_PACKAGE_PATH=\$ROS_PACKAGE_PATH:PATH/SD-SLAM/Examples/ROS" >> ~/.bashrc
+  export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:PATH/SDslam/Examples/ROS
   ```
 
 2. Execute `build_ros.sh` script:

@@ -58,3 +58,9 @@ rosbuild_add_executable(Fusion
   src/ros_fusion.cc
 )
 target_link_libraries(Fusion ${LIBS})
+
+# Node for Vio-SDslam
+rosbuild_add_executable(Vio-SDslam
+  src/ros_viosdslam.cc
+)
+target_link_libraries(Vio-SDslam ${LIBS})

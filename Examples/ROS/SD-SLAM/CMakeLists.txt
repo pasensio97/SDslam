@@ -21,7 +21,8 @@ endif()
 
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
-find_package(Boost COMPONENTS system REQUIRED )
+find_package(Boost COMPONENTS system REQUIRED)
+find_package(rosbag REQUIRED)
 
 include_directories(
   ${PROJECT_SOURCE_DIR}
@@ -39,6 +40,7 @@ set(LIBS
   ${Pangolin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${PROJECT_SOURCE_DIR}/../../../lib/libSD_SLAM.so
+  ${rosbag_LIBRARIES}
 )
 
 # Node for monocular camera
@@ -60,7 +62,7 @@ rosbuild_add_executable(Fusion
 target_link_libraries(Fusion ${LIBS})
 
 # Node for Vio-SDslam
-rosbuild_add_executable(Vio-SDslam
+rosbuild_add_executable(Vio_SDslam
   src/ros_viosdslam.cc
 )
-target_link_libraries(Vio-SDslam ${LIBS})
+target_link_libraries(Vio_SDslam ${LIBS})
